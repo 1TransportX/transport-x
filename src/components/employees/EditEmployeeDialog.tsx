@@ -1,13 +1,12 @@
 
-import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 
@@ -30,59 +29,49 @@ interface EditEmployeeDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-interface EmployeeFormData {
-  first_name: string;
-  last_name: string;
-  phone?: string;
-  department?: string;
-  employee_id?: string;
-  hire_date?: string;
-  is_active: boolean;
-  role: 'admin' | 'employee' | 'driver';
-}
-
 const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open, onOpenChange }) => {
-  const { register, handleSubmit, reset, setValue, watch } = useForm<EmployeeFormData>();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [department, setDepartment] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
+  const [role, setRole] = useState<'admin' | 'employee' | 'driver'>('employee');
+  const [isActive, setIsActive] = useState(true);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (employee) {
-      reset({
-        first_name: employee.first_name || '',
-        last_name: employee.last_name || '',
-        phone: employee.phone || '',
-        department: employee.department || '',
-        employee_id: employee.employee_id || '',
-        hire_date: employee.hire_date || '',
-        is_active: employee.is_active,
-        role: employee.role
-      });
+      setFirstName(employee.first_name || '');
+      setLastName(employee.last_name || '');
+      setPhone(employee.phone || '');
+      setDepartment(employee.department || '');
+      setEmployeeId(employee.employee_id || '');
+      setRole(employee.role);
+      setIsActive(employee.is_active);
     }
-  }, [employee, reset]);
+  }, [employee]);
 
   const updateEmployeeMutation = useMutation({
-    mutationFn: async (data: EmployeeFormData) => {
-      // Update profile
+    mutationFn: async (employeeData: any) => {
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
-          first_name: data.first_name,
-          last_name: data.last_name,
-          phone: data.phone,
-          department: data.department,
-          employee_id: data.employee_id,
-          hire_date: data.hire_date,
-          is_active: data.is_active
+          first_name: employeeData.firstName,
+          last_name: employeeData.lastName,
+          phone: employeeData.phone,
+          department: employeeData.department,
+          employee_id: employeeData.employeeId,
+          is_active: employeeData.isActive
         })
         .eq('id', employee.id);
 
       if (profileError) throw profileError;
 
-      // Update role
       const { error: roleError } = await supabase
         .from('user_roles')
-        .update({ role: data.role })
+        .update({ role: employeeData.role })
         .eq('user_id', employee.id);
 
       if (roleError) throw roleError;
@@ -95,81 +84,87 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
       });
       onOpenChange(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to update employee.",
+        description: error.message || "Failed to update employee.",
         variant: "destructive",
       });
     }
   });
 
-  const onSubmit = (data: EmployeeFormData) => {
-    updateEmployeeMutation.mutate(data);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateEmployeeMutation.mutate({
+      firstName,
+      lastName,
+      phone,
+      department,
+      employeeId,
+      role,
+      isActive
+    });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Employee</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="first_name">First Name</Label>
+              <Label htmlFor="firstName">First Name</Label>
               <Input
-                id="first_name"
-                {...register('first_name', { required: true })}
+                id="firstName"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
               />
             </div>
             <div>
-              <Label htmlFor="last_name">Last Name</Label>
+              <Label htmlFor="lastName">Last Name</Label>
               <Input
-                id="last_name"
-                {...register('last_name', { required: true })}
+                id="lastName"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
               />
             </div>
           </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                {...register('phone')}
-              />
-            </div>
-            <div>
-              <Label htmlFor="employee_id">Employee ID</Label>
-              <Input
-                id="employee_id"
-                {...register('employee_id')}
-              />
-            </div>
+
+          <div>
+            <Label htmlFor="phone">Phone</Label>
+            <Input
+              id="phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="department">Department</Label>
               <Input
                 id="department"
-                {...register('department')}
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
               />
             </div>
             <div>
-              <Label htmlFor="hire_date">Hire Date</Label>
+              <Label htmlFor="employeeId">Employee ID</Label>
               <Input
-                id="hire_date"
-                type="date"
-                {...register('hire_date')}
+                id="employeeId"
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
               />
             </div>
           </div>
-          
+
           <div>
             <Label htmlFor="role">Role</Label>
-            <Select value={watch('role')} onValueChange={(value) => setValue('role', value as any)}>
+            <Select value={role} onValueChange={(value: 'admin' | 'employee' | 'driver') => setRole(value)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -180,17 +175,17 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Switch
-              id="is_active"
-              checked={watch('is_active')}
-              onCheckedChange={(checked) => setValue('is_active', checked)}
+              id="isActive"
+              checked={isActive}
+              onCheckedChange={setIsActive}
             />
-            <Label htmlFor="is_active">Active Employee</Label>
+            <Label htmlFor="isActive">Active Employee</Label>
           </div>
-          
-          <div className="flex justify-end gap-2">
+
+          <div className="flex justify-end space-x-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

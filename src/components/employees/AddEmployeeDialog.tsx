@@ -1,13 +1,12 @@
 
-import React from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddEmployeeDialogProps {
@@ -15,62 +14,53 @@ interface AddEmployeeDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-interface EmployeeFormData {
-  email: string;
-  password: string;
-  first_name: string;
-  last_name: string;
-  phone?: string;
-  department?: string;
-  employee_id?: string;
-  hire_date?: string;
-  role: 'admin' | 'employee' | 'driver';
-}
-
 const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChange }) => {
-  const { register, handleSubmit, reset, setValue, watch } = useForm<EmployeeFormData>();
+  const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [department, setDepartment] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
+  const [role, setRole] = useState<'admin' | 'employee' | 'driver'>('employee');
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const addEmployeeMutation = useMutation({
-    mutationFn: async (data: EmployeeFormData) => {
-      // Create auth user
+    mutationFn: async (employeeData: any) => {
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: data.email,
-        password: data.password,
+        email: employeeData.email,
+        password: 'temporary123',
         email_confirm: true,
         user_metadata: {
-          first_name: data.first_name,
-          last_name: data.last_name
+          first_name: employeeData.firstName,
+          last_name: employeeData.lastName
         }
       });
 
       if (authError) throw authError;
 
-      // Update profile with additional information
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
-          first_name: data.first_name,
-          last_name: data.last_name,
-          phone: data.phone,
-          department: data.department,
-          employee_id: data.employee_id,
-          hire_date: data.hire_date
+          first_name: employeeData.firstName,
+          last_name: employeeData.lastName,
+          phone: employeeData.phone,
+          department: employeeData.department,
+          employee_id: employeeData.employeeId
         })
         .eq('id', authData.user.id);
 
       if (profileError) throw profileError;
 
-      // Update role
       const { error: roleError } = await supabase
         .from('user_roles')
-        .update({ role: data.role })
+        .update({ role: employeeData.role })
         .eq('user_id', authData.user.id);
 
       if (roleError) throw roleError;
 
-      return authData;
+      return authData.user;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
@@ -78,44 +68,65 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
         title: "Success",
         description: "Employee added successfully.",
       });
-      reset();
       onOpenChange(false);
+      resetForm();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to add employee.",
+        description: error.message || "Failed to add employee.",
         variant: "destructive",
       });
     }
   });
 
-  const onSubmit = (data: EmployeeFormData) => {
-    addEmployeeMutation.mutate(data);
+  const resetForm = () => {
+    setEmail('');
+    setFirstName('');
+    setLastName('');
+    setPhone('');
+    setDepartment('');
+    setEmployeeId('');
+    setRole('employee');
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    addEmployeeMutation.mutate({
+      email,
+      firstName,
+      lastName,
+      phone,
+      department,
+      employeeId,
+      role
+    });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Add New Employee</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="first_name">First Name</Label>
+              <Label htmlFor="firstName">First Name</Label>
               <Input
-                id="first_name"
-                {...register('first_name', { required: true })}
-                placeholder="John"
+                id="firstName"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
               />
             </div>
             <div>
-              <Label htmlFor="last_name">Last Name</Label>
+              <Label htmlFor="lastName">Last Name</Label>
               <Input
-                id="last_name"
-                {...register('last_name', { required: true })}
-                placeholder="Doe"
+                id="lastName"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
               />
             </div>
           </div>
@@ -125,64 +136,45 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
             <Input
               id="email"
               type="email"
-              {...register('email', { required: true })}
-              placeholder="john.doe@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
             />
           </div>
-          
+
           <div>
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="phone">Phone</Label>
             <Input
-              id="password"
-              type="password"
-              {...register('password', { required: true })}
-              placeholder="••••••••"
+              id="phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
             />
           </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                {...register('phone')}
-                placeholder="+1 (555) 123-4567"
-              />
-            </div>
-            <div>
-              <Label htmlFor="employee_id">Employee ID</Label>
-              <Input
-                id="employee_id"
-                {...register('employee_id')}
-                placeholder="EMP001"
-              />
-            </div>
-          </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="department">Department</Label>
               <Input
                 id="department"
-                {...register('department')}
-                placeholder="Operations"
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
               />
             </div>
             <div>
-              <Label htmlFor="hire_date">Hire Date</Label>
+              <Label htmlFor="employeeId">Employee ID</Label>
               <Input
-                id="hire_date"
-                type="date"
-                {...register('hire_date')}
+                id="employeeId"
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
               />
             </div>
           </div>
-          
+
           <div>
             <Label htmlFor="role">Role</Label>
-            <Select onValueChange={(value) => setValue('role', value as any)}>
+            <Select value={role} onValueChange={(value: 'admin' | 'employee' | 'driver') => setRole(value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Select role" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="employee">Employee</SelectItem>
@@ -191,8 +183,8 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
               </SelectContent>
             </Select>
           </div>
-          
-          <div className="flex justify-end gap-2">
+
+          <div className="flex justify-end space-x-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
