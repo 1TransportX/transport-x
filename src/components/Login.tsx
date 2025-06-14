@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,11 +17,28 @@ const Login = () => {
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('signin');
-  const { signIn, signUp, isLoading, user } = useAuth();
+  const { signIn, signUp, isLoading, user, profile } = useAuth();
   const navigate = useNavigate();
 
+  // Handle redirect when user is authenticated and profile is loaded
+  useEffect(() => {
+    if (user && profile && !isLoading) {
+      console.log('User authenticated with profile, redirecting to dashboard');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, profile, isLoading, navigate]);
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   // Redirect if already authenticated
-  if (user) {
+  if (user && profile) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -29,10 +46,10 @@ const Login = () => {
     e.preventDefault();
     setError('');
 
+    console.log('Attempting to sign in with:', email);
     const { error } = await signIn(email, password);
-    if (!error) {
-      navigate('/dashboard');
-    } else {
+    if (error) {
+      console.error('Sign in error:', error);
       setError(error.message);
     }
   };
