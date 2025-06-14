@@ -282,7 +282,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
                     <SelectTrigger>
                       <SelectValue placeholder="Select product" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
+                    <SelectContent className="z-[100] bg-white border border-gray-200 shadow-lg">
                       {inventory.map((product) => (
                         <SelectItem 
                           key={product.id} 
