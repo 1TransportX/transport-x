@@ -36,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [profileFetched, setProfileFetched] = useState(false);
   const { toast } = useToast();
 
   const createDefaultProfile = (userId: string, userEmail: string): UserProfile => {
@@ -57,11 +58,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const fetchUserProfile = async (userId: string, userEmail: string) => {
+    if (profileFetched) {
+      console.log('Profile already fetched, skipping...');
+      return;
+    }
+
     try {
       console.log('Fetching profile for user:', userId);
+      setProfileFetched(true);
       
-      // Try to get profile and role in parallel
-      const [profileResponse, roleResponse] = await Promise.all([
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+      );
+
+      const profilePromise = Promise.all([
         supabase
           .from('profiles')
           .select('*')
@@ -74,13 +85,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .maybeSingle()
       ]);
 
+      const [profileResponse, roleResponse] = await Promise.race([
+        profilePromise,
+        timeoutPromise
+      ]) as any;
+
       console.log('Profile response:', profileResponse);
       console.log('Role response:', roleResponse);
 
       let profileData = profileResponse.data;
       let roleData = roleResponse.data;
 
-      // If no profile exists, create a basic one (don't insert to DB, just for the app)
+      // If no profile exists, create a basic one
       if (!profileData) {
         console.log('No profile found, using default');
         profileData = createDefaultProfile(userId, userEmail);
@@ -105,11 +121,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const fallbackProfile = createDefaultProfile(userId, userEmail);
       console.log('Using fallback profile:', fallbackProfile);
       setProfile(fallbackProfile);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     let mounted = true;
+    let profileTimeout: NodeJS.Timeout;
     
     const getInitialSession = async () => {
       try {
@@ -118,52 +137,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) {
           console.error('Error getting session:', error);
-          if (mounted) setIsLoading(false);
+          if (mounted) {
+            setIsLoading(false);
+          }
           return;
         }
 
-        console.log('Initial session:', session);
+        console.log('Initial session:', !!session);
         
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            await fetchUserProfile(session.user.id, session.user.email || '');
+            // Use setTimeout to avoid blocking
+            profileTimeout = setTimeout(() => {
+              fetchUserProfile(session.user.id, session.user.email || '');
+            }, 100);
+          } else {
+            setIsLoading(false);
           }
-          
-          setIsLoading(false);
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     getInitialSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.id);
+      (event, session) => {
+        console.log('Auth state change:', event, !!session?.user);
         
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
           
           if (session?.user && event === 'SIGNED_IN') {
-            await fetchUserProfile(session.user.id, session.user.email || '');
+            setProfileFetched(false); // Reset profile fetched flag
+            profileTimeout = setTimeout(() => {
+              fetchUserProfile(session.user.id, session.user.email || '');
+            }, 100);
           } else if (event === 'SIGNED_OUT') {
             setProfile(null);
+            setProfileFetched(false);
+            setIsLoading(false);
           }
-          
-          setIsLoading(false);
         }
       }
     );
 
+    // Set maximum loading timeout
+    const maxLoadingTimeout = setTimeout(() => {
+      if (mounted) {
+        console.log('Maximum loading timeout reached, stopping loading');
+        setIsLoading(false);
+      }
+    }, 15000);
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      if (profileTimeout) clearTimeout(profileTimeout);
+      clearTimeout(maxLoadingTimeout);
     };
   }, []);
 
@@ -203,6 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
+    setProfileFetched(false); // Reset profile fetched flag
     
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -215,9 +255,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: error.message,
         variant: "destructive"
       });
+      setIsLoading(false);
     }
 
-    setIsLoading(false);
     return { error };
   };
 
@@ -237,6 +277,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setProfile(null);
     setSession(null);
+    setProfileFetched(false);
     setIsLoading(false);
   };
 
