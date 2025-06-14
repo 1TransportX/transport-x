@@ -42,7 +42,7 @@ const FleetManagement = () => {
       try {
         const { data, error } = await supabase
           .from('vehicles')
-          .select('*')
+          .select('id, vehicle_number, make, model, year, fuel_type, current_mileage, fuel_economy, status, last_service_date, next_service_due, created_at, updated_at')
           .order('created_at', { ascending: false });
 
         if (error) {

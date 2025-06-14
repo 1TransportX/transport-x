@@ -686,6 +686,7 @@ export type Database = {
         Row: {
           created_at: string | null
           current_mileage: number | null
+          fuel_economy: number | null
           fuel_type: string | null
           id: string
           last_service_date: string | null
@@ -700,6 +701,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           current_mileage?: number | null
+          fuel_economy?: number | null
           fuel_type?: string | null
           id?: string
           last_service_date?: string | null
@@ -714,6 +716,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           current_mileage?: number | null
+          fuel_economy?: number | null
           fuel_type?: string | null
           id?: string
           last_service_date?: string | null
