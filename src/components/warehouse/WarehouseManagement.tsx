@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,7 +33,6 @@ const WarehouseManagement = () => {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [stockMovementItem, setStockMovementItem] = useState<InventoryItem | null>(null);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const { data: inventory = [], isLoading } = useQuery({
     queryKey: ['inventory'],
@@ -48,22 +47,19 @@ const WarehouseManagement = () => {
     }
   });
 
-  const { data: stats } = useQuery({
-    queryKey: ['inventory-stats'],
-    queryFn: async () => {
-      const totalItems = inventory.length;
-      const lowStockItems = inventory.filter(item => item.current_stock <= item.minimum_stock).length;
-      const totalValue = inventory.reduce((sum, item) => sum + (item.current_stock * (item.unit_price || 0)), 0);
-      const outOfStock = inventory.filter(item => item.current_stock === 0).length;
+  const stats = React.useMemo(() => {
+    const totalItems = inventory.length;
+    const lowStockItems = inventory.filter(item => item.current_stock <= item.minimum_stock).length;
+    const totalValue = inventory.reduce((sum, item) => sum + (item.current_stock * (item.unit_price || 0)), 0);
+    const outOfStock = inventory.filter(item => item.current_stock === 0).length;
 
-      return {
-        total: totalItems,
-        lowStock: lowStockItems,
-        totalValue,
-        outOfStock
-      };
-    }
-  });
+    return {
+      total: totalItems,
+      lowStock: lowStockItems,
+      totalValue,
+      outOfStock
+    };
+  }, [inventory]);
 
   const filteredInventory = inventory.filter(item =>
     item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -106,7 +102,7 @@ const WarehouseManagement = () => {
               <Package className="h-8 w-8 text-blue-600" />
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Items</p>
-                <p className="text-2xl font-bold">{stats?.total || 0}</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
               </div>
             </div>
           </CardContent>
@@ -118,7 +114,7 @@ const WarehouseManagement = () => {
               <AlertTriangle className="h-8 w-8 text-yellow-600" />
               <div>
                 <p className="text-sm font-medium text-gray-600">Low Stock</p>
-                <p className="text-2xl font-bold">{stats?.lowStock || 0}</p>
+                <p className="text-2xl font-bold">{stats.lowStock}</p>
               </div>
             </div>
           </CardContent>
@@ -130,7 +126,7 @@ const WarehouseManagement = () => {
               <TrendingDown className="h-8 w-8 text-red-600" />
               <div>
                 <p className="text-sm font-medium text-gray-600">Out of Stock</p>
-                <p className="text-2xl font-bold">{stats?.outOfStock || 0}</p>
+                <p className="text-2xl font-bold">{stats.outOfStock}</p>
               </div>
             </div>
           </CardContent>
@@ -142,7 +138,7 @@ const WarehouseManagement = () => {
               <TrendingUp className="h-8 w-8 text-green-600" />
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Value</p>
-                <p className="text-2xl font-bold">${stats?.totalValue?.toLocaleString() || 0}</p>
+                <p className="text-2xl font-bold">${stats.totalValue.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>

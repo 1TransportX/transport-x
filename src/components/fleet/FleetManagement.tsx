@@ -50,25 +50,21 @@ const FleetManagement = () => {
     }
   });
 
-  const { data: stats } = useQuery({
-    queryKey: ['fleet-stats', vehicles.length],
-    queryFn: async () => {
-      const totalVehicles = vehicles.length;
-      const activeVehicles = vehicles.filter(v => v.status === 'active').length;
-      const maintenanceVehicles = vehicles.filter(v => v.status === 'maintenance').length;
-      const avgMileage = totalVehicles > 0 
-        ? vehicles.reduce((sum, v) => sum + v.current_mileage, 0) / totalVehicles
-        : 0;
+  const stats = React.useMemo(() => {
+    const totalVehicles = vehicles.length;
+    const activeVehicles = vehicles.filter(v => v.status === 'active').length;
+    const maintenanceVehicles = vehicles.filter(v => v.status === 'maintenance').length;
+    const avgMileage = totalVehicles > 0 
+      ? vehicles.reduce((sum, v) => sum + v.current_mileage, 0) / totalVehicles
+      : 0;
 
-      return {
-        total: totalVehicles,
-        active: activeVehicles,
-        maintenance: maintenanceVehicles,
-        avgMileage: Math.round(avgMileage)
-      };
-    },
-    enabled: vehicles.length >= 0
-  });
+    return {
+      total: totalVehicles,
+      active: activeVehicles,
+      maintenance: maintenanceVehicles,
+      avgMileage: Math.round(avgMileage)
+    };
+  }, [vehicles]);
 
   const filteredVehicles = vehicles.filter(vehicle =>
     vehicle.vehicle_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -125,7 +121,7 @@ const FleetManagement = () => {
               <Truck className="h-8 w-8 text-blue-600" />
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Vehicles</p>
-                <p className="text-2xl font-bold">{stats?.total || 0}</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
               </div>
             </div>
           </CardContent>
@@ -139,7 +135,7 @@ const FleetManagement = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold">{stats?.active || 0}</p>
+                <p className="text-2xl font-bold">{stats.active}</p>
               </div>
             </div>
           </CardContent>
@@ -151,7 +147,7 @@ const FleetManagement = () => {
               <Wrench className="h-8 w-8 text-yellow-600" />
               <div>
                 <p className="text-sm font-medium text-gray-600">In Maintenance</p>
-                <p className="text-2xl font-bold">{stats?.maintenance || 0}</p>
+                <p className="text-2xl font-bold">{stats.maintenance}</p>
               </div>
             </div>
           </CardContent>
@@ -163,7 +159,7 @@ const FleetManagement = () => {
               <Fuel className="h-8 w-8 text-purple-600" />
               <div>
                 <p className="text-sm font-medium text-gray-600">Avg Mileage</p>
-                <p className="text-2xl font-bold">{stats?.avgMileage || 0}</p>
+                <p className="text-2xl font-bold">{stats.avgMileage}</p>
               </div>
             </div>
           </CardContent>
