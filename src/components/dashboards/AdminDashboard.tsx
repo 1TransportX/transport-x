@@ -6,11 +6,14 @@ import { Users, Truck, Package, DollarSign, TrendingUp, AlertTriangle } from 'lu
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import AddEmployeeDialog from '@/components/employees/AddEmployeeDialog';
+import ReportDisplay from '@/components/reports/ReportDisplay';
 
 const AdminDashboard = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showAddEmployeeDialog, setShowAddEmployeeDialog] = useState(false);
+  const [showReportDisplay, setShowReportDisplay] = useState(false);
+  const [currentReportData, setCurrentReportData] = useState(null);
 
   // Fetch employees with their roles
   const { data: employees = [] } = useQuery({
@@ -230,7 +233,7 @@ const AdminDashboard = () => {
   // Generate report action
   const generateReportMutation = useMutation({
     mutationFn: async () => {
-      // Simulate report generation
+      // Simulate report generation delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       const reportData = {
@@ -241,15 +244,29 @@ const AdminDashboard = () => {
         lowStockCount: lowStockItems.length,
         generatedAt: new Date().toISOString()
       };
-      
-      // In a real app, this would generate and download a PDF/Excel file
-      console.log('Generated Report:', reportData);
-      return reportData;
+
+      // Save the report to database
+      const { data: savedReport, error } = await supabase
+        .from('reports')
+        .insert({
+          title: `Operational Report - ${new Date().toLocaleDateString()}`,
+          data: reportData,
+          generated_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return { reportData, savedReport };
     },
-    onSuccess: () => {
+    onSuccess: ({ reportData }) => {
+      setCurrentReportData(reportData);
+      setShowReportDisplay(true);
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
       toast({
         title: "Report Generated",
-        description: "Operational report has been generated and logged to console.",
+        description: "Operational report has been generated and saved.",
       });
     },
     onError: () => {
@@ -451,6 +468,13 @@ const AdminDashboard = () => {
       <AddEmployeeDialog 
         open={showAddEmployeeDialog} 
         onOpenChange={setShowAddEmployeeDialog} 
+      />
+
+      {/* Report Display Dialog */}
+      <ReportDisplay
+        open={showReportDisplay}
+        onOpenChange={setShowReportDisplay}
+        reportData={currentReportData}
       />
     </div>
   );

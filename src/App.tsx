@@ -13,6 +13,7 @@ import EmployeeList from "./components/employees/EmployeeList";
 import FleetManagement from "./components/fleet/FleetManagement";
 import WarehouseManagement from "./components/warehouse/WarehouseManagement";
 import SettingsPage from "./components/settings/SettingsPage";
+import ReportsPage from "./components/reports/ReportsPage";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,11 @@ const App = () => {
                 <Route path="warehouse" element={
                   <ProtectedRoute allowedRoles={['admin', 'employee']}>
                     <WarehouseManagement />
+                  </ProtectedRoute>
+                } />
+                <Route path="reports" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <ReportsPage />
                   </ProtectedRoute>
                 } />
                 <Route path="settings" element={

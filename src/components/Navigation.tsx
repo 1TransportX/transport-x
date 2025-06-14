@@ -9,7 +9,8 @@ import {
   Package, 
   Settings, 
   User,
-  LogOut 
+  LogOut,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -37,6 +38,7 @@ const Navigation = () => {
         { path: '/employees', label: 'Employees', icon: Users, roles: ['admin'] },
         { path: '/fleet', label: 'Fleet', icon: Truck, roles: ['admin'] },
         { path: '/warehouse', label: 'Warehouse', icon: Package, roles: ['admin'] },
+        { path: '/reports', label: 'Reports', icon: FileText, roles: ['admin'] },
         { path: '/settings', label: 'Settings', icon: Settings, roles: ['admin'] }
       );
     } else if (profile.role === 'employee') {
