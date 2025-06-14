@@ -55,6 +55,9 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
 
   const updateEmployeeMutation = useMutation({
     mutationFn: async (employeeData: any) => {
+      console.log('Updating employee with data:', employeeData);
+      
+      // Update profile information
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -67,14 +70,52 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
         })
         .eq('id', employee.id);
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        throw profileError;
+      }
 
-      const { error: roleError } = await supabase
+      // Check if user_roles entry exists
+      const { data: existingRole, error: checkError } = await supabase
         .from('user_roles')
-        .update({ role: employeeData.role })
-        .eq('user_id', employee.id);
+        .select('*')
+        .eq('user_id', employee.id)
+        .maybeSingle();
 
-      if (roleError) throw roleError;
+      if (checkError) {
+        console.error('Error checking existing role:', checkError);
+        throw checkError;
+      }
+
+      console.log('Existing role:', existingRole);
+
+      if (existingRole) {
+        // Update existing role
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .update({ role: employeeData.role })
+          .eq('user_id', employee.id);
+
+        if (roleError) {
+          console.error('Role update error:', roleError);
+          throw roleError;
+        }
+      } else {
+        // Insert new role if none exists
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: employee.id,
+            role: employeeData.role
+          });
+
+        if (roleError) {
+          console.error('Role insert error:', roleError);
+          throw roleError;
+        }
+      }
+
+      console.log('Employee updated successfully');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
@@ -85,6 +126,7 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
       onOpenChange(false);
     },
     onError: (error: any) => {
+      console.error('Update employee mutation error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update employee.",
