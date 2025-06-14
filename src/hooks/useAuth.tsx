@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -43,45 +42,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no data
 
-      if (profileError) {
+      if (profileError && profileError.code !== 'PGRST116') {
         console.error('Error fetching profile:', profileError);
-        // If profile doesn't exist, create it
-        if (profileError.code === 'PGRST116') {
-          console.log('Profile not found, creating one...');
-          const { data: userData } = await supabase.auth.getUser();
-          if (userData.user) {
-            const { error: insertError } = await supabase
-              .from('profiles')
-              .insert({
-                id: userId,
-                email: userData.user.email || '',
-                first_name: userData.user.user_metadata?.first_name || null,
-                last_name: userData.user.user_metadata?.last_name || null
-              });
-            
-            if (insertError) {
-              console.error('Error creating profile:', insertError);
-              return;
-            }
-            
-            // Retry fetching the profile
-            const { data: newProfileData, error: newProfileError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', userId)
-              .single();
-              
-            if (newProfileError) {
-              console.error('Error fetching new profile:', newProfileError);
-              return;
-            }
-            
-            profileData = newProfileData;
+        // For other errors, create a basic profile
+        profileData = {
+          id: userId,
+          email: user?.email || '',
+          first_name: user?.user_metadata?.first_name || null,
+          last_name: user?.user_metadata?.last_name || null,
+          phone: null,
+          department: null,
+          employee_id: null
+        };
+      }
+
+      if (!profileData) {
+        console.log('Profile not found, creating one...');
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData.user) {
+          const { data: newProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: userId,
+              email: userData.user.email || '',
+              first_name: userData.user.user_metadata?.first_name || null,
+              last_name: userData.user.user_metadata?.last_name || null
+            })
+            .select()
+            .single();
+          
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+            // Create a fallback profile object
+            profileData = {
+              id: userId,
+              email: userData.user.email || '',
+              first_name: userData.user.user_metadata?.first_name || null,
+              last_name: userData.user.user_metadata?.last_name || null,
+              phone: null,
+              department: null,
+              employee_id: null
+            };
+          } else {
+            profileData = newProfile;
           }
-        } else {
-          return;
         }
       }
 
@@ -92,29 +98,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single
 
-      if (roleError) {
+      if (roleError && roleError.code !== 'PGRST116') {
         console.error('Error fetching role:', roleError);
-        // If role doesn't exist, create default role
-        if (roleError.code === 'PGRST116') {
-          console.log('Role not found, creating default role...');
-          const { error: insertRoleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: userId,
-              role: 'employee'
-            });
-            
-          if (insertRoleError) {
-            console.error('Error creating role:', insertRoleError);
-            return;
-          }
+        // Default to employee role if there's an error
+        roleData = { role: 'employee' };
+      }
+
+      if (!roleData) {
+        console.log('Role not found, creating default role...');
+        const { data: newRole, error: insertRoleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: userId,
+            role: 'employee'
+          })
+          .select()
+          .single();
           
-          // Set default role
+        if (insertRoleError) {
+          console.error('Error creating role:', insertRoleError);
+          // Default to employee role if insert fails
           roleData = { role: 'employee' };
         } else {
-          return;
+          roleData = newRole;
         }
       }
 
@@ -129,6 +137,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(userProfile);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
+      // Create a minimal fallback profile to prevent infinite loading
+      if (user) {
+        setProfile({
+          id: userId,
+          email: user.email || '',
+          first_name: user.user_metadata?.first_name || null,
+          last_name: user.user_metadata?.last_name || null,
+          phone: null,
+          department: null,
+          employee_id: null,
+          role: 'employee'
+        });
+      }
     }
   };
 
