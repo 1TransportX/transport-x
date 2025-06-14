@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -83,21 +84,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       let userProfile: UserProfile;
 
+      // Determine the role first
+      let userRole: 'admin' | 'employee' | 'driver' = 'employee';
+      if (roleData && roleData.length > 0) {
+        userRole = roleData[0].role || 'employee';
+        console.log('=== Role found:', userRole);
+      } else {
+        console.log('No role found, using default employee role');
+      }
+
       // If no profile exists, create a basic one
       if (!profileData) {
         console.log('No profile found, using default');
         userProfile = createDefaultProfile(userId, userEmail);
+        userProfile.role = userRole;
       } else {
-        userProfile = profileData;
-      }
-
-      // Set role - take the first role if multiple exist, default to employee if none
-      if (roleData && roleData.length > 0) {
-        userProfile.role = roleData[0].role || 'employee';
-        console.log('=== Role found:', userProfile.role);
-      } else {
-        userProfile.role = 'employee';
-        console.log('No role found, using default employee role');
+        // Create user profile with role included
+        userProfile = {
+          ...profileData,
+          role: userRole
+        };
       }
 
       console.log('=== Setting fresh profile with role:', userProfile.role);
