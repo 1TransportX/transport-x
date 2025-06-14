@@ -32,9 +32,10 @@ const EmployeeList = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: employees = [], isLoading } = useQuery({
+  const { data: employees = [], isLoading, error } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
+      console.log('Fetching employees...');
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -43,7 +44,12 @@ const EmployeeList = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching employees:', error);
+        throw error;
+      }
+      
+      console.log('Fetched employees data:', data);
       
       return data.map(profile => ({
         ...profile,
@@ -69,6 +75,7 @@ const EmployeeList = () => {
       });
     },
     onError: (error) => {
+      console.error('Error deleting employee:', error);
       toast({
         title: "Error",
         description: "Failed to delete employee.",
@@ -92,6 +99,17 @@ const EmployeeList = () => {
     }
   };
 
+  if (error) {
+    console.error('Employee list error:', error);
+    return (
+      <div className="p-6">
+        <div className="text-red-600">
+          Error loading employees: {error.message}
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -101,7 +119,7 @@ const EmployeeList = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Employee Management</h1>
