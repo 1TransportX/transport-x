@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Calendar, MapPin, Package, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AddDeliveryDialog from '@/components/dashboards/AddDeliveryDialog';
 
 interface Delivery {
   id: string;
@@ -31,11 +32,12 @@ interface Delivery {
 
 const RouteManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAddDeliveryDialog, setShowAddDeliveryDialog] = useState(false);
   const { toast } = useToast();
 
   console.log('RouteManagement: Component rendering');
 
-  const { data: deliveries = [], isLoading, error } = useQuery({
+  const { data: deliveries = [], isLoading, error, refetch } = useQuery({
     queryKey: ['routes-deliveries'],
     queryFn: async () => {
       console.log('RouteManagement: Fetching deliveries...');
@@ -192,7 +194,10 @@ const RouteManagement = () => {
             <div>
               <CardTitle>Delivery Routes ({filteredDeliveries.length})</CardTitle>
             </div>
-            <Button className="flex items-center gap-2">
+            <Button 
+              className="flex items-center gap-2"
+              onClick={() => setShowAddDeliveryDialog(true)}
+            >
               <Plus className="h-4 w-4" />
               Add Route
             </Button>
@@ -264,6 +269,15 @@ const RouteManagement = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <AddDeliveryDialog 
+        isOpen={showAddDeliveryDialog}
+        onClose={() => setShowAddDeliveryDialog(false)}
+        onSuccess={() => {
+          setShowAddDeliveryDialog(false);
+          refetch(); // Refresh the deliveries list
+        }}
+      />
     </div>
   );
 };
