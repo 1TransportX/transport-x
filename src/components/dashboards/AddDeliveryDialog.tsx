@@ -74,7 +74,6 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
 
   const fetchInventory = async () => {
     try {
-      // Remove the stock condition to show all products
       const { data, error } = await supabase
         .from('inventory')
         .select('id, product_name, current_stock')
@@ -85,7 +84,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
         throw error;
       }
       
-      console.log('Fetched inventory raw response:', data);
+      console.log('Fetched inventory for delivery dialog:', data);
       console.log('Number of inventory items:', data?.length || 0);
       
       setInventory(data || []);
@@ -208,7 +207,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
     }));
   };
 
-  console.log('Current inventory state:', inventory);
+  console.log('Current inventory state in dialog:', inventory);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -286,72 +285,71 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
 
           <div>
             <Label>Delivery Items</Label>
-            {formData.items.map((item, index) => (
-              <div key={index} className="flex gap-2 items-end mt-2">
-                <div className="flex-1">
-                  <Select
-                    value={item.inventory_id}
-                    onValueChange={(value) => {
-                      console.log('Selected product:', value);
-                      updateItem(index, 'inventory_id', value);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product" />
-                    </SelectTrigger>
-                    <SelectContent 
-                      className="z-[9999] bg-white border border-gray-200 shadow-lg max-h-60 overflow-y-auto"
-                      position="popper"
-                      sideOffset={5}
+            <div className="space-y-2">
+              {formData.items.map((item, index) => (
+                <div key={index} className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Label>Product</Label>
+                    <Select
+                      value={item.inventory_id}
+                      onValueChange={(value) => {
+                        console.log('Selected product ID:', value);
+                        updateItem(index, 'inventory_id', value);
+                      }}
                     >
-                      {inventory.length === 0 ? (
-                        <div className="p-2 text-sm text-gray-500">
-                          No products available in inventory
-                        </div>
-                      ) : (
-                        inventory.map((product) => (
-                          <SelectItem 
-                            key={product.id} 
-                            value={product.id}
-                            className="hover:bg-gray-100 cursor-pointer focus:bg-gray-100"
-                          >
-                            {product.product_name} (Stock: {product.current_stock})
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select product" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {inventory.length === 0 ? (
+                          <div className="p-2 text-sm text-gray-500">
+                            No products available in inventory
+                          </div>
+                        ) : (
+                          inventory.map((product) => (
+                            <SelectItem 
+                              key={product.id} 
+                              value={product.id}
+                            >
+                              {product.product_name} (Stock: {product.current_stock})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-24">
+                    <Label>Quantity</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                      placeholder="Qty"
+                    />
+                  </div>
+                  {formData.items.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeItem(index)}
+                    >
+                      Remove
+                    </Button>
+                  )}
                 </div>
-                <div className="w-24">
-                  <Input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                    placeholder="Qty"
-                  />
-                </div>
-                {formData.items.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeItem(index)}
-                  >
-                    Remove
-                  </Button>
-                )}
-              </div>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={addItem}
-              className="mt-2"
-            >
-              Add Item
-            </Button>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addItem}
+                className="mt-2"
+              >
+                Add Item
+              </Button>
+            </div>
           </div>
 
           <div>
