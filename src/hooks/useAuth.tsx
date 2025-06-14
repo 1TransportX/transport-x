@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const createFallbackProfile = (userId: string, userEmail: string, userData?: any): UserProfile => {
     const now = new Date().toISOString();
+    console.log('Creating fallback profile for:', userId);
     return {
       id: userId,
       email: userEmail,
@@ -57,101 +59,125 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      console.log('Fetching profile for user:', userId);
+      console.log('Starting fetchUserProfile for user:', userId);
       
       // First check if profile exists
-      let { data: profileData, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
+      console.log('Profile query result:', { profileData, profileError });
+
       if (profileError && profileError.code !== 'PGRST116') {
         console.error('Error fetching profile:', profileError);
         // For other errors, create a basic profile
-        const { data: userData } = await supabase.auth.getUser();
-        profileData = createFallbackProfile(userId, user?.email || '', userData?.user);
+        const fallbackProfile = createFallbackProfile(userId, user?.email || '');
+        setProfile(fallbackProfile);
+        return;
       }
 
+      let finalProfileData = profileData;
+
       if (!profileData) {
-        console.log('Profile not found, creating one...');
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData.user) {
-          const { data: newProfile, error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              id: userId,
-              email: userData.user.email || '',
-              first_name: userData.user.user_metadata?.first_name || null,
-              last_name: userData.user.user_metadata?.last_name || null
-            })
-            .select()
-            .single();
-          
-          if (insertError) {
-            console.error('Error creating profile:', insertError);
-            // Create a fallback profile object
-            profileData = createFallbackProfile(userId, userData.user.email || '', userData.user);
+        console.log('No profile found, attempting to create one...');
+        try {
+          const { data: userData } = await supabase.auth.getUser();
+          if (userData.user) {
+            const { data: newProfile, error: insertError } = await supabase
+              .from('profiles')
+              .insert({
+                id: userId,
+                email: userData.user.email || '',
+                first_name: userData.user.user_metadata?.first_name || null,
+                last_name: userData.user.user_metadata?.last_name || null
+              })
+              .select()
+              .maybeSingle();
+            
+            if (insertError) {
+              console.error('Error creating profile:', insertError);
+              // Create a fallback profile object
+              finalProfileData = createFallbackProfile(userId, userData.user.email || '', userData.user);
+            } else {
+              finalProfileData = newProfile;
+            }
           } else {
-            profileData = newProfile;
+            console.log('No user data available, creating fallback');
+            finalProfileData = createFallbackProfile(userId, '');
           }
+        } catch (createError) {
+          console.error('Error in profile creation:', createError);
+          finalProfileData = createFallbackProfile(userId, user?.email || '');
         }
       }
 
-      console.log('Profile data:', profileData);
-
       // Fetch user role
-      let { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
+      let roleData = null;
+      try {
+        const { data: fetchedRole, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle();
 
-      if (roleError && roleError.code !== 'PGRST116') {
-        console.error('Error fetching role:', roleError);
-        // Default to employee role if there's an error
+        if (roleError && roleError.code !== 'PGRST116') {
+          console.error('Error fetching role:', roleError);
+          roleData = { role: 'employee' };
+        } else {
+          roleData = fetchedRole;
+        }
+
+        if (!roleData) {
+          console.log('No role found, attempting to create default role...');
+          try {
+            const { data: newRole, error: insertRoleError } = await supabase
+              .from('user_roles')
+              .insert({
+                user_id: userId,
+                role: 'employee'
+              })
+              .select()
+              .maybeSingle();
+              
+            if (insertRoleError) {
+              console.error('Error creating role:', insertRoleError);
+              roleData = { role: 'employee' };
+            } else {
+              roleData = newRole;
+            }
+          } catch (createRoleError) {
+            console.error('Error in role creation:', createRoleError);
+            roleData = { role: 'employee' };
+          }
+        }
+      } catch (roleError) {
+        console.error('Error in role fetching:', roleError);
         roleData = { role: 'employee' };
       }
 
-      if (!roleData) {
-        console.log('Role not found, creating default role...');
-        const { data: newRole, error: insertRoleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: userId,
-            role: 'employee'
-          })
-          .select()
-          .single();
-          
-        if (insertRoleError) {
-          console.error('Error creating role:', insertRoleError);
-          // Default to employee role if insert fails
-          roleData = { role: 'employee' };
-        } else {
-          roleData = newRole;
-        }
-      }
+      console.log('Final role data:', roleData);
 
-      console.log('Role data:', roleData);
-
-      const userProfile = {
-        ...profileData,
-        role: roleData.role
+      const userProfile: UserProfile = {
+        ...finalProfileData,
+        role: roleData?.role || 'employee'
       };
 
-      console.log('Setting profile:', userProfile);
+      console.log('Setting final profile:', userProfile);
       setProfile(userProfile);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
       // Create a minimal fallback profile to prevent infinite loading
-      if (user) {
-        setProfile(createFallbackProfile(userId, user.email || '', user));
-      }
+      const fallbackProfile = createFallbackProfile(userId, user?.email || '');
+      console.log('Using fallback profile due to error:', fallbackProfile);
+      setProfile(fallbackProfile);
     }
   };
 
   useEffect(() => {
+    let mounted = true;
+    
     // Get initial session
     const getInitialSession = async () => {
       try {
@@ -160,22 +186,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) {
           console.error('Error getting session:', error);
-          setIsLoading(false);
+          if (mounted) {
+            setIsLoading(false);
+          }
           return;
         }
 
         console.log('Initial session:', session);
-        setSession(session);
-        setUser(session?.user ?? null);
         
-        if (session?.user) {
-          await fetchUserProfile(session.user.id);
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            await fetchUserProfile(session.user.id);
+          }
+          
+          setIsLoading(false);
         }
-        
-        setIsLoading(false);
       } catch (error) {
         console.error('Error in getInitialSession:', error);
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -184,22 +217,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change:', event, session);
+        console.log('Auth state change:', event, session?.user?.id);
         
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user && event === 'SIGNED_IN') {
-          await fetchUserProfile(session.user.id);
-        } else if (event === 'SIGNED_OUT') {
-          setProfile(null);
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user && event === 'SIGNED_IN') {
+            await fetchUserProfile(session.user.id);
+          } else if (event === 'SIGNED_OUT') {
+            setProfile(null);
+          }
+          
+          setIsLoading(false);
         }
-        
-        setIsLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
