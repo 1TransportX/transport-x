@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,20 +11,29 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Fetch real data from database
+  // Fetch employees with their roles
   const { data: employees = [] } = useQuery({
     queryKey: ['dashboard-employees'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          *,
+          user_roles(role)
+        `)
         .eq('is_active', true);
       
       if (error) throw error;
-      return data;
+      
+      // Map the data to include role information
+      return data.map(profile => ({
+        ...profile,
+        role: profile.user_roles?.[0]?.role || 'employee'
+      }));
     }
   });
 
+  // Fetch real data from database
   const { data: vehicles = [] } = useQuery({
     queryKey: ['dashboard-vehicles'],
     queryFn: async () => {
@@ -154,17 +162,23 @@ const AdminDashboard = () => {
     };
   });
 
-  // Calculate department distribution
-  const departmentCounts = employees.reduce((acc, emp) => {
-    const dept = emp.department || 'Unassigned';
-    acc[dept] = (acc[dept] || 0) + 1;
+  // Calculate role distribution instead of department distribution
+  const roleCounts = employees.reduce((acc, emp) => {
+    const role = emp.role || 'employee';
+    acc[role] = (acc[role] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const departmentData = Object.entries(departmentCounts).map(([name, count], index) => {
+  const roleData = Object.entries(roleCounts).map(([name, count], index) => {
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    const roleLabels = {
+      admin: 'Admin',
+      employee: 'Employee', 
+      driver: 'Driver'
+    };
+    
     return {
-      name,
+      name: roleLabels[name as keyof typeof roleLabels] || name,
       value: Math.round((count / totalEmployees) * 100),
       color: colors[index % colors.length]
     };
@@ -253,8 +267,8 @@ const AdminDashboard = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Department Distribution</CardTitle>
-            <CardDescription>Employee allocation by department</CardDescription>
+            <CardTitle>Employee Role Distribution</CardTitle>
+            <CardDescription>Employee allocation by role</CardDescription>
           </CardHeader>
           <CardContent>
             {totalEmployees > 0 ? (
@@ -262,7 +276,7 @@ const AdminDashboard = () => {
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={departmentData}
+                      data={roleData}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
@@ -270,7 +284,7 @@ const AdminDashboard = () => {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {departmentData.map((entry, index) => (
+                      {roleData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -278,13 +292,13 @@ const AdminDashboard = () => {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="grid grid-cols-2 gap-2 mt-4">
-                  {departmentData.map((dept, index) => (
+                  {roleData.map((role, index) => (
                     <div key={index} className="flex items-center space-x-2">
                       <div 
                         className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: dept.color }}
+                        style={{ backgroundColor: role.color }}
                       />
-                      <span className="text-sm text-gray-600">{dept.name}: {dept.value}%</span>
+                      <span className="text-sm text-gray-600">{role.name}: {role.value}%</span>
                     </div>
                   ))}
                 </div>
