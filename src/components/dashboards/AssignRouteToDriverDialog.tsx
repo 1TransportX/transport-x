@@ -73,7 +73,7 @@ const AssignRouteToDriverDialog: React.FC<AssignRouteToDriverDialogProps> = ({
       if (error) throw error;
 
       const driverProfiles = data.filter(profile => 
-        profile.user_roles?.some((role: any) => role.role === 'driver')
+        profile.user_roles?.role === 'driver'
       );
 
       setDrivers(driverProfiles);
