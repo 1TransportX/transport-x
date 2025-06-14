@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -76,7 +75,24 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
   const fetchInventory = async () => {
     try {
       console.log('Starting to fetch inventory...');
+      console.log('Supabase client:', supabase);
       
+      // First, let's test if we can connect to Supabase at all
+      const { data: testData, error: testError } = await supabase
+        .from('inventory')
+        .select('count(*)', { count: 'exact' });
+      
+      console.log('Test connection - count result:', testData, 'error:', testError);
+      
+      // Now try to fetch all inventory without any filters
+      const { data: allInventory, error: allError } = await supabase
+        .from('inventory')
+        .select('*');
+        
+      console.log('All inventory data (no filters):', allInventory);
+      console.log('All inventory error:', allError);
+      
+      // Now try with our specific query
       const { data, error } = await supabase
         .from('inventory')
         .select('id, product_name, current_stock')
@@ -88,13 +104,13 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
         throw error;
       }
       
-      console.log('Raw inventory data from Supabase:', data);
-      console.log('Number of inventory items fetched:', data?.length || 0);
+      console.log('Filtered inventory data (stock > 0):', data);
+      console.log('Number of inventory items with stock > 0:', data?.length || 0);
       
       if (!data || data.length === 0) {
         console.warn('No inventory items found with stock > 0');
         
-        // Try fetching all inventory items to debug
+        // If no items with stock > 0, let's show all items but indicate they're out of stock
         const { data: allData, error: allError } = await supabase
           .from('inventory')
           .select('id, product_name, current_stock')
@@ -102,14 +118,31 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
           
         console.log('All inventory items (including zero stock):', allData);
         if (allError) console.error('Error fetching all inventory:', allError);
+        
+        if (allData && allData.length > 0) {
+          // Show all items even if out of stock, but user will see the stock levels
+          setInventory(allData);
+          toast({
+            title: "Warning",
+            description: "Some products may be out of stock. Check stock levels before adding to delivery.",
+            variant: "destructive"
+          });
+        } else {
+          setInventory([]);
+          toast({
+            title: "No Products",
+            description: "No products found in inventory. Please add products in the warehouse management section first.",
+            variant: "destructive"
+          });
+        }
+      } else {
+        setInventory(data);
       }
-      
-      setInventory(data || []);
     } catch (error) {
       console.error('Error fetching inventory:', error);
       toast({
-        title: "Error",
-        description: "Failed to load inventory items. Please check if products exist in warehouse.",
+        title: "Error", 
+        description: "Failed to load inventory items. Please check your connection and try again.",
         variant: "destructive"
       });
     }
@@ -143,6 +176,19 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
           variant: "destructive"
         });
         return;
+      }
+
+      // Check if selected items have sufficient stock
+      for (const item of validItems) {
+        const inventoryItem = inventory.find(inv => inv.id === item.inventory_id);
+        if (inventoryItem && inventoryItem.current_stock < item.quantity) {
+          toast({
+            title: "Error",
+            description: `Insufficient stock for ${inventoryItem.product_name}. Available: ${inventoryItem.current_stock}, Requested: ${item.quantity}`,
+            variant: "destructive"
+          });
+          return;
+        }
       }
 
       // Create delivery
@@ -331,15 +377,17 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
                       <SelectContent>
                         {inventory.length === 0 ? (
                           <div className="p-2 text-sm text-gray-500">
-                            No products available with stock. Please add inventory in warehouse first.
+                            No products found in inventory. Please add products in warehouse first.
                           </div>
                         ) : (
                           inventory.map((product) => (
                             <SelectItem 
                               key={product.id} 
                               value={product.id}
+                              disabled={product.current_stock === 0}
                             >
                               {product.product_name} (Stock: {product.current_stock})
+                              {product.current_stock === 0 && " - Out of Stock"}
                             </SelectItem>
                           ))
                         )}
