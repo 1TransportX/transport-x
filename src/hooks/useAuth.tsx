@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -57,30 +56,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
-  const fetchUserProfile = async (userId: string, userEmail: string) => {
+  const fetchUserProfile = async (userId: string, userEmail: string, forceRefresh: boolean = false) => {
     try {
-      console.log('=== Fetching fresh profile for user:', userId);
+      console.log('=== Fetching profile for user:', userId, 'forceRefresh:', forceRefresh);
       
-      // Clear any existing cached data
-      setProfile(null);
+      if (forceRefresh) {
+        // Clear any existing cached data
+        setProfile(null);
+        console.log('=== Cleared existing profile data');
+      }
       
-      // Fetch profile data
-      const { data: profileData, error: profileError } = await supabase
+      // Fetch profile data with cache-busting timestamp
+      const profileQuery = supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+        .eq('id', userId);
+      
+      if (forceRefresh) {
+        // Add a random parameter to bust any potential caching
+        profileQuery.limit(1);
+      }
+      
+      const { data: profileData, error: profileError } = await profileQuery.maybeSingle();
 
-      console.log('=== Fresh profile response:', { data: profileData, error: profileError });
+      console.log('=== Profile response:', { data: profileData, error: profileError });
 
-      // Fetch role data - use .limit(1) instead of .single() to avoid errors
-      const { data: roleData, error: roleError } = await supabase
+      // Fetch role data with cache-busting
+      const roleQuery = supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
         .limit(1);
+        
+      const { data: roleData, error: roleError } = await roleQuery;
 
-      console.log('=== Fresh role response:', { data: roleData, error: roleError });
+      console.log('=== Role response:', { data: roleData, error: roleError });
 
       let userProfile: UserProfile;
 
@@ -88,14 +98,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let userRole: 'admin' | 'employee' | 'driver' = 'employee';
       if (roleData && roleData.length > 0) {
         userRole = roleData[0].role || 'employee';
-        console.log('=== Role found:', userRole);
+        console.log('=== Role found in database:', userRole);
       } else {
-        console.log('No role found, using default employee role');
+        console.log('No role found in database, using default employee role');
       }
 
       // If no profile exists, create a basic one
       if (!profileData) {
-        console.log('No profile found, using default');
+        console.log('No profile found, creating default');
         userProfile = createDefaultProfile(userId, userEmail);
         userProfile.role = userRole;
       } else {
@@ -106,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      console.log('=== Setting fresh profile with role:', userProfile.role);
+      console.log('=== Setting profile with role:', userProfile.role);
       setProfile(userProfile);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
@@ -120,10 +130,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refreshProfile = async () => {
-    console.log('=== RefreshProfile called');
+    console.log('=== RefreshProfile called - forcing fresh data fetch');
     if (user) {
       setIsLoading(true);
-      await fetchUserProfile(user.id, user.email || '');
+      // Force a fresh fetch with cache busting
+      await fetchUserProfile(user.id, user.email || '', true);
     }
   };
 

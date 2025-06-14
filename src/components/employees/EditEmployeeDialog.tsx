@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,7 +57,9 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
 
   const updateEmployeeMutation = useMutation({
     mutationFn: async (employeeData: any) => {
-      console.log('=== Updating employee with data:', employeeData);
+      console.log('=== Starting employee update with data:', employeeData);
+      console.log('=== Current employee role:', employee.role);
+      console.log('=== New role to set:', employeeData.role);
       
       // Prepare the update data for profiles
       const profileUpdateData: any = {
@@ -74,6 +77,8 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
         profileUpdateData.employee_id = null;
       }
 
+      console.log('=== Updating profile with data:', profileUpdateData);
+
       // Update profile information
       const { error: profileError } = await supabase
         .from('profiles')
@@ -85,34 +90,26 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
         throw profileError;
       }
 
-      // Check if user_roles entry exists
-      const { data: existingRole, error: checkError } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('user_id', employee.id)
-        .maybeSingle();
+      console.log('=== Profile updated successfully');
 
-      if (checkError) {
-        console.error('Error checking existing role:', checkError);
-        throw checkError;
-      }
-
-      console.log('=== Existing role:', existingRole);
-      console.log('=== New role to set:', employeeData.role);
-
-      if (existingRole) {
-        // Update existing role
-        const { error: roleError } = await supabase
+      // Handle role updates - check if role actually changed
+      if (employee.role !== employeeData.role) {
+        console.log('=== Role changed, updating user_roles table');
+        
+        // First, delete any existing roles for this user
+        const { error: deleteError } = await supabase
           .from('user_roles')
-          .update({ role: employeeData.role })
+          .delete()
           .eq('user_id', employee.id);
 
-        if (roleError) {
-          console.error('Role update error:', roleError);
-          throw roleError;
+        if (deleteError) {
+          console.error('Error deleting existing roles:', deleteError);
+          throw deleteError;
         }
-      } else {
-        // Insert new role if none exists
+
+        console.log('=== Deleted existing roles');
+
+        // Insert the new role
         const { error: roleError } = await supabase
           .from('user_roles')
           .insert({
@@ -124,23 +121,38 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
           console.error('Role insert error:', roleError);
           throw roleError;
         }
+
+        console.log('=== New role inserted successfully:', employeeData.role);
+      } else {
+        console.log('=== Role unchanged, skipping role update');
       }
 
       console.log('=== Employee updated successfully');
+      return { updatedRole: employee.role !== employeeData.role };
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      console.log('=== Update mutation successful, result:', result);
+      
+      // Invalidate the employees query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       
-      // If the current user is updating their own profile, refresh their auth profile immediately
-      if (user && user.id === employee.id) {
-        console.log('=== Current user role changed, refreshing profile and forcing re-render');
-        await refreshProfile();
+      // If the current user's role was updated, refresh their auth profile
+      if (user && user.id === employee.id && result.updatedRole) {
+        console.log('=== Current user role was updated, refreshing auth profile');
         
-        // Force a small delay to ensure the profile is updated before closing dialog
-        setTimeout(() => {
-          onOpenChange(false);
-        }, 500);
+        // Add a delay to ensure database changes are committed
+        setTimeout(async () => {
+          console.log('=== Calling refreshProfile after delay');
+          await refreshProfile();
+          
+          // Close dialog after profile refresh
+          setTimeout(() => {
+            console.log('=== Closing dialog');
+            onOpenChange(false);
+          }, 500);
+        }, 1000);
       } else {
+        // Close dialog immediately if it's not the current user
         onOpenChange(false);
       }
       
@@ -161,6 +173,7 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('=== Form submitted with role:', role);
     updateEmployeeMutation.mutate({
       firstName,
       lastName,
@@ -230,7 +243,10 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
 
           <div>
             <Label htmlFor="role">Role</Label>
-            <Select value={role} onValueChange={(value: 'admin' | 'employee' | 'driver') => setRole(value)}>
+            <Select value={role} onValueChange={(value: 'admin' | 'employee' | 'driver') => {
+              console.log('=== Role selection changed to:', value);
+              setRole(value);
+            }}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
