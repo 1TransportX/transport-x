@@ -22,7 +22,7 @@ interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   session: Session | null;
-  signUp: (email: string, password: string, firstName?: string, lastName?: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, firstName?: string, lastName?: string, role?: 'employee' | 'driver') => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   isLoading: boolean;
@@ -217,38 +217,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
+  const signUp = async (email: string, password: string, firstName?: string, lastName?: string, role: 'employee' | 'driver' = 'employee') => {
     setIsLoading(true);
     
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
         data: {
           first_name: firstName,
-          last_name: lastName
+          last_name: lastName,
+          role: role
         }
       }
     });
 
-    if (error) {
+    if (signUpError) {
       toast({
         title: "Sign Up Error",
-        description: error.message,
+        description: signUpError.message,
         variant: "destructive"
       });
-    } else {
-      toast({
-        title: "Sign Up Successful",
-        description: "Please check your email to confirm your account.",
-      });
+      setIsLoading(false);
+      return { error: signUpError };
     }
 
+    // Wait a moment for the trigger to complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Get the user that was just created
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user && role !== 'employee') {
+      // Update the role if it's not the default employee role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .update({ role })
+        .eq('user_id', user.id);
+
+      if (roleError) {
+        console.error('Error updating user role:', roleError);
+      }
+    }
+
+    toast({
+      title: "Sign Up Successful",
+      description: "Please check your email to confirm your account.",
+    });
+
     setIsLoading(false);
-    return { error };
+    return { error: null };
   };
 
   const signIn = async (email: string, password: string) => {

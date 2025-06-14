@@ -1,4 +1,3 @@
-
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -479,6 +478,8 @@ LANGUAGE PLPGSQL
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+  user_role text;
 BEGIN
   INSERT INTO public.profiles (id, email, first_name, last_name)
   VALUES (
@@ -488,8 +489,11 @@ BEGIN
     NEW.raw_user_meta_data ->> 'last_name'
   );
   
+  -- Get the role from metadata, default to 'employee'
+  user_role := COALESCE(NEW.raw_user_meta_data ->> 'role', 'employee');
+  
   INSERT INTO public.user_roles (user_id, role)
-  VALUES (NEW.id, 'employee');
+  VALUES (NEW.id, user_role::user_role);
   
   RETURN NEW;
 END;

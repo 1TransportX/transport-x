@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, Mail, Lock, AlertCircle, User } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BarChart3, Mail, Lock, AlertCircle, User, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const Login = () => {
@@ -15,6 +16,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [selectedRole, setSelectedRole] = useState<'employee' | 'driver'>('employee');
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('signin');
   const { signIn, signUp, isLoading, user, profile } = useAuth();
@@ -58,13 +60,14 @@ const Login = () => {
     e.preventDefault();
     setError('');
 
-    const { error } = await signUp(email, password, firstName, lastName);
+    const { error } = await signUp(email, password, firstName, lastName, selectedRole);
     if (!error) {
       setActiveTab('signin');
       setEmail('');
       setPassword('');
       setFirstName('');
       setLastName('');
+      setSelectedRole('employee');
     } else {
       setError(error.message);
     }
@@ -218,6 +221,29 @@ const Login = () => {
                     </div>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-role">Role</Label>
+                    <Select value={selectedRole} onValueChange={(value: 'employee' | 'driver') => setSelectedRole(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="employee">
+                          <div className="flex items-center space-x-2">
+                            <Users className="h-4 w-4" />
+                            <span>Employee</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="driver">
+                          <div className="flex items-center space-x-2">
+                            <User className="h-4 w-4" />
+                            <span>Driver</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   {error && (
                     <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
@@ -235,7 +261,7 @@ const Login = () => {
                 </form>
 
                 <div className="text-xs text-gray-600 text-center">
-                  New users will be assigned the "employee" role by default. 
+                  Choose between employee (warehouse access) or driver (fleet access) roles. 
                   Contact an administrator to change your role if needed.
                 </div>
               </TabsContent>
