@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -64,42 +63,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear any existing cached data
       setProfile(null);
       
-      // Always fetch fresh data from the database with no cache
-      const [profileResponse, roleResponse] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single(),
-        supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .single()
-      ]);
+      // Fetch profile data
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-      console.log('=== Fresh profile response:', profileResponse);
-      console.log('=== Fresh role response:', roleResponse);
+      console.log('=== Fresh profile response:', { data: profileData, error: profileError });
 
-      let profileData = profileResponse.data;
-      let roleData = roleResponse.data;
+      // Fetch role data - use .limit(1) instead of .single() to avoid errors
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .limit(1);
+
+      console.log('=== Fresh role response:', { data: roleData, error: roleError });
+
+      let userProfile: UserProfile;
 
       // If no profile exists, create a basic one
       if (!profileData) {
         console.log('No profile found, using default');
-        profileData = createDefaultProfile(userId, userEmail);
+        userProfile = createDefaultProfile(userId, userEmail);
+      } else {
+        userProfile = profileData;
       }
 
-      // If no role exists, default to employee
-      if (!roleData) {
+      // Set role - take the first role if multiple exist, default to employee if none
+      if (roleData && roleData.length > 0) {
+        userProfile.role = roleData[0].role || 'employee';
+        console.log('=== Role found:', userProfile.role);
+      } else {
+        userProfile.role = 'employee';
         console.log('No role found, using default employee role');
-        roleData = { role: 'employee' };
       }
-
-      const userProfile: UserProfile = {
-        ...profileData,
-        role: roleData.role || 'employee'
-      };
 
       console.log('=== Setting fresh profile with role:', userProfile.role);
       setProfile(userProfile);
