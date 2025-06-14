@@ -1,30 +1,55 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { BarChart3, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BarChart3, Mail, Lock, AlertCircle, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
-  const { login, isLoading } = useAuth();
+  const [activeTab, setActiveTab] = useState('signin');
+  const { signIn, signUp, isLoading, user } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Redirect if already authenticated
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    const success = await login(email, password);
-    if (success) {
+    const { error } = await signIn(email, password);
+    if (!error) {
       navigate('/dashboard');
     } else {
-      setError('Invalid credentials. Please try again.');
+      setError(error.message);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    const { error } = await signUp(email, password, firstName, lastName);
+    if (!error) {
+      setActiveTab('signin');
+      setEmail('');
+      setPassword('');
+      setFirstName('');
+      setLastName('');
+    } else {
+      setError(error.message);
     }
   };
 
@@ -45,69 +70,159 @@ const Login = () => {
 
         <Card className="shadow-xl">
           <CardHeader>
-            <CardTitle>Sign in to your account</CardTitle>
+            <CardTitle>Welcome</CardTitle>
             <CardDescription>
-              Enter your credentials to access the platform
+              Sign in to your account or create a new one
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    className="pl-10"
-                    required
-                  />
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="signin">Sign In</TabsTrigger>
+                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="signin" className="space-y-4 mt-4">
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-email">Email address</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="signin-email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Enter your email"
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="signin-password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter your password"
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Signing in...' : 'Sign in'}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="signup" className="space-y-4 mt-4">
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-firstname">First Name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="signup-firstname"
+                          type="text"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          placeholder="First name"
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-lastname">Last Name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="signup-lastname"
+                          type="text"
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          placeholder="Last name"
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email address</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Enter your email"
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Create a password"
+                        className="pl-10"
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                  </div>
+
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Creating account...' : 'Create account'}
+                  </Button>
+                </form>
+
+                <div className="text-xs text-gray-600 text-center">
+                  New users will be assigned the "employee" role by default. 
+                  Contact an administrator to change your role if needed.
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isLoading}
-              >
-                {isLoading ? 'Signing in...' : 'Sign in'}
-              </Button>
-            </form>
-
-            <div className="mt-6 space-y-2 text-sm text-gray-600">
-              <p className="font-medium">Demo Credentials:</p>
-              <div className="space-y-1 text-xs">
-                <p><strong>Admin:</strong> admin@company.com / password</p>
-                <p><strong>Employee:</strong> employee@company.com / password</p>
-                <p><strong>Driver:</strong> driver@company.com / password</p>
-              </div>
-            </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>

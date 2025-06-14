@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles = [] }) => {
-  const { user, isLoading } = useAuth();
+  const { user, profile, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -19,11 +19,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
     );
   }
 
-  if (!user) {
+  if (!user || !profile) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+  if (allowedRoles.length > 0 && !allowedRoles.includes(profile.role)) {
     return <Navigate to="/dashboard" replace />;
   }
 

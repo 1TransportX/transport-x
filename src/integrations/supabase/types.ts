@@ -9,16 +9,727 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      attendance: {
+        Row: {
+          break_duration: number | null
+          clock_in: string | null
+          clock_out: string | null
+          created_at: string | null
+          id: string
+          location_lat: number | null
+          location_lng: number | null
+          notes: string | null
+          total_hours: number | null
+          user_id: string | null
+        }
+        Insert: {
+          break_duration?: number | null
+          clock_in?: string | null
+          clock_out?: string | null
+          created_at?: string | null
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          notes?: string | null
+          total_hours?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          break_duration?: number | null
+          clock_in?: string | null
+          clock_out?: string | null
+          created_at?: string | null
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          notes?: string | null
+          total_hours?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          ip_address: unknown | null
+          new_values: Json | null
+          old_values: Json | null
+          record_id: string | null
+          table_name: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id?: string | null
+          table_name?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id?: string | null
+          table_name?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deliveries: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          customer_address: string
+          customer_name: string
+          customer_phone: string | null
+          delivery_number: string
+          driver_id: string | null
+          id: string
+          notes: string | null
+          proof_of_delivery: Json | null
+          scheduled_date: string | null
+          status: Database["public"]["Enums"]["delivery_status"] | null
+          updated_at: string | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          customer_address: string
+          customer_name: string
+          customer_phone?: string | null
+          delivery_number: string
+          driver_id?: string | null
+          id?: string
+          notes?: string | null
+          proof_of_delivery?: Json | null
+          scheduled_date?: string | null
+          status?: Database["public"]["Enums"]["delivery_status"] | null
+          updated_at?: string | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          customer_address?: string
+          customer_name?: string
+          customer_phone?: string | null
+          delivery_number?: string
+          driver_id?: string | null
+          id?: string
+          notes?: string | null
+          proof_of_delivery?: Json | null
+          scheduled_date?: string | null
+          status?: Database["public"]["Enums"]["delivery_status"] | null
+          updated_at?: string | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_items: {
+        Row: {
+          created_at: string | null
+          delivery_id: string | null
+          id: string
+          inventory_id: string | null
+          quantity: number
+          total_price: number | null
+          unit_price: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          delivery_id?: string | null
+          id?: string
+          inventory_id?: string | null
+          quantity: number
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          delivery_id?: string | null
+          id?: string
+          inventory_id?: string | null
+          quantity?: number
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_items_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_items_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fuel_logs: {
+        Row: {
+          cost: number | null
+          created_at: string | null
+          driver_id: string | null
+          fuel_amount: number
+          fuel_date: string
+          id: string
+          location: string | null
+          mileage: number | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string | null
+          driver_id?: string | null
+          fuel_amount: number
+          fuel_date: string
+          id?: string
+          location?: string | null
+          mileage?: number | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string | null
+          driver_id?: string | null
+          fuel_amount?: number
+          fuel_date?: string
+          id?: string
+          location?: string | null
+          mileage?: number | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_logs_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_logs_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory: {
+        Row: {
+          barcode: string | null
+          category: string | null
+          created_at: string | null
+          current_stock: number | null
+          description: string | null
+          id: string
+          maximum_stock: number | null
+          minimum_stock: number | null
+          product_name: string
+          sku: string
+          unit_price: number | null
+          updated_at: string | null
+          warehouse_location: string | null
+        }
+        Insert: {
+          barcode?: string | null
+          category?: string | null
+          created_at?: string | null
+          current_stock?: number | null
+          description?: string | null
+          id?: string
+          maximum_stock?: number | null
+          minimum_stock?: number | null
+          product_name: string
+          sku: string
+          unit_price?: number | null
+          updated_at?: string | null
+          warehouse_location?: string | null
+        }
+        Update: {
+          barcode?: string | null
+          category?: string | null
+          created_at?: string | null
+          current_stock?: number | null
+          description?: string | null
+          id?: string
+          maximum_stock?: number | null
+          minimum_stock?: number | null
+          product_name?: string
+          sku?: string
+          unit_price?: number | null
+          updated_at?: string | null
+          warehouse_location?: string | null
+        }
+        Relationships: []
+      }
+      leave_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          end_date: string
+          id: string
+          leave_type: string
+          reason: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["leave_status"] | null
+          user_id: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          end_date: string
+          id?: string
+          leave_type: string
+          reason?: string | null
+          start_date: string
+          status?: Database["public"]["Enums"]["leave_status"] | null
+          user_id?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          leave_type?: string
+          reason?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["leave_status"] | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_logs: {
+        Row: {
+          cost: number | null
+          created_at: string | null
+          description: string | null
+          id: string
+          maintenance_type: string
+          next_service_mileage: number | null
+          performed_by: string | null
+          service_date: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          maintenance_type: string
+          next_service_mileage?: number | null
+          performed_by?: string | null
+          service_date: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          maintenance_type?: string
+          next_service_mileage?: number | null
+          performed_by?: string | null
+          service_date?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_logs_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          department: string | null
+          email: string
+          employee_id: string | null
+          first_name: string | null
+          hire_date: string | null
+          id: string
+          is_active: boolean | null
+          last_name: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          department?: string | null
+          email: string
+          employee_id?: string | null
+          first_name?: string | null
+          hire_date?: string | null
+          id: string
+          is_active?: boolean | null
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          department?: string | null
+          email?: string
+          employee_id?: string | null
+          first_name?: string | null
+          hire_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          batch_number: string | null
+          cost_per_unit: number | null
+          created_at: string | null
+          expiry_date: string | null
+          id: string
+          inventory_id: string | null
+          movement_type: Database["public"]["Enums"]["stock_movement_type"]
+          notes: string | null
+          performed_by: string | null
+          quantity: number
+          reference_number: string | null
+          supplier_customer: string | null
+          total_cost: number | null
+        }
+        Insert: {
+          batch_number?: string | null
+          cost_per_unit?: number | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string
+          inventory_id?: string | null
+          movement_type: Database["public"]["Enums"]["stock_movement_type"]
+          notes?: string | null
+          performed_by?: string | null
+          quantity: number
+          reference_number?: string | null
+          supplier_customer?: string | null
+          total_cost?: number | null
+        }
+        Update: {
+          batch_number?: string | null
+          cost_per_unit?: number | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string
+          inventory_id?: string | null
+          movement_type?: Database["public"]["Enums"]["stock_movement_type"]
+          notes?: string | null
+          performed_by?: string | null
+          quantity?: number
+          reference_number?: string | null
+          supplier_customer?: string | null
+          total_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          assigned_by: string | null
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string | null
+          status: Database["public"]["Enums"]["task_status"] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          status?: Database["public"]["Enums"]["task_status"] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          status?: Database["public"]["Enums"]["task_status"] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["user_role"]
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_assignments: {
+        Row: {
+          assigned_date: string
+          created_at: string | null
+          driver_id: string | null
+          id: string
+          is_active: boolean | null
+          unassigned_date: string | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          assigned_date: string
+          created_at?: string | null
+          driver_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          unassigned_date?: string | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          assigned_date?: string
+          created_at?: string | null
+          driver_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          unassigned_date?: string | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_assignments_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_assignments_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicles: {
+        Row: {
+          created_at: string | null
+          current_mileage: number | null
+          fuel_type: string | null
+          id: string
+          last_service_date: string | null
+          make: string | null
+          model: string | null
+          next_service_due: number | null
+          status: Database["public"]["Enums"]["vehicle_status"] | null
+          updated_at: string | null
+          vehicle_number: string
+          year: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_mileage?: number | null
+          fuel_type?: string | null
+          id?: string
+          last_service_date?: string | null
+          make?: string | null
+          model?: string | null
+          next_service_due?: number | null
+          status?: Database["public"]["Enums"]["vehicle_status"] | null
+          updated_at?: string | null
+          vehicle_number: string
+          year?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          current_mileage?: number | null
+          fuel_type?: string | null
+          id?: string
+          last_service_date?: string | null
+          make?: string | null
+          model?: string | null
+          next_service_due?: number | null
+          status?: Database["public"]["Enums"]["vehicle_status"] | null
+          updated_at?: string | null
+          vehicle_number?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_admin_user: {
+        Args: { admin_email: string }
+        Returns: undefined
+      }
+      get_user_role: {
+        Args: { user_uuid: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      is_admin: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
+      is_driver_or_admin: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
+      is_employee_or_admin: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      delivery_status: "pending" | "in_progress" | "completed" | "cancelled"
+      leave_status: "pending" | "approved" | "rejected"
+      stock_movement_type:
+        | "inbound"
+        | "outbound"
+        | "damaged"
+        | "returned"
+        | "adjustment"
+      task_status: "pending" | "in_progress" | "completed" | "cancelled"
+      user_role: "admin" | "employee" | "driver"
+      vehicle_status: "active" | "maintenance" | "retired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +844,19 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      delivery_status: ["pending", "in_progress", "completed", "cancelled"],
+      leave_status: ["pending", "approved", "rejected"],
+      stock_movement_type: [
+        "inbound",
+        "outbound",
+        "damaged",
+        "returned",
+        "adjustment",
+      ],
+      task_status: ["pending", "in_progress", "completed", "cancelled"],
+      user_role: ["admin", "employee", "driver"],
+      vehicle_status: ["active", "maintenance", "retired"],
+    },
   },
 } as const

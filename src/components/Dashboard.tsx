@@ -1,16 +1,22 @@
 
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import AdminDashboard from '@/components/dashboards/AdminDashboard';
-import EmployeeDashboard from '@/components/dashboards/EmployeeDashboard';
-import DriverDashboard from '@/components/dashboards/DriverDashboard';
+import AdminDashboard from './dashboards/AdminDashboard';
+import EmployeeDashboard from './dashboards/EmployeeDashboard';
+import DriverDashboard from './dashboards/DriverDashboard';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { profile } = useAuth();
 
-  if (!user) return null;
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
-  switch (user.role) {
+  switch (profile.role) {
     case 'admin':
       return <AdminDashboard />;
     case 'employee':
@@ -18,7 +24,12 @@ const Dashboard = () => {
     case 'driver':
       return <DriverDashboard />;
     default:
-      return <div>Unknown user role</div>;
+      return (
+        <div className="p-6">
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-gray-600 mt-2">Role not recognized: {profile.role}</p>
+        </div>
+      );
   }
 };
 
