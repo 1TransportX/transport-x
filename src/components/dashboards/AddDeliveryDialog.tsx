@@ -74,17 +74,28 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
 
   const fetchInventory = async () => {
     try {
+      // Remove the stock condition to show all products
       const { data, error } = await supabase
         .from('inventory')
         .select('id, product_name, current_stock')
-        .gt('current_stock', 0)
         .order('product_name');
 
-      if (error) throw error;
-      console.log('Fetched inventory:', data);
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('Fetched inventory raw response:', data);
+      console.log('Number of inventory items:', data?.length || 0);
+      
       setInventory(data || []);
     } catch (error) {
       console.error('Error fetching inventory:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load inventory items",
+        variant: "destructive"
+      });
     }
   };
 
@@ -197,7 +208,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
     }));
   };
 
-  console.log('Inventory items available:', inventory);
+  console.log('Current inventory state:', inventory);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -294,7 +305,9 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
                       sideOffset={5}
                     >
                       {inventory.length === 0 ? (
-                        <div className="p-2 text-sm text-gray-500">No products available</div>
+                        <div className="p-2 text-sm text-gray-500">
+                          No products available in inventory
+                        </div>
                       ) : (
                         inventory.map((product) => (
                           <SelectItem 
