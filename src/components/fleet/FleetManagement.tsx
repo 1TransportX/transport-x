@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Truck, Fuel, Wrench } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AddVehicleDialog from './AddVehicleDialog';
+import EditVehicleDialog from './EditVehicleDialog';
 
 interface Vehicle {
   id: string;
@@ -28,7 +30,6 @@ const FleetManagement = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const { data: vehicles = [], isLoading, error } = useQuery({
     queryKey: ['vehicles'],
@@ -50,12 +51,14 @@ const FleetManagement = () => {
   });
 
   const { data: stats } = useQuery({
-    queryKey: ['fleet-stats'],
+    queryKey: ['fleet-stats', vehicles.length],
     queryFn: async () => {
       const totalVehicles = vehicles.length;
       const activeVehicles = vehicles.filter(v => v.status === 'active').length;
       const maintenanceVehicles = vehicles.filter(v => v.status === 'maintenance').length;
-      const avgMileage = vehicles.reduce((sum, v) => sum + v.current_mileage, 0) / totalVehicles || 0;
+      const avgMileage = totalVehicles > 0 
+        ? vehicles.reduce((sum, v) => sum + v.current_mileage, 0) / totalVehicles
+        : 0;
 
       return {
         total: totalVehicles,
@@ -63,7 +66,8 @@ const FleetManagement = () => {
         maintenance: maintenanceVehicles,
         avgMileage: Math.round(avgMileage)
       };
-    }
+    },
+    enabled: vehicles.length >= 0
   });
 
   const filteredVehicles = vehicles.filter(vehicle =>
@@ -238,25 +242,17 @@ const FleetManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Placeholder for dialogs - will be implemented when needed */}
-      {showAddDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg">
-            <h2 className="text-lg font-bold mb-4">Add Vehicle</h2>
-            <p className="text-gray-600">Add vehicle dialog will be implemented here.</p>
-            <Button onClick={() => setShowAddDialog(false)} className="mt-4">Close</Button>
-          </div>
-        </div>
-      )}
+      <AddVehicleDialog 
+        open={showAddDialog} 
+        onOpenChange={setShowAddDialog} 
+      />
       
       {editingVehicle && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg">
-            <h2 className="text-lg font-bold mb-4">Edit Vehicle</h2>
-            <p className="text-gray-600">Edit vehicle dialog will be implemented here.</p>
-            <Button onClick={() => setEditingVehicle(null)} className="mt-4">Close</Button>
-          </div>
-        </div>
+        <EditVehicleDialog 
+          vehicle={editingVehicle}
+          open={!!editingVehicle}
+          onOpenChange={(open) => !open && setEditingVehicle(null)}
+        />
       )}
     </div>
   );
