@@ -14,6 +14,7 @@ import FleetManagement from "./components/fleet/FleetManagement";
 import WarehouseManagement from "./components/warehouse/WarehouseManagement";
 import SettingsPage from "./components/settings/SettingsPage";
 import ReportsPage from "./components/reports/ReportsPage";
+import ProfilePage from "./components/profile/ProfilePage";
 
 const queryClient = new QueryClient();
 
@@ -62,11 +63,8 @@ const App = () => {
                   </ProtectedRoute>
                 } />
                 <Route path="profile" element={
-                  <ProtectedRoute allowedRoles={['employee', 'driver']}>
-                    <div className="p-6">
-                      <h1 className="text-3xl font-bold">My Profile</h1>
-                      <p className="text-gray-600 mt-2">View and update your personal information.</p>
-                    </div>
+                  <ProtectedRoute allowedRoles={['employee', 'driver', 'admin']}>
+                    <ProfilePage />
                   </ProtectedRoute>
                 } />
               </Route>

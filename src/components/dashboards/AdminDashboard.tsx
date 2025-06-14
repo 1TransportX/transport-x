@@ -1,11 +1,11 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Truck, Package, DollarSign, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Users, Truck, Package, DollarSign, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 import AddEmployeeDialog from '@/components/employees/AddEmployeeDialog';
 import ReportDisplay from '@/components/reports/ReportDisplay';
 
@@ -16,8 +16,8 @@ const AdminDashboard = () => {
   const [showReportDisplay, setShowReportDisplay] = useState(false);
   const [currentReportData, setCurrentReportData] = useState(null);
 
-  // Fetch employees with their roles
-  const { data: employees = [] } = useQuery({
+  // Fetch employees with their roles and refresh every 30 seconds
+  const { data: employees = [], isLoading: employeesLoading } = useQuery({
     queryKey: ['dashboard-employees'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -30,16 +30,17 @@ const AdminDashboard = () => {
       
       if (error) throw error;
       
-      // Map the data to include role information
       return data.map(profile => ({
         ...profile,
         role: profile.user_roles?.[0]?.role || 'employee'
       }));
-    }
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 10000 // Consider data stale after 10 seconds
   });
 
-  // Fetch real data from database
-  const { data: vehicles = [] } = useQuery({
+  // Fetch vehicles with refresh interval
+  const { data: vehicles = [], isLoading: vehiclesLoading } = useQuery({
     queryKey: ['dashboard-vehicles'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -48,10 +49,13 @@ const AdminDashboard = () => {
       
       if (error) throw error;
       return data;
-    }
+    },
+    refetchInterval: 30000,
+    staleTime: 10000
   });
 
-  const { data: inventory = [] } = useQuery({
+  // Fetch inventory with refresh interval
+  const { data: inventory = [], isLoading: inventoryLoading } = useQuery({
     queryKey: ['dashboard-inventory'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -60,10 +64,13 @@ const AdminDashboard = () => {
       
       if (error) throw error;
       return data;
-    }
+    },
+    refetchInterval: 30000,
+    staleTime: 10000
   });
 
-  const { data: stockMovements = [] } = useQuery({
+  // Fetch stock movements with refresh interval
+  const { data: stockMovements = [], isLoading: stockMovementsLoading } = useQuery({
     queryKey: ['dashboard-stock-movements'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -74,8 +81,12 @@ const AdminDashboard = () => {
       
       if (error) throw error;
       return data;
-    }
+    },
+    refetchInterval: 30000,
+    staleTime: 10000
   });
+
+  const isLoading = employeesLoading || vehiclesLoading || inventoryLoading || stockMovementsLoading;
 
   // Calculate real KPI data
   const totalEmployees = employees.length;
@@ -300,6 +311,18 @@ const AdminDashboard = () => {
     generateReportMutation.mutate();
   };
 
+  const handleRefreshAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['dashboard-employees'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-vehicles'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-inventory'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-stock-movements'] });
+    
+    toast({
+      title: "Dashboard Refreshed",
+      description: "All dashboard data has been updated.",
+    });
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -307,9 +330,20 @@ const AdminDashboard = () => {
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
           <p className="text-gray-600">Welcome back! Here's what's happening today.</p>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-500">Last updated</p>
-          <p className="text-sm font-medium">{new Date().toLocaleString()}</p>
+        <div className="flex items-center space-x-4">
+          <Button
+            variant="outline"
+            onClick={handleRefreshAll}
+            disabled={isLoading}
+            className="flex items-center space-x-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>{isLoading ? 'Refreshing...' : 'Refresh'}</span>
+          </Button>
+          <div className="text-right">
+            <p className="text-sm text-gray-500">Last updated</p>
+            <p className="text-sm font-medium">{new Date().toLocaleString()}</p>
+          </div>
         </div>
       </div>
 
