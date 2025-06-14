@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Truck, Fuel, Wrench } from 'lucide-react';
+import { Plus, Edit, Truck, Fuel, Wrench, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddVehicleDialog from './AddVehicleDialog';
 import EditVehicleDialog from './EditVehicleDialog';
+import VehicleTrackingDialog from './VehicleTrackingDialog';
 
 interface Vehicle {
   id: string;
@@ -29,6 +30,7 @@ const FleetManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [trackingVehicle, setTrackingVehicle] = useState<Vehicle | null>(null);
   const { toast } = useToast();
 
   console.log('FleetManagement: Component rendering');
@@ -67,14 +69,14 @@ const FleetManagement = () => {
         total: 0,
         active: 0,
         maintenance: 0,
-        avgMileage: 0
+        avgKilometers: 0
       };
     }
 
     const totalVehicles = vehicles.length;
     const activeVehicles = vehicles.filter(v => v.status === 'active').length;
     const maintenanceVehicles = vehicles.filter(v => v.status === 'maintenance').length;
-    const avgMileage = totalVehicles > 0 
+    const avgKilometers = totalVehicles > 0 
       ? Math.round(vehicles.reduce((sum, v) => sum + (v.current_mileage || 0), 0) / totalVehicles)
       : 0;
 
@@ -82,7 +84,7 @@ const FleetManagement = () => {
       total: totalVehicles,
       active: activeVehicles,
       maintenance: maintenanceVehicles,
-      avgMileage
+      avgKilometers
     };
     
     console.log('FleetManagement: Computed stats:', result);
@@ -196,8 +198,8 @@ const FleetManagement = () => {
             <div className="flex items-center gap-2">
               <Fuel className="h-8 w-8 text-purple-600" />
               <div>
-                <p className="text-sm font-medium text-gray-600">Avg Mileage</p>
-                <p className="text-2xl font-bold">{stats.avgMileage}</p>
+                <p className="text-sm font-medium text-gray-600">Avg Kilometers</p>
+                <p className="text-2xl font-bold">{stats.avgKilometers}</p>
               </div>
             </div>
           </CardContent>
@@ -222,7 +224,7 @@ const FleetManagement = () => {
                 <TableHead>Make & Model</TableHead>
                 <TableHead>Year</TableHead>
                 <TableHead>Fuel Type</TableHead>
-                <TableHead>Mileage</TableHead>
+                <TableHead>Kilometers</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last Service</TableHead>
                 <TableHead>Actions</TableHead>
@@ -246,8 +248,10 @@ const FleetManagement = () => {
                       }
                     </TableCell>
                     <TableCell>{vehicle.year || 'N/A'}</TableCell>
-                    <TableCell>{vehicle.fuel_type || 'N/A'}</TableCell>
-                    <TableCell>{(vehicle.current_mileage || 0).toLocaleString()} mi</TableCell>
+                    <TableCell>
+                      {vehicle.fuel_type === 'gasoline' ? 'Petrol' : vehicle.fuel_type || 'N/A'}
+                    </TableCell>
+                    <TableCell>{(vehicle.current_mileage || 0).toLocaleString()} km</TableCell>
                     <TableCell>
                       <Badge className={getStatusBadgeColor(vehicle.status)}>
                         {vehicle.status}
@@ -260,13 +264,22 @@ const FleetManagement = () => {
                       }
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditingVehicle(vehicle)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingVehicle(vehicle)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setTrackingVehicle(vehicle)}
+                        >
+                          <MapPin className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -286,6 +299,14 @@ const FleetManagement = () => {
           vehicle={editingVehicle}
           open={!!editingVehicle}
           onOpenChange={(open) => !open && setEditingVehicle(null)}
+        />
+      )}
+
+      {trackingVehicle && (
+        <VehicleTrackingDialog 
+          vehicle={trackingVehicle}
+          open={!!trackingVehicle}
+          onOpenChange={(open) => !open && setTrackingVehicle(null)}
         />
       )}
     </div>

@@ -48,12 +48,13 @@ const EditVehicleDialog: React.FC<EditVehicleDialogProps> = ({ vehicle, open, on
 
   useEffect(() => {
     if (vehicle) {
+      const fuelType = vehicle.fuel_type === 'gasoline' ? 'petrol' : vehicle.fuel_type || '';
       reset({
         vehicle_number: vehicle.vehicle_number,
         make: vehicle.make || '',
         model: vehicle.model || '',
         year: vehicle.year || new Date().getFullYear(),
-        fuel_type: vehicle.fuel_type || '',
+        fuel_type: fuelType,
         current_mileage: vehicle.current_mileage,
         status: vehicle.status,
         last_service_date: vehicle.last_service_date || '',
@@ -141,7 +142,7 @@ const EditVehicleDialog: React.FC<EditVehicleDialogProps> = ({ vehicle, open, on
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="gasoline">Gasoline</SelectItem>
+                  <SelectItem value="petrol">Petrol</SelectItem>
                   <SelectItem value="diesel">Diesel</SelectItem>
                   <SelectItem value="electric">Electric</SelectItem>
                   <SelectItem value="hybrid">Hybrid</SelectItem>
@@ -152,7 +153,7 @@ const EditVehicleDialog: React.FC<EditVehicleDialogProps> = ({ vehicle, open, on
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="current_mileage">Current Mileage</Label>
+              <Label htmlFor="current_mileage">Current Kilometers</Label>
               <Input
                 id="current_mileage"
                 type="number"
@@ -184,7 +185,7 @@ const EditVehicleDialog: React.FC<EditVehicleDialogProps> = ({ vehicle, open, on
               />
             </div>
             <div>
-              <Label htmlFor="next_service_due">Next Service Due (miles)</Label>
+              <Label htmlFor="next_service_due">Next Service Due (km)</Label>
               <Input
                 id="next_service_due"
                 type="number"

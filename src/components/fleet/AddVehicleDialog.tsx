@@ -121,7 +121,7 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
                   <SelectValue placeholder="Select fuel type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="gasoline">Gasoline</SelectItem>
+                  <SelectItem value="petrol">Petrol</SelectItem>
                   <SelectItem value="diesel">Diesel</SelectItem>
                   <SelectItem value="electric">Electric</SelectItem>
                   <SelectItem value="hybrid">Hybrid</SelectItem>
@@ -132,12 +132,12 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="current_mileage">Current Mileage</Label>
+              <Label htmlFor="current_mileage">Current Kilometers</Label>
               <Input
                 id="current_mileage"
                 type="number"
                 {...register('current_mileage', { required: true, valueAsNumber: true })}
-                placeholder="50000"
+                placeholder="80000"
               />
             </div>
             <div>
@@ -165,12 +165,12 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
               />
             </div>
             <div>
-              <Label htmlFor="next_service_due">Next Service Due (miles)</Label>
+              <Label htmlFor="next_service_due">Next Service Due (km)</Label>
               <Input
                 id="next_service_due"
                 type="number"
                 {...register('next_service_due', { valueAsNumber: true })}
-                placeholder="55000"
+                placeholder="88000"
               />
             </div>
           </div>
