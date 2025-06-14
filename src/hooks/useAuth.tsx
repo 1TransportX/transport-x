@@ -27,6 +27,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   isLoading: boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,7 +37,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [profileFetched, setProfileFetched] = useState(false);
   const { toast } = useToast();
 
   const createDefaultProfile = (userId: string, userEmail: string): UserProfile => {
@@ -58,21 +58,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const fetchUserProfile = async (userId: string, userEmail: string) => {
-    if (profileFetched) {
-      console.log('Profile already fetched, skipping...');
-      return;
-    }
-
     try {
-      console.log('Fetching profile for user:', userId);
-      setProfileFetched(true);
+      console.log('Fetching fresh profile for user:', userId);
       
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
-      );
-
-      const profilePromise = Promise.all([
+      // Always fetch fresh data from the database
+      const [profileResponse, roleResponse] = await Promise.all([
         supabase
           .from('profiles')
           .select('*')
@@ -85,13 +75,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .maybeSingle()
       ]);
 
-      const [profileResponse, roleResponse] = await Promise.race([
-        profilePromise,
-        timeoutPromise
-      ]) as any;
-
-      console.log('Profile response:', profileResponse);
-      console.log('Role response:', roleResponse);
+      console.log('Fresh profile response:', profileResponse);
+      console.log('Fresh role response:', roleResponse);
 
       let profileData = profileResponse.data;
       let roleData = roleResponse.data;
@@ -113,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: roleData.role || 'employee'
       };
 
-      console.log('Setting final profile:', userProfile);
+      console.log('Setting fresh profile:', userProfile);
       setProfile(userProfile);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
@@ -123,6 +108,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(fallbackProfile);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchUserProfile(user.id, user.email || '');
     }
   };
 
@@ -150,7 +141,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            // Use setTimeout to avoid blocking
             profileTimeout = setTimeout(() => {
               fetchUserProfile(session.user.id, session.user.email || '');
             }, 100);
@@ -176,14 +166,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession(session);
           setUser(session?.user ?? null);
           
-          if (session?.user && event === 'SIGNED_IN') {
-            setProfileFetched(false); // Reset profile fetched flag
+          if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+            // Always fetch fresh profile data on sign in or token refresh
             profileTimeout = setTimeout(() => {
               fetchUserProfile(session.user.id, session.user.email || '');
             }, 100);
           } else if (event === 'SIGNED_OUT') {
             setProfile(null);
-            setProfileFetched(false);
             setIsLoading(false);
           }
         }
@@ -242,7 +231,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
-    setProfileFetched(false); // Reset profile fetched flag
     
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -257,6 +245,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       setIsLoading(false);
     }
+    // Note: Don't set isLoading to false here - let the auth state change handle it
+    // This ensures we wait for the profile to be fetched before showing the dashboard
 
     return { error };
   };
@@ -277,7 +267,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setProfile(null);
     setSession(null);
-    setProfileFetched(false);
     setIsLoading(false);
   };
 
@@ -289,7 +278,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signUp, 
       signIn, 
       signOut, 
-      isLoading 
+      isLoading,
+      refreshProfile
     }}>
       {children}
     </AuthContext.Provider>
