@@ -14,7 +14,7 @@ interface Delivery {
   customer_name: string;
   customer_address: string;
   scheduled_date: string;
-  status: 'pending' | 'in_progress' | 'completed';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   notes: string;
   delivery_items: Array<{
     id: string;
@@ -155,25 +155,25 @@ const DriverDashboard = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Driver Dashboard</h1>
           <p className="text-gray-600">Your routes and vehicle status for today</p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
           <Button 
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
             onClick={() => deliveries.length > 0 && handleNavigation(deliveries[0]?.customer_address)}
             disabled={deliveries.length === 0}
           >
             <Navigation className="h-4 w-4 mr-2" />
             Start Navigation
           </Button>
-          <Button variant="outline" onClick={handleProofUpload}>
+          <Button variant="outline" onClick={handleProofUpload} className="w-full sm:w-auto">
             <Camera className="h-4 w-4 mr-2" />
             Upload Proof
           </Button>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Add Route
           </Button>
@@ -253,20 +253,20 @@ const DriverDashboard = () => {
               {deliveries.map((delivery, index) => (
                 <div 
                   key={delivery.id} 
-                  className={`flex items-center justify-between p-4 rounded-lg border ${
+                  className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-lg border ${
                     delivery.status === 'completed' ? 'bg-green-50 border-green-200' :
                     delivery.status === 'in_progress' ? 'bg-blue-50 border-blue-200' :
                     'bg-white border-gray-200'
-                  } hover:shadow-md transition-shadow`}
+                  } hover:shadow-md transition-shadow space-y-3 sm:space-y-0`}
                 >
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-4 w-full sm:w-auto">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
                       delivery.status === 'completed' ? 'bg-green-500' :
                       delivery.status === 'in_progress' ? 'bg-blue-500' : 'bg-gray-400'
                     }`}>
                       {index + 1}
                     </div>
-                    <div>
+                    <div className="flex-1 sm:flex-none">
                       <p className="font-medium text-gray-900">{delivery.customer_name}</p>
                       <p className="text-sm text-gray-600">{delivery.customer_address}</p>
                       <p className="text-sm text-gray-500">
@@ -274,38 +274,44 @@ const DriverDashboard = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                       delivery.status === 'completed' ? 'bg-green-100 text-green-800' :
                       delivery.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                      delivery.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                       'bg-gray-100 text-gray-800'
                     }`}>
                       {delivery.status.replace('_', ' ')}
                     </span>
-                    {delivery.status === 'in_progress' && (
-                      <Button 
+                    <div className="flex space-x-2 w-full sm:w-auto">
+                      {delivery.status === 'in_progress' && (
+                        <Button 
+                          size="sm"
+                          onClick={() => handleStatusUpdate(delivery.id, 'completed')}
+                          className="flex-1 sm:flex-none"
+                        >
+                          Complete Delivery
+                        </Button>
+                      )}
+                      {delivery.status === 'pending' && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleStatusUpdate(delivery.id, 'in_progress')}
+                          className="flex-1 sm:flex-none"
+                        >
+                          Start Route
+                        </Button>
+                      )}
+                      <Button
                         size="sm"
-                        onClick={() => handleStatusUpdate(delivery.id, 'completed')}
+                        variant="ghost"
+                        onClick={() => handleNavigation(delivery.customer_address)}
+                        className="flex-none"
                       >
-                        Complete Delivery
+                        <Navigation className="h-4 w-4" />
                       </Button>
-                    )}
-                    {delivery.status === 'pending' && (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleStatusUpdate(delivery.id, 'in_progress')}
-                      >
-                        Start Route
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleNavigation(delivery.customer_address)}
-                    >
-                      <Navigation className="h-4 w-4" />
-                    </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -324,7 +330,7 @@ const DriverDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600">Model</p>
                 <p className="font-medium">{vehicle.make} {vehicle.model}</p>
