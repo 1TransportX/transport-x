@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -65,6 +66,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('=== Cleared existing profile data');
       }
       
+      // Add debugging for ALL user_roles in database
+      console.log('=== DEBUGGING: Checking all user_roles in database...');
+      const { data: allRoles, error: allRolesError } = await supabase
+        .from('user_roles')
+        .select('*');
+      console.log('=== ALL user_roles in database:', allRoles, 'error:', allRolesError);
+      
       // Fetch profile data
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -74,8 +82,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('=== Profile response:', { data: profileData, error: profileError });
 
-      // Fetch role data
+      // Fetch role data with even more debugging
       console.log('=== Fetching role for user_id:', userId);
+      console.log('=== Exact query: SELECT user_id, role, created_at FROM user_roles WHERE user_id =', userId);
+      
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('user_id, role, created_at')
@@ -85,8 +95,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data: roleData, 
         error: roleError,
         userId: userId,
-        roleDataLength: roleData?.length 
+        roleDataLength: roleData?.length,
+        userIdType: typeof userId,
+        actualUserIds: allRoles?.map(r => ({ id: r.user_id, type: typeof r.user_id }))
       });
+
+      // Check if the user ID matches any in the database
+      const matchingRole = allRoles?.find(role => role.user_id === userId);
+      console.log('=== Manual role search result:', matchingRole);
 
       let userProfile: UserProfile;
 
@@ -95,8 +111,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (roleData && roleData.length > 0) {
         userRole = roleData[0].role || 'employee';
         console.log('=== Role found in database:', userRole, 'from record:', roleData[0]);
+      } else if (matchingRole) {
+        userRole = matchingRole.role || 'employee';
+        console.log('=== Role found via manual search:', userRole, 'from record:', matchingRole);
       } else {
         console.log('=== No role found in database for user:', userId, 'using default employee role');
+        console.log('=== Available user IDs in database:', allRoles?.map(r => r.user_id));
       }
 
       // If no profile exists, create a basic one
