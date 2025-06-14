@@ -1,19 +1,22 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Truck, Package, DollarSign, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Users, Truck, Package, DollarSign, TrendingUp, AlertTriangle, RefreshCw, UserPlus } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import AddEmployeeDialog from '@/components/employees/AddEmployeeDialog';
 import ReportDisplay from '@/components/reports/ReportDisplay';
+import AssignRouteToDriverDialog from './AssignRouteToDriverDialog';
 
 const AdminDashboard = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showAddEmployeeDialog, setShowAddEmployeeDialog] = useState(false);
   const [showReportDisplay, setShowReportDisplay] = useState(false);
+  const [showAssignRouteDialog, setShowAssignRouteDialog] = useState(false);
   const [currentReportData, setCurrentReportData] = useState(null);
 
   // Fetch employees with their roles and refresh every 30 seconds
@@ -315,6 +318,10 @@ const AdminDashboard = () => {
     setShowAddEmployeeDialog(true);
   };
 
+  const handleAssignRoute = () => {
+    setShowAssignRouteDialog(true);
+  };
+
   const handleScheduleMaintenance = () => {
     if (vehicles.length === 0) {
       toast({
@@ -505,6 +512,13 @@ const AdminDashboard = () => {
               <p className="text-sm text-blue-600">Create a new user account</p>
             </button>
             <button 
+              onClick={handleAssignRoute}
+              className="w-full text-left p-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+            >
+              <p className="font-medium text-indigo-900">Assign Routes to Driver</p>
+              <p className="text-sm text-indigo-600">Assign delivery routes to available drivers</p>
+            </button>
+            <button 
               onClick={handleScheduleMaintenance}
               disabled={scheduleMaintenanceMutation.isPending}
               className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
@@ -532,6 +546,16 @@ const AdminDashboard = () => {
       <AddEmployeeDialog 
         open={showAddEmployeeDialog} 
         onOpenChange={setShowAddEmployeeDialog} 
+      />
+
+      {/* Assign Route Dialog */}
+      <AssignRouteToDriverDialog
+        isOpen={showAssignRouteDialog}
+        onClose={() => setShowAssignRouteDialog(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['deliveries'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard-deliveries'] });
+        }}
       />
 
       {/* Report Display Dialog */}
