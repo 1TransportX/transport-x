@@ -38,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching profile for user:', userId);
       
+      // First check if profile exists
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -46,11 +47,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profileError) {
         console.error('Error fetching profile:', profileError);
-        return;
+        // If profile doesn't exist, create it
+        if (profileError.code === 'PGRST116') {
+          console.log('Profile not found, creating one...');
+          const { data: userData } = await supabase.auth.getUser();
+          if (userData.user) {
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert({
+                id: userId,
+                email: userData.user.email || '',
+                first_name: userData.user.user_metadata?.first_name || null,
+                last_name: userData.user.user_metadata?.last_name || null
+              });
+            
+            if (insertError) {
+              console.error('Error creating profile:', insertError);
+              return;
+            }
+            
+            // Retry fetching the profile
+            const { data: newProfileData, error: newProfileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', userId)
+              .single();
+              
+            if (newProfileError) {
+              console.error('Error fetching new profile:', newProfileError);
+              return;
+            }
+            
+            profileData = newProfileData;
+          }
+        } else {
+          return;
+        }
       }
 
       console.log('Profile data:', profileData);
 
+      // Fetch user role
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
@@ -59,7 +96,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (roleError) {
         console.error('Error fetching role:', roleError);
-        return;
+        // If role doesn't exist, create default role
+        if (roleError.code === 'PGRST116') {
+          console.log('Role not found, creating default role...');
+          const { error: insertRoleError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: userId,
+              role: 'employee'
+            });
+            
+          if (insertRoleError) {
+            console.error('Error creating role:', insertRoleError);
+            return;
+          }
+          
+          // Set default role
+          roleData = { role: 'employee' };
+        } else {
+          return;
+        }
       }
 
       console.log('Role data:', roleData);
@@ -80,6 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Get initial session
     const getInitialSession = async () => {
       try {
+        console.log('Getting initial session...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
