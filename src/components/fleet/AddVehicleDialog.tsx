@@ -22,6 +22,7 @@ interface VehicleFormData {
   year: number;
   fuel_type: string;
   current_mileage: number;
+  fuel_economy: number;
   status: 'active' | 'maintenance' | 'retired';
   last_service_date?: string;
   next_service_due?: number;
@@ -34,9 +35,10 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
 
   const addVehicleMutation = useMutation({
     mutationFn: async (data: VehicleFormData) => {
+      const { fuel_economy, ...vehicleData } = data;
       const { error } = await supabase
         .from('vehicles')
-        .insert([data]);
+        .insert([vehicleData]);
 
       if (error) throw error;
     },
@@ -121,10 +123,10 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
                   <SelectValue placeholder="Select fuel type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="petrol">Petrol</SelectItem>
-                  <SelectItem value="diesel">Diesel</SelectItem>
-                  <SelectItem value="electric">Electric</SelectItem>
-                  <SelectItem value="hybrid">Hybrid</SelectItem>
+                  <SelectItem value="Petrol">Petrol</SelectItem>
+                  <SelectItem value="Diesel">Diesel</SelectItem>
+                  <SelectItem value="Electric">Electric</SelectItem>
+                  <SelectItem value="Hybrid">Hybrid</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -141,6 +143,19 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
               />
             </div>
             <div>
+              <Label htmlFor="fuel_economy">Fuel Economy (Km/L)</Label>
+              <Input
+                id="fuel_economy"
+                type="number"
+                step="0.1"
+                {...register('fuel_economy', { valueAsNumber: true })}
+                placeholder="12.5"
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <Label htmlFor="status">Status</Label>
               <Select onValueChange={(value) => setValue('status', value as any)}>
                 <SelectTrigger>
@@ -153,9 +168,6 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="last_service_date">Last Service Date</Label>
               <Input
@@ -164,15 +176,16 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
                 {...register('last_service_date')}
               />
             </div>
-            <div>
-              <Label htmlFor="next_service_due">Next Service Due (km)</Label>
-              <Input
-                id="next_service_due"
-                type="number"
-                {...register('next_service_due', { valueAsNumber: true })}
-                placeholder="88000"
-              />
-            </div>
+          </div>
+          
+          <div>
+            <Label htmlFor="next_service_due">Next Service Due (km)</Label>
+            <Input
+              id="next_service_due"
+              type="number"
+              {...register('next_service_due', { valueAsNumber: true })}
+              placeholder="88000"
+            />
           </div>
           
           <div className="flex justify-end gap-2">

@@ -248,9 +248,7 @@ const FleetManagement = () => {
                       }
                     </TableCell>
                     <TableCell>{vehicle.year || 'N/A'}</TableCell>
-                    <TableCell>
-                      {vehicle.fuel_type === 'gasoline' ? 'Petrol' : vehicle.fuel_type || 'N/A'}
-                    </TableCell>
+                    <TableCell>{vehicle.fuel_type || 'N/A'}</TableCell>
                     <TableCell>{(vehicle.current_mileage || 0).toLocaleString()} km</TableCell>
                     <TableCell>
                       <Badge className={getStatusBadgeColor(vehicle.status)}>
