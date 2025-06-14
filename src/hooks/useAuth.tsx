@@ -59,24 +59,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string, userEmail: string) => {
     try {
-      console.log('Fetching fresh profile for user:', userId);
+      console.log('=== Fetching fresh profile for user:', userId);
       
-      // Always fetch fresh data from the database
+      // Clear any existing cached data
+      setProfile(null);
+      
+      // Always fetch fresh data from the database with no cache
       const [profileResponse, roleResponse] = await Promise.all([
         supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .maybeSingle(),
+          .single(),
         supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', userId)
-          .maybeSingle()
+          .single()
       ]);
 
-      console.log('Fresh profile response:', profileResponse);
-      console.log('Fresh role response:', roleResponse);
+      console.log('=== Fresh profile response:', profileResponse);
+      console.log('=== Fresh role response:', roleResponse);
 
       let profileData = profileResponse.data;
       let roleData = roleResponse.data;
@@ -98,7 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: roleData.role || 'employee'
       };
 
-      console.log('Setting fresh profile:', userProfile);
+      console.log('=== Setting fresh profile with role:', userProfile.role);
       setProfile(userProfile);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
@@ -112,7 +115,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refreshProfile = async () => {
+    console.log('=== RefreshProfile called');
     if (user) {
+      setIsLoading(true);
       await fetchUserProfile(user.id, user.email || '');
     }
   };
@@ -160,7 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state change:', event, !!session?.user);
+        console.log('=== Auth state change:', event, !!session?.user);
         
         if (mounted) {
           setSession(session);
@@ -168,6 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
             // Always fetch fresh profile data on sign in or token refresh
+            console.log('=== Fetching fresh profile due to auth event');
             profileTimeout = setTimeout(() => {
               fetchUserProfile(session.user.id, session.user.email || '');
             }, 100);

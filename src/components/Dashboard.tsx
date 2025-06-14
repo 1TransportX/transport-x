@@ -8,7 +8,7 @@ import DriverDashboard from './dashboards/DriverDashboard';
 const Dashboard = () => {
   const { profile, isLoading } = useAuth();
 
-  console.log('Dashboard rendering - profile:', profile, 'isLoading:', isLoading);
+  console.log('=== Dashboard rendering - profile:', profile, 'isLoading:', isLoading);
 
   if (isLoading) {
     console.log('Dashboard - showing loading state');
@@ -29,7 +29,7 @@ const Dashboard = () => {
     );
   }
 
-  console.log('Dashboard - rendering for role:', profile.role);
+  console.log('=== Dashboard - rendering for role:', profile.role);
 
   switch (profile.role) {
     case 'admin':

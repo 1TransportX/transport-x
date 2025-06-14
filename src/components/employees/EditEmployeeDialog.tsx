@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -57,7 +56,7 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
 
   const updateEmployeeMutation = useMutation({
     mutationFn: async (employeeData: any) => {
-      console.log('Updating employee with data:', employeeData);
+      console.log('=== Updating employee with data:', employeeData);
       
       // Prepare the update data for profiles
       const profileUpdateData: any = {
@@ -98,7 +97,8 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
         throw checkError;
       }
 
-      console.log('Existing role:', existingRole);
+      console.log('=== Existing role:', existingRole);
+      console.log('=== New role to set:', employeeData.role);
 
       if (existingRole) {
         // Update existing role
@@ -126,22 +126,28 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
         }
       }
 
-      console.log('Employee updated successfully');
+      console.log('=== Employee updated successfully');
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       
-      // If the current user is updating their own profile, refresh their auth profile
+      // If the current user is updating their own profile, refresh their auth profile immediately
       if (user && user.id === employee.id) {
-        console.log('Refreshing current user profile after role update');
+        console.log('=== Current user role changed, refreshing profile and forcing re-render');
         await refreshProfile();
+        
+        // Force a small delay to ensure the profile is updated before closing dialog
+        setTimeout(() => {
+          onOpenChange(false);
+        }, 500);
+      } else {
+        onOpenChange(false);
       }
       
       toast({
         title: "Success",
         description: "Employee updated successfully.",
       });
-      onOpenChange(false);
     },
     onError: (error: any) => {
       console.error('Update employee mutation error:', error);
