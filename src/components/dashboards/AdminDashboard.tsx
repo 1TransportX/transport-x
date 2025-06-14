@@ -1,38 +1,198 @@
 
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Truck, Package, DollarSign, TrendingUp, AlertTriangle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 const AdminDashboard = () => {
-  const kpiData = [
-    { title: 'Total Employees', value: '248', icon: Users, change: '+12%', trend: 'up' },
-    { title: 'Active Vehicles', value: '42', icon: Truck, change: '+2%', trend: 'up' },
-    { title: 'Inventory Items', value: '1,247', icon: Package, change: '-3%', trend: 'down' },
-    { title: 'Monthly Revenue', value: '$847K', icon: DollarSign, change: '+18%', trend: 'up' }
-  ];
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const salesData = [
-    { month: 'Jan', sales: 650, deliveries: 120 },
-    { month: 'Feb', sales: 720, deliveries: 140 },
-    { month: 'Mar', sales: 680, deliveries: 125 },
-    { month: 'Apr', sales: 780, deliveries: 165 },
-    { month: 'May', sales: 850, deliveries: 180 },
-    { month: 'Jun', sales: 920, deliveries: 195 }
-  ];
+  // Fetch real data from database
+  const { data: employees = [] } = useQuery({
+    queryKey: ['dashboard-employees'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (error) throw error;
+      return data;
+    }
+  });
 
-  const departmentData = [
-    { name: 'Warehouse', value: 45, color: '#3b82f6' },
-    { name: 'Drivers', value: 28, color: '#10b981' },
-    { name: 'Admin', value: 15, color: '#f59e0b' },
-    { name: 'Sales', value: 12, color: '#ef4444' }
-  ];
+  const { data: vehicles = [] } = useQuery({
+    queryKey: ['dashboard-vehicles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('*');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const { data: inventory = [] } = useQuery({
+    queryKey: ['dashboard-inventory'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const { data: stockMovements = [] } = useQuery({
+    queryKey: ['dashboard-stock-movements'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_movements')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(6);
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Calculate real KPI data
+  const totalEmployees = employees.length;
+  const activeVehicles = vehicles.filter(v => v.status === 'active').length;
+  const totalInventoryItems = inventory.length;
+  const totalInventoryValue = inventory.reduce((sum, item) => sum + (item.current_stock * (item.unit_price || 0)), 0);
+
+  // Generate real alerts based on data
+  const lowStockItems = inventory.filter(item => item.current_stock <= item.minimum_stock);
+  const vehiclesInMaintenance = vehicles.filter(v => v.status === 'maintenance');
+  const outOfStockItems = inventory.filter(item => item.current_stock === 0);
 
   const alerts = [
-    { type: 'warning', message: 'Low stock alert: Widget A-123 (5 units left)' },
-    { type: 'info', message: 'Vehicle VH-001 scheduled for maintenance tomorrow' },
-    { type: 'error', message: 'Delivery DEL-789 is overdue by 2 hours' }
+    ...lowStockItems.slice(0, 2).map(item => ({
+      type: 'warning' as const,
+      message: `Low stock alert: ${item.product_name} (${item.current_stock} units left)`
+    })),
+    ...vehiclesInMaintenance.slice(0, 1).map(vehicle => ({
+      type: 'info' as const,
+      message: `Vehicle ${vehicle.vehicle_number} is currently in maintenance`
+    })),
+    ...outOfStockItems.slice(0, 1).map(item => ({
+      type: 'error' as const,
+      message: `Out of stock: ${item.product_name}`
+    }))
+  ].slice(0, 3);
+
+  // If no alerts, show positive messages
+  if (alerts.length === 0) {
+    alerts.push({
+      type: 'info' as const,
+      message: 'All systems operating normally'
+    });
+  }
+
+  const kpiData = [
+    { 
+      title: 'Total Employees', 
+      value: totalEmployees.toString(), 
+      icon: Users, 
+      change: `${totalEmployees > 0 ? '+' : ''}${totalEmployees}`, 
+      trend: 'up' as const 
+    },
+    { 
+      title: 'Active Vehicles', 
+      value: activeVehicles.toString(), 
+      icon: Truck, 
+      change: `${activeVehicles}/${vehicles.length}`, 
+      trend: activeVehicles > 0 ? 'up' as const : 'down' as const 
+    },
+    { 
+      title: 'Inventory Items', 
+      value: totalInventoryItems.toString(), 
+      icon: Package, 
+      change: `${lowStockItems.length} low stock`, 
+      trend: lowStockItems.length > 0 ? 'down' as const : 'up' as const 
+    },
+    { 
+      title: 'Inventory Value', 
+      value: `$${Math.round(totalInventoryValue).toLocaleString()}`, 
+      icon: DollarSign, 
+      change: `${totalInventoryItems} items`, 
+      trend: 'up' as const 
+    }
   ];
+
+  // Generate sales data from stock movements (last 6 months)
+  const salesData = Array.from({ length: 6 }, (_, i) => {
+    const month = new Date();
+    month.setMonth(month.getMonth() - (5 - i));
+    const monthName = month.toLocaleDateString('en-US', { month: 'short' });
+    
+    const monthMovements = stockMovements.filter(movement => {
+      const movementDate = new Date(movement.created_at);
+      return movementDate.getMonth() === month.getMonth() && 
+             movementDate.getFullYear() === month.getFullYear();
+    });
+    
+    const sales = monthMovements
+      .filter(m => m.movement_type === 'outbound')
+      .reduce((sum, m) => sum + (m.total_cost || 0), 0);
+    
+    const deliveries = monthMovements.filter(m => m.movement_type === 'outbound').length;
+    
+    return {
+      month: monthName,
+      sales: Math.round(sales),
+      deliveries
+    };
+  });
+
+  // Calculate department distribution
+  const departmentCounts = employees.reduce((acc, emp) => {
+    const dept = emp.department || 'Unassigned';
+    acc[dept] = (acc[dept] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const departmentData = Object.entries(departmentCounts).map(([name, count], index) => {
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    return {
+      name,
+      value: Math.round((count / totalEmployees) * 100),
+      color: colors[index % colors.length]
+    };
+  });
+
+  // Quick action handlers
+  const handleAddEmployee = () => {
+    navigate('/employees');
+    toast({
+      title: "Redirected",
+      description: "Navigate to Employee Management to add new employees.",
+    });
+  };
+
+  const handleScheduleMaintenance = () => {
+    navigate('/fleet');
+    toast({
+      title: "Redirected",
+      description: "Navigate to Fleet Management to schedule maintenance.",
+    });
+  };
+
+  const handleGenerateReport = () => {
+    toast({
+      title: "Report Generation",
+      description: "Report generation feature will be available soon.",
+    });
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -74,8 +234,8 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Sales & Deliveries Trend</CardTitle>
-            <CardDescription>Monthly performance overview</CardDescription>
+            <CardTitle>Stock Movement Trends</CardTitle>
+            <CardDescription>Monthly stock movement overview</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -97,35 +257,43 @@ const AdminDashboard = () => {
             <CardDescription>Employee allocation by department</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={departmentData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={120}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {departmentData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+            {totalEmployees > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={departmentData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={120}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {departmentData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="grid grid-cols-2 gap-2 mt-4">
+                  {departmentData.map((dept, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: dept.color }}
+                      />
+                      <span className="text-sm text-gray-600">{dept.name}: {dept.value}%</span>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              {departmentData.map((dept, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: dept.color }}
-                  />
-                  <span className="text-sm text-gray-600">{dept.name}: {dept.value}%</span>
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-64 text-gray-500">
+                No employee data available
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -160,15 +328,24 @@ const AdminDashboard = () => {
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <button className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+            <button 
+              onClick={handleAddEmployee}
+              className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+            >
               <p className="font-medium text-blue-900">Add New Employee</p>
               <p className="text-sm text-blue-600">Create a new user account</p>
             </button>
-            <button className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+            <button 
+              onClick={handleScheduleMaintenance}
+              className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+            >
               <p className="font-medium text-green-900">Schedule Vehicle Maintenance</p>
               <p className="text-sm text-green-600">Set up maintenance for fleet</p>
             </button>
-            <button className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
+            <button 
+              onClick={handleGenerateReport}
+              className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+            >
               <p className="font-medium text-purple-900">Generate Report</p>
               <p className="text-sm text-purple-600">Export operational data</p>
             </button>
