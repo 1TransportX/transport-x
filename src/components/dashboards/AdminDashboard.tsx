@@ -1,15 +1,16 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Truck, Package, DollarSign, TrendingUp, AlertTriangle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import AddEmployeeDialog from '@/components/employees/AddEmployeeDialog';
 
 const AdminDashboard = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showAddEmployeeDialog, setShowAddEmployeeDialog] = useState(false);
 
   // Fetch employees with their roles
   const { data: employees = [] } = useQuery({
@@ -184,28 +185,101 @@ const AdminDashboard = () => {
     };
   });
 
+  // Schedule maintenance mutation
+  const scheduleMaintenanceMutation = useMutation({
+    mutationFn: async () => {
+      // Get a random active vehicle for demonstration
+      const activeVehicles = vehicles.filter(v => v.status === 'active');
+      if (activeVehicles.length === 0) {
+        throw new Error('No active vehicles available for maintenance scheduling');
+      }
+      
+      const randomVehicle = activeVehicles[Math.floor(Math.random() * activeVehicles.length)];
+      const maintenanceDate = new Date();
+      maintenanceDate.setDate(maintenanceDate.getDate() + 7); // Schedule for next week
+      
+      const { data, error } = await supabase
+        .from('maintenance_logs')
+        .insert({
+          vehicle_id: randomVehicle.id,
+          maintenance_type: 'Scheduled Maintenance',
+          service_date: maintenanceDate.toISOString().split('T')[0],
+          description: 'Routine maintenance check scheduled from dashboard',
+          performed_by: 'System Auto-Schedule'
+        });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-vehicles'] });
+      toast({
+        title: "Maintenance Scheduled",
+        description: "Vehicle maintenance has been scheduled successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to schedule maintenance.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Generate report action
+  const generateReportMutation = useMutation({
+    mutationFn: async () => {
+      // Simulate report generation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const reportData = {
+        totalEmployees,
+        activeVehicles,
+        totalInventoryItems,
+        totalInventoryValue,
+        lowStockCount: lowStockItems.length,
+        generatedAt: new Date().toISOString()
+      };
+      
+      // In a real app, this would generate and download a PDF/Excel file
+      console.log('Generated Report:', reportData);
+      return reportData;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Report Generated",
+        description: "Operational report has been generated and logged to console.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to generate report.",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Quick action handlers
   const handleAddEmployee = () => {
-    navigate('/employees');
-    toast({
-      title: "Redirected",
-      description: "Navigate to Employee Management to add new employees.",
-    });
+    setShowAddEmployeeDialog(true);
   };
 
   const handleScheduleMaintenance = () => {
-    navigate('/fleet');
-    toast({
-      title: "Redirected",
-      description: "Navigate to Fleet Management to schedule maintenance.",
-    });
+    if (vehicles.length === 0) {
+      toast({
+        title: "No Vehicles",
+        description: "No vehicles available in the system to schedule maintenance.",
+        variant: "destructive",
+      });
+      return;
+    }
+    scheduleMaintenanceMutation.mutate();
   };
 
   const handleGenerateReport = () => {
-    toast({
-      title: "Report Generation",
-      description: "Report generation feature will be available soon.",
-    });
+    generateReportMutation.mutate();
   };
 
   return (
@@ -351,21 +425,33 @@ const AdminDashboard = () => {
             </button>
             <button 
               onClick={handleScheduleMaintenance}
-              className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+              disabled={scheduleMaintenanceMutation.isPending}
+              className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
             >
-              <p className="font-medium text-green-900">Schedule Vehicle Maintenance</p>
-              <p className="text-sm text-green-600">Set up maintenance for fleet</p>
+              <p className="font-medium text-green-900">
+                {scheduleMaintenanceMutation.isPending ? 'Scheduling...' : 'Schedule Vehicle Maintenance'}
+              </p>
+              <p className="text-sm text-green-600">Auto-schedule maintenance for a vehicle</p>
             </button>
             <button 
               onClick={handleGenerateReport}
-              className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+              disabled={generateReportMutation.isPending}
+              className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors disabled:opacity-50"
             >
-              <p className="font-medium text-purple-900">Generate Report</p>
-              <p className="text-sm text-purple-600">Export operational data</p>
+              <p className="font-medium text-purple-900">
+                {generateReportMutation.isPending ? 'Generating...' : 'Generate Report'}
+              </p>
+              <p className="text-sm text-purple-600">Export operational data summary</p>
             </button>
           </CardContent>
         </Card>
       </div>
+
+      {/* Add Employee Dialog */}
+      <AddEmployeeDialog 
+        open={showAddEmployeeDialog} 
+        onOpenChange={setShowAddEmployeeDialog} 
+      />
     </div>
   );
 };
