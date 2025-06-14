@@ -30,146 +30,121 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
       console.log('=== STARTING EMPLOYEE CREATION ===');
       console.log('Employee data:', employeeData);
       
+      // Step 1: Create the user account using regular signUp
+      console.log('Step 1: Creating user account...');
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: employeeData.email,
+        password: 'TempPassword123!',
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            first_name: employeeData.firstName,
+            last_name: employeeData.lastName
+          }
+        }
+      });
+
+      if (authError) {
+        console.error('❌ Auth error:', authError);
+        throw new Error(`Authentication failed: ${authError.message}`);
+      }
+
+      if (!authData.user) {
+        console.error('❌ No user returned from auth');
+        throw new Error('Failed to create user account - no user returned');
+      }
+
+      console.log('✅ User created successfully:', authData.user.id);
+
+      // Step 2: Create profile directly (don't rely on triggers)
+      console.log('Step 2: Creating profile...');
+      
       try {
-        // Step 1: Create the user account using regular signUp
-        console.log('Step 1: Creating user account...');
-        const redirectUrl = `${window.location.origin}/`;
-        
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: employeeData.email,
-          password: 'TempPassword123!',
-          options: {
-            emailRedirectTo: redirectUrl,
-            data: {
-              first_name: employeeData.firstName,
-              last_name: employeeData.lastName
-            }
-          }
-        });
-
-        if (authError) {
-          console.error('❌ Auth error:', authError);
-          throw new Error(`Authentication failed: ${authError.message}`);
-        }
-
-        if (!authData.user) {
-          console.error('❌ No user returned from auth');
-          throw new Error('Failed to create user account - no user returned');
-        }
-
-        console.log('✅ User created successfully:', authData.user.id);
-
-        // Step 2: Handle profile creation/update
-        console.log('Step 2: Handling profile...');
-        
-        const { data: existingProfile, error: profileCheckError } = await supabase
+        const { error: profileError } = await supabase
           .from('profiles')
-          .select('id')
-          .eq('id', authData.user.id)
-          .maybeSingle();
+          .insert({
+            id: authData.user.id,
+            email: employeeData.email,
+            first_name: employeeData.firstName,
+            last_name: employeeData.lastName,
+            phone: employeeData.phone,
+            department: employeeData.department,
+            employee_id: employeeData.employeeId
+          });
 
-        if (profileCheckError) {
-          console.error('❌ Error checking existing profile:', profileCheckError);
-          throw new Error(`Profile check failed: ${profileCheckError.message}`);
-        }
+        if (profileError) {
+          console.error('❌ Profile creation error:', profileError);
+          // If profile already exists, try to update it
+          if (profileError.code === '23505') { // Unique constraint violation
+            console.log('Profile exists, updating instead...');
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({
+                first_name: employeeData.firstName,
+                last_name: employeeData.lastName,
+                phone: employeeData.phone,
+                department: employeeData.department,
+                employee_id: employeeData.employeeId
+              })
+              .eq('id', authData.user.id);
 
-        console.log('Profile check result:', existingProfile ? 'exists' : 'does not exist');
-
-        if (existingProfile) {
-          // Profile exists, update it
-          console.log('Updating existing profile...');
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({
-              first_name: employeeData.firstName,
-              last_name: employeeData.lastName,
-              phone: employeeData.phone,
-              department: employeeData.department,
-              employee_id: employeeData.employeeId
-            })
-            .eq('id', authData.user.id);
-
-          if (profileError) {
-            console.error('❌ Profile update error:', profileError);
-            throw new Error(`Profile update failed: ${profileError.message}`);
-          }
-          console.log('✅ Profile updated successfully');
-        } else {
-          // Profile doesn't exist, create it
-          console.log('Creating new profile...');
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: authData.user.id,
-              email: employeeData.email,
-              first_name: employeeData.firstName,
-              last_name: employeeData.lastName,
-              phone: employeeData.phone,
-              department: employeeData.department,
-              employee_id: employeeData.employeeId
-            });
-
-          if (profileError) {
-            console.error('❌ Profile creation error:', profileError);
+            if (updateError) {
+              console.error('❌ Profile update error:', updateError);
+              throw new Error(`Profile update failed: ${updateError.message}`);
+            }
+            console.log('✅ Profile updated successfully');
+          } else {
             throw new Error(`Profile creation failed: ${profileError.message}`);
           }
+        } else {
           console.log('✅ Profile created successfully');
         }
-
-        // Step 3: Handle role creation/update
-        console.log('Step 3: Handling role...');
-        
-        const { data: existingRole, error: roleCheckError } = await supabase
-          .from('user_roles')
-          .select('id')
-          .eq('user_id', authData.user.id)
-          .maybeSingle();
-
-        if (roleCheckError) {
-          console.error('❌ Error checking existing role:', roleCheckError);
-          throw new Error(`Role check failed: ${roleCheckError.message}`);
-        }
-
-        console.log('Role check result:', existingRole ? 'exists' : 'does not exist');
-
-        if (existingRole) {
-          // Role exists, update it
-          console.log('Updating existing role...');
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .update({ role: employeeData.role })
-            .eq('user_id', authData.user.id);
-
-          if (roleError) {
-            console.error('❌ Role update error:', roleError);
-            throw new Error(`Role update failed: ${roleError.message}`);
-          }
-          console.log('✅ Role updated successfully');
-        } else {
-          // Role doesn't exist, create it
-          console.log('Creating new role...');
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: authData.user.id,
-              role: employeeData.role
-            });
-
-          if (roleError) {
-            console.error('❌ Role creation error:', roleError);
-            throw new Error(`Role creation failed: ${roleError.message}`);
-          }
-          console.log('✅ Role created successfully');
-        }
-
-        console.log('=== EMPLOYEE CREATION COMPLETED SUCCESSFULLY ===');
-        return authData.user;
-
       } catch (error) {
-        console.error('=== EMPLOYEE CREATION FAILED ===');
-        console.error('Error details:', error);
+        console.error('❌ Error in profile step:', error);
         throw error;
       }
+
+      // Step 3: Create role
+      console.log('Step 3: Creating role...');
+      
+      try {
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: authData.user.id,
+            role: employeeData.role
+          });
+
+        if (roleError) {
+          console.error('❌ Role creation error:', roleError);
+          // If role already exists, try to update it
+          if (roleError.code === '23505') { // Unique constraint violation
+            console.log('Role exists, updating instead...');
+            const { error: updateError } = await supabase
+              .from('user_roles')
+              .update({ role: employeeData.role })
+              .eq('user_id', authData.user.id);
+
+            if (updateError) {
+              console.error('❌ Role update error:', updateError);
+              throw new Error(`Role update failed: ${updateError.message}`);
+            }
+            console.log('✅ Role updated successfully');
+          } else {
+            throw new Error(`Role creation failed: ${roleError.message}`);
+          }
+        } else {
+          console.log('✅ Role created successfully');
+        }
+      } catch (error) {
+        console.error('❌ Error in role step:', error);
+        throw error;
+      }
+
+      console.log('=== EMPLOYEE CREATION COMPLETED SUCCESSFULLY ===');
+      return authData.user;
     },
     onSuccess: () => {
       console.log('✅ Mutation completed successfully');
