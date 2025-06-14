@@ -57,17 +57,26 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
     mutationFn: async (employeeData: any) => {
       console.log('Updating employee with data:', employeeData);
       
+      // Prepare the update data for profiles
+      const profileUpdateData: any = {
+        first_name: employeeData.firstName,
+        last_name: employeeData.lastName,
+        phone: employeeData.phone,
+        department: employeeData.department,
+        is_active: employeeData.isActive
+      };
+
+      // Only include employee_id if it's not empty, otherwise set to null
+      if (employeeData.employeeId && employeeData.employeeId.trim() !== '') {
+        profileUpdateData.employee_id = employeeData.employeeId.trim();
+      } else {
+        profileUpdateData.employee_id = null;
+      }
+
       // Update profile information
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({
-          first_name: employeeData.firstName,
-          last_name: employeeData.lastName,
-          phone: employeeData.phone,
-          department: employeeData.department,
-          employee_id: employeeData.employeeId,
-          is_active: employeeData.isActive
-        })
+        .update(profileUpdateData)
         .eq('id', employee.id);
 
       if (profileError) {
