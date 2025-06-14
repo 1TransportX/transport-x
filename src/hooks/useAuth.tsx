@@ -38,14 +38,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const createFallbackProfile = (userId: string, userEmail: string, userData?: any): UserProfile => {
+  const createDefaultProfile = (userId: string, userEmail: string): UserProfile => {
     const now = new Date().toISOString();
-    console.log('Creating fallback profile for:', userId);
     return {
       id: userId,
       email: userEmail,
-      first_name: userData?.user_metadata?.first_name || null,
-      last_name: userData?.user_metadata?.last_name || null,
+      first_name: null,
+      last_name: null,
       phone: null,
       department: null,
       employee_id: null,
@@ -57,120 +56,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string, userEmail: string) => {
     try {
-      console.log('Starting fetchUserProfile for user:', userId);
+      console.log('Fetching profile for user:', userId);
       
-      // First check if profile exists
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      console.log('Profile query result:', { profileData, profileError });
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error fetching profile:', profileError);
-        // For other errors, create a basic profile
-        const fallbackProfile = createFallbackProfile(userId, user?.email || '');
-        setProfile(fallbackProfile);
-        return;
-      }
-
-      let finalProfileData = profileData;
-
-      if (!profileData) {
-        console.log('No profile found, attempting to create one...');
-        try {
-          const { data: userData } = await supabase.auth.getUser();
-          if (userData.user) {
-            const { data: newProfile, error: insertError } = await supabase
-              .from('profiles')
-              .insert({
-                id: userId,
-                email: userData.user.email || '',
-                first_name: userData.user.user_metadata?.first_name || null,
-                last_name: userData.user.user_metadata?.last_name || null
-              })
-              .select()
-              .maybeSingle();
-            
-            if (insertError) {
-              console.error('Error creating profile:', insertError);
-              // Create a fallback profile object
-              finalProfileData = createFallbackProfile(userId, userData.user.email || '', userData.user);
-            } else {
-              finalProfileData = newProfile;
-            }
-          } else {
-            console.log('No user data available, creating fallback');
-            finalProfileData = createFallbackProfile(userId, '');
-          }
-        } catch (createError) {
-          console.error('Error in profile creation:', createError);
-          finalProfileData = createFallbackProfile(userId, user?.email || '');
-        }
-      }
-
-      // Fetch user role
-      let roleData = null;
-      try {
-        const { data: fetchedRole, error: roleError } = await supabase
+      // Try to get profile and role in parallel
+      const [profileResponse, roleResponse] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle(),
+        supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', userId)
-          .maybeSingle();
+          .maybeSingle()
+      ]);
 
-        if (roleError && roleError.code !== 'PGRST116') {
-          console.error('Error fetching role:', roleError);
-          roleData = { role: 'employee' };
-        } else {
-          roleData = fetchedRole;
-        }
+      console.log('Profile response:', profileResponse);
+      console.log('Role response:', roleResponse);
 
-        if (!roleData) {
-          console.log('No role found, attempting to create default role...');
-          try {
-            const { data: newRole, error: insertRoleError } = await supabase
-              .from('user_roles')
-              .insert({
-                user_id: userId,
-                role: 'employee'
-              })
-              .select()
-              .maybeSingle();
-              
-            if (insertRoleError) {
-              console.error('Error creating role:', insertRoleError);
-              roleData = { role: 'employee' };
-            } else {
-              roleData = newRole;
-            }
-          } catch (createRoleError) {
-            console.error('Error in role creation:', createRoleError);
-            roleData = { role: 'employee' };
-          }
-        }
-      } catch (roleError) {
-        console.error('Error in role fetching:', roleError);
+      let profileData = profileResponse.data;
+      let roleData = roleResponse.data;
+
+      // If no profile exists, create a basic one (don't insert to DB, just for the app)
+      if (!profileData) {
+        console.log('No profile found, using default');
+        profileData = createDefaultProfile(userId, userEmail);
+      }
+
+      // If no role exists, default to employee
+      if (!roleData) {
+        console.log('No role found, using default employee role');
         roleData = { role: 'employee' };
       }
 
-      console.log('Final role data:', roleData);
-
       const userProfile: UserProfile = {
-        ...finalProfileData,
-        role: roleData?.role || 'employee'
+        ...profileData,
+        role: roleData.role || 'employee'
       };
 
       console.log('Setting final profile:', userProfile);
       setProfile(userProfile);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
-      // Create a minimal fallback profile to prevent infinite loading
-      const fallbackProfile = createFallbackProfile(userId, user?.email || '');
-      console.log('Using fallback profile due to error:', fallbackProfile);
+      // Create a fallback profile so the app doesn't get stuck
+      const fallbackProfile = createDefaultProfile(userId, userEmail);
+      console.log('Using fallback profile:', fallbackProfile);
       setProfile(fallbackProfile);
     }
   };
@@ -178,7 +111,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
     
-    // Get initial session
     const getInitialSession = async () => {
       try {
         console.log('Getting initial session...');
@@ -186,9 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) {
           console.error('Error getting session:', error);
-          if (mounted) {
-            setIsLoading(false);
-          }
+          if (mounted) setIsLoading(false);
           return;
         }
 
@@ -199,22 +129,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            await fetchUserProfile(session.user.id);
+            await fetchUserProfile(session.user.id, session.user.email || '');
           }
           
           setIsLoading(false);
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
-        if (mounted) {
-          setIsLoading(false);
-        }
+        if (mounted) setIsLoading(false);
       }
     };
 
     getInitialSession();
 
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.id);
@@ -224,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(session?.user ?? null);
           
           if (session?.user && event === 'SIGNED_IN') {
-            await fetchUserProfile(session.user.id);
+            await fetchUserProfile(session.user.id, session.user.email || '');
           } else if (event === 'SIGNED_OUT') {
             setProfile(null);
           }
