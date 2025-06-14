@@ -11,7 +11,8 @@ const ReportsPage = () => {
   const { data: reports = [] } = useQuery({
     queryKey: ['reports'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Using type assertion temporarily until Supabase types are regenerated
+      const { data, error } = await (supabase as any)
         .from('reports')
         .select(`
           *,
@@ -113,7 +114,7 @@ const ReportsPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reports.map((report) => (
+                {reports.map((report: any) => (
                   <TableRow key={report.id}>
                     <TableCell className="font-medium">
                       {report.title}

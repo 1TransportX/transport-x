@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -245,8 +246,8 @@ const AdminDashboard = () => {
         generatedAt: new Date().toISOString()
       };
 
-      // Save the report to database
-      const { data: savedReport, error } = await supabase
+      // Save the report to database using type assertion temporarily
+      const { data: savedReport, error } = await (supabase as any)
         .from('reports')
         .insert({
           title: `Operational Report - ${new Date().toLocaleDateString()}`,
