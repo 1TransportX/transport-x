@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -250,40 +251,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Wait longer for the trigger to complete and database to be updated
     console.log('=== Waiting for database trigger to complete...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     // Get the user that was just created
     const { data: { user: newUser } } = await supabase.auth.getUser();
     console.log('=== New user created:', newUser?.id);
     
     if (newUser) {
-      // Verify the role was set correctly by checking the database
-      const { data: roleCheck, error: roleCheckError } = await supabase
+      // First, delete any existing role entries for this user to ensure clean state
+      console.log('=== Cleaning existing roles for user...');
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', newUser.id);
+
+      // Insert the correct role
+      console.log('=== Inserting correct role:', role);
+      const { error: roleInsertError } = await supabase
+        .from('user_roles')
+        .insert({ 
+          user_id: newUser.id, 
+          role: role 
+        });
+
+      if (roleInsertError) {
+        console.error('Error inserting user role:', roleInsertError);
+      } else {
+        console.log('=== Role inserted successfully:', role);
+      }
+
+      // Verify the role was set correctly
+      const { data: finalRoleCheck } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', newUser.id)
         .maybeSingle();
       
-      console.log('=== Role check after signup:', { data: roleCheck, error: roleCheckError });
-      
-      // If the role wasn't set correctly by the trigger, set it manually
-      if (!roleCheck || roleCheck.role !== role) {
-        console.log('=== Role not set correctly, updating manually...');
-        const { error: roleUpdateError } = await supabase
-          .from('user_roles')
-          .upsert({ 
-            user_id: newUser.id, 
-            role 
-          }, {
-            onConflict: 'user_id'
-          });
-
-        if (roleUpdateError) {
-          console.error('Error updating user role:', roleUpdateError);
-        } else {
-          console.log('=== Role updated successfully to:', role);
-        }
-      }
+      console.log('=== Final role verification:', finalRoleCheck);
     }
 
     toast({
@@ -359,3 +363,4 @@ export const useAuth = () => {
   }
   return context;
 };
+
