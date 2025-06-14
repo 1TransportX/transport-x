@@ -210,7 +210,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
 
       if (deliveryError) throw deliveryError;
 
-      // Create delivery items
+      // Create delivery items and update inventory stock
       if (validItems.length > 0) {
         const { error: itemsError } = await supabase
           .from('delivery_items')
@@ -223,11 +223,31 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
           );
 
         if (itemsError) throw itemsError;
+
+        // Update inventory stock for each item
+        for (const item of validItems) {
+          const inventoryItem = inventory.find(inv => inv.id === item.inventory_id);
+          if (inventoryItem) {
+            const newStock = inventoryItem.current_stock - item.quantity;
+            
+            const { error: stockError } = await supabase
+              .from('inventory')
+              .update({ current_stock: newStock })
+              .eq('id', item.inventory_id);
+
+            if (stockError) {
+              console.error('Error updating stock for item:', item.inventory_id, stockError);
+              throw stockError;
+            }
+
+            console.log(`Updated stock for ${inventoryItem.product_name}: ${inventoryItem.current_stock} -> ${newStock}`);
+          }
+        }
       }
 
       toast({
         title: "Success",
-        description: "Delivery route added successfully",
+        description: "Delivery route added successfully and warehouse quantities updated",
       });
 
       onSuccess();
