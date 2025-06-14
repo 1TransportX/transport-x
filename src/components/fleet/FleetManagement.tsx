@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -50,27 +50,40 @@ const FleetManagement = () => {
     }
   });
 
-  const stats = React.useMemo(() => {
+  const stats = useMemo(() => {
+    if (!vehicles || vehicles.length === 0) {
+      return {
+        total: 0,
+        active: 0,
+        maintenance: 0,
+        avgMileage: 0
+      };
+    }
+
     const totalVehicles = vehicles.length;
     const activeVehicles = vehicles.filter(v => v.status === 'active').length;
     const maintenanceVehicles = vehicles.filter(v => v.status === 'maintenance').length;
     const avgMileage = totalVehicles > 0 
-      ? vehicles.reduce((sum, v) => sum + v.current_mileage, 0) / totalVehicles
+      ? Math.round(vehicles.reduce((sum, v) => sum + (v.current_mileage || 0), 0) / totalVehicles)
       : 0;
 
     return {
       total: totalVehicles,
       active: activeVehicles,
       maintenance: maintenanceVehicles,
-      avgMileage: Math.round(avgMileage)
+      avgMileage
     };
   }, [vehicles]);
 
-  const filteredVehicles = vehicles.filter(vehicle =>
-    vehicle.vehicle_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    vehicle.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    vehicle.model?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredVehicles = useMemo(() => {
+    if (!vehicles) return [];
+    
+    return vehicles.filter(vehicle =>
+      vehicle.vehicle_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.model?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [vehicles, searchTerm]);
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
@@ -209,7 +222,7 @@ const FleetManagement = () => {
                     </TableCell>
                     <TableCell>{vehicle.year || 'N/A'}</TableCell>
                     <TableCell>{vehicle.fuel_type || 'N/A'}</TableCell>
-                    <TableCell>{vehicle.current_mileage.toLocaleString()} mi</TableCell>
+                    <TableCell>{(vehicle.current_mileage || 0).toLocaleString()} mi</TableCell>
                     <TableCell>
                       <Badge className={getStatusBadgeColor(vehicle.status)}>
                         {vehicle.status}

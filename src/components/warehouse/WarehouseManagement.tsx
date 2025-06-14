@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -37,17 +37,32 @@ const WarehouseManagement = () => {
   const { data: inventory = [], isLoading } = useQuery({
     queryKey: ['inventory'],
     queryFn: async () => {
+      console.log('Fetching inventory...');
       const { data, error } = await supabase
         .from('inventory')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching inventory:', error);
+        throw error;
+      }
+      
+      console.log('Fetched inventory:', data);
       return data as InventoryItem[];
     }
   });
 
-  const stats = React.useMemo(() => {
+  const stats = useMemo(() => {
+    if (!inventory || inventory.length === 0) {
+      return {
+        total: 0,
+        lowStock: 0,
+        totalValue: 0,
+        outOfStock: 0
+      };
+    }
+
     const totalItems = inventory.length;
     const lowStockItems = inventory.filter(item => item.current_stock <= item.minimum_stock).length;
     const totalValue = inventory.reduce((sum, item) => sum + (item.current_stock * (item.unit_price || 0)), 0);
@@ -61,11 +76,15 @@ const WarehouseManagement = () => {
     };
   }, [inventory]);
 
-  const filteredInventory = inventory.filter(item =>
-    item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredInventory = useMemo(() => {
+    if (!inventory) return [];
+    
+    return inventory.filter(item =>
+      item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [inventory, searchTerm]);
 
   const getStockStatus = (item: InventoryItem) => {
     if (item.current_stock === 0) return { status: 'Out of Stock', color: 'bg-red-100 text-red-800' };
