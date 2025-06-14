@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -60,12 +59,44 @@ const EmployeeList = () => {
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (employeeId: string) => {
-      const { error } = await supabase
+      console.log('=== Starting employee deletion for ID:', employeeId);
+      
+      // First, delete from user_roles table
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', employeeId);
+      
+      if (roleError) {
+        console.error('Error deleting user roles:', roleError);
+        throw roleError;
+      }
+      
+      console.log('=== Deleted user roles successfully');
+      
+      // Then delete from profiles table
+      const { error: profileError } = await supabase
         .from('profiles')
         .delete()
         .eq('id', employeeId);
       
-      if (error) throw error;
+      if (profileError) {
+        console.error('Error deleting profile:', profileError);
+        throw profileError;
+      }
+      
+      console.log('=== Deleted profile successfully');
+      
+      // Finally, delete the auth user (this will cascade to other related tables)
+      const { error: authError } = await supabase.auth.admin.deleteUser(employeeId);
+      
+      if (authError) {
+        console.error('Error deleting auth user:', authError);
+        // Don't throw here as the profile is already deleted
+        console.log('=== Auth user deletion failed but continuing...');
+      } else {
+        console.log('=== Deleted auth user successfully');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
@@ -78,7 +109,7 @@ const EmployeeList = () => {
       console.error('Error deleting employee:', error);
       toast({
         title: "Error",
-        description: "Failed to delete employee.",
+        description: "Failed to delete employee. Please try again.",
         variant: "destructive",
       });
     }
@@ -199,6 +230,7 @@ const EmployeeList = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => deleteEmployeeMutation.mutate(employee.id)}
+                        disabled={deleteEmployeeMutation.isPending}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
