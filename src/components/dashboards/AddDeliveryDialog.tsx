@@ -93,6 +93,13 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
     return `DEL-${timestamp}`;
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+    if (value.length <= 10) {
+      setFormData(prev => ({ ...prev, customer_phone: value }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -209,12 +216,14 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="customer_phone">Customer Phone</Label>
+              <Label htmlFor="customer_phone">Customer Phone (10 digits)</Label>
               <Input
                 id="customer_phone"
                 type="tel"
                 value={formData.customer_phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_phone: e.target.value }))}
+                onChange={handlePhoneChange}
+                placeholder="1234567890"
+                maxLength={10}
               />
             </div>
           </div>
@@ -273,9 +282,13 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
                     <SelectTrigger>
                       <SelectValue placeholder="Select product" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
                       {inventory.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
+                        <SelectItem 
+                          key={product.id} 
+                          value={product.id}
+                          className="hover:bg-gray-100 cursor-pointer"
+                        >
                           {product.product_name} (Stock: {product.current_stock})
                         </SelectItem>
                       ))}
