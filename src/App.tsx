@@ -26,33 +26,33 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/" element={
+            <Route element={
               <ProtectedRoute>
                 <Layout />
               </ProtectedRoute>
             }>
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="employees" element={
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/employees" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <EmployeeList />
                 </ProtectedRoute>
               } />
-              <Route path="fleet" element={
+              <Route path="/fleet" element={
                 <ProtectedRoute allowedRoles={['admin', 'driver']}>
                   <FleetManagement />
                 </ProtectedRoute>
               } />
-              <Route path="warehouse" element={
+              <Route path="/warehouse" element={
                 <ProtectedRoute allowedRoles={['admin', 'employee']}>
                   <WarehouseManagement />
                 </ProtectedRoute>
               } />
-              <Route path="settings" element={
+              <Route path="/settings" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <SettingsPage />
                 </ProtectedRoute>
               } />
-              <Route path="profile" element={
+              <Route path="/profile" element={
                 <ProtectedRoute allowedRoles={['employee', 'driver']}>
                   <div className="p-6">
                     <h1 className="text-3xl font-bold">My Profile</h1>

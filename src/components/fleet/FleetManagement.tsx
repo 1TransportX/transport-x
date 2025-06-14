@@ -9,8 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Truck, Fuel, Wrench } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import AddVehicleDialog from './AddVehicleDialog';
-import EditVehicleDialog from './EditVehicleDialog';
 
 interface Vehicle {
   id: string;
@@ -32,15 +30,21 @@ const FleetManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: vehicles = [], isLoading } = useQuery({
+  const { data: vehicles = [], isLoading, error } = useQuery({
     queryKey: ['vehicles'],
     queryFn: async () => {
+      console.log('Fetching vehicles...');
       const { data, error } = await supabase
         .from('vehicles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching vehicles:', error);
+        throw error;
+      }
+      
+      console.log('Fetched vehicles:', data);
       return data as Vehicle[];
     }
   });
@@ -77,6 +81,17 @@ const FleetManagement = () => {
     }
   };
 
+  if (error) {
+    console.error('Fleet management error:', error);
+    return (
+      <div className="p-6">
+        <div className="text-red-600">
+          Error loading fleet data: {error.message}
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -86,7 +101,7 @@ const FleetManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Fleet Management</h1>
@@ -176,56 +191,72 @@ const FleetManagement = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredVehicles.map((vehicle) => (
-                <TableRow key={vehicle.id}>
-                  <TableCell className="font-medium">{vehicle.vehicle_number}</TableCell>
-                  <TableCell>
-                    {vehicle.make && vehicle.model 
-                      ? `${vehicle.make} ${vehicle.model}`
-                      : 'N/A'
-                    }
-                  </TableCell>
-                  <TableCell>{vehicle.year || 'N/A'}</TableCell>
-                  <TableCell>{vehicle.fuel_type || 'N/A'}</TableCell>
-                  <TableCell>{vehicle.current_mileage.toLocaleString()} mi</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusBadgeColor(vehicle.status)}>
-                      {vehicle.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {vehicle.last_service_date 
-                      ? new Date(vehicle.last_service_date).toLocaleDateString()
-                      : 'N/A'
-                    }
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingVehicle(vehicle)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+              {filteredVehicles.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    No vehicles found. Add a vehicle to get started.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredVehicles.map((vehicle) => (
+                  <TableRow key={vehicle.id}>
+                    <TableCell className="font-medium">{vehicle.vehicle_number}</TableCell>
+                    <TableCell>
+                      {vehicle.make && vehicle.model 
+                        ? `${vehicle.make} ${vehicle.model}`
+                        : 'N/A'
+                      }
+                    </TableCell>
+                    <TableCell>{vehicle.year || 'N/A'}</TableCell>
+                    <TableCell>{vehicle.fuel_type || 'N/A'}</TableCell>
+                    <TableCell>{vehicle.current_mileage.toLocaleString()} mi</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusBadgeColor(vehicle.status)}>
+                        {vehicle.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {vehicle.last_service_date 
+                        ? new Date(vehicle.last_service_date).toLocaleDateString()
+                        : 'N/A'
+                      }
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingVehicle(vehicle)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      <AddVehicleDialog 
-        open={showAddDialog} 
-        onOpenChange={setShowAddDialog} 
-      />
+      {/* Placeholder for dialogs - will be implemented when needed */}
+      {showAddDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg">
+            <h2 className="text-lg font-bold mb-4">Add Vehicle</h2>
+            <p className="text-gray-600">Add vehicle dialog will be implemented here.</p>
+            <Button onClick={() => setShowAddDialog(false)} className="mt-4">Close</Button>
+          </div>
+        </div>
+      )}
       
       {editingVehicle && (
-        <EditVehicleDialog 
-          vehicle={editingVehicle}
-          open={!!editingVehicle}
-          onOpenChange={() => setEditingVehicle(null)}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg">
+            <h2 className="text-lg font-bold mb-4">Edit Vehicle</h2>
+            <p className="text-gray-600">Edit vehicle dialog will be implemented here.</p>
+            <Button onClick={() => setEditingVehicle(null)} className="mt-4">Close</Button>
+          </div>
+        </div>
       )}
     </div>
   );
