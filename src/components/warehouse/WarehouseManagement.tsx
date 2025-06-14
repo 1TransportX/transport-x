@@ -1,6 +1,5 @@
-
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Edit, Package, AlertTriangle, TrendingUp, TrendingDown, History } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Plus, Edit, Package, AlertTriangle, TrendingUp, TrendingDown, History, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddInventoryDialog from './AddInventoryDialog';
 import EditInventoryDialog from './EditInventoryDialog';
@@ -34,7 +35,10 @@ const WarehouseManagement = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [stockMovementItem, setStockMovementItem] = useState<InventoryItem | null>(null);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   console.log('WarehouseManagement: Component rendering');
 
@@ -59,6 +63,33 @@ const WarehouseManagement = () => {
         console.error('WarehouseManagement: Query error:', error);
         throw error;
       }
+    }
+  });
+
+  const deleteItemsMutation = useMutation({
+    mutationFn: async (itemIds: string[]) => {
+      const { error } = await supabase
+        .from('inventory')
+        .delete()
+        .in('id', itemIds);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      setSelectedItems(new Set());
+      toast({
+        title: "Success",
+        description: "Selected items have been deleted successfully.",
+      });
+    },
+    onError: (error) => {
+      console.error('Error deleting items:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete selected items. Please try again.",
+        variant: "destructive",
+      });
     }
   });
 
@@ -115,6 +146,33 @@ const WarehouseManagement = () => {
     if (item.current_stock <= item.minimum_stock) return { status: 'Low Stock', color: 'bg-yellow-100 text-yellow-800' };
     return { status: 'In Stock', color: 'bg-green-100 text-green-800' };
   };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItems(new Set(filteredInventory.map(item => item.id)));
+    } else {
+      setSelectedItems(new Set());
+    }
+  };
+
+  const handleSelectItem = (itemId: string, checked: boolean) => {
+    const newSelected = new Set(selectedItems);
+    if (checked) {
+      newSelected.add(itemId);
+    } else {
+      newSelected.delete(itemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedItems.size === 0) return;
+    deleteItemsMutation.mutate(Array.from(selectedItems));
+    setShowDeleteDialog(false);
+  };
+
+  const isAllSelected = filteredInventory.length > 0 && selectedItems.size === filteredInventory.length;
+  const isIndeterminate = selectedItems.size > 0 && selectedItems.size < filteredInventory.length;
 
   if (error) {
     console.error('WarehouseManagement: Rendering error state:', error);
@@ -217,18 +275,62 @@ const WarehouseManagement = () => {
         <TabsContent value="inventory">
           <Card>
             <CardHeader>
-              <CardTitle>Inventory ({filteredInventory.length})</CardTitle>
-              <Input
-                placeholder="Search inventory..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <CardTitle>Inventory ({filteredInventory.length})</CardTitle>
+                  {selectedItems.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">
+                        {selectedItems.size} selected
+                      </span>
+                      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm" className="flex items-center gap-2">
+                            <Trash2 className="h-4 w-4" />
+                            Delete Selected
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Selected Items</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete {selectedItems.size} selected item(s)? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteSelected} className="bg-red-600 hover:bg-red-700">
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
+                </div>
+                <Input
+                  placeholder="Search inventory..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={isAllSelected}
+                        onCheckedChange={handleSelectAll}
+                        ref={(ref) => {
+                          if (ref) {
+                            ref.indeterminate = isIndeterminate;
+                          }
+                        }}
+                      />
+                    </TableHead>
                     <TableHead>SKU</TableHead>
                     <TableHead>Product Name</TableHead>
                     <TableHead>Category</TableHead>
@@ -243,15 +345,22 @@ const WarehouseManagement = () => {
                 <TableBody>
                   {filteredInventory.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                         No inventory items found. Add an item to get started.
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredInventory.map((item) => {
                       const stockStatus = getStockStatus(item);
+                      const isSelected = selectedItems.has(item.id);
                       return (
-                        <TableRow key={item.id}>
+                        <TableRow key={item.id} className={isSelected ? 'bg-blue-50' : ''}>
+                          <TableCell>
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">{item.sku}</TableCell>
                           <TableCell>{item.product_name}</TableCell>
                           <TableCell>{item.category || 'N/A'}</TableCell>
