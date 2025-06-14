@@ -34,26 +34,37 @@ const WarehouseManagement = () => {
   const [stockMovementItem, setStockMovementItem] = useState<InventoryItem | null>(null);
   const { toast } = useToast();
 
-  const { data: inventory = [], isLoading } = useQuery({
+  console.log('WarehouseManagement: Component rendering');
+
+  const { data: inventory = [], isLoading, error } = useQuery({
     queryKey: ['inventory'],
     queryFn: async () => {
-      console.log('Fetching inventory...');
-      const { data, error } = await supabase
-        .from('inventory')
-        .select('*')
-        .order('created_at', { ascending: false });
+      console.log('WarehouseManagement: Fetching inventory...');
+      try {
+        const { data, error } = await supabase
+          .from('inventory')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching inventory:', error);
+        if (error) {
+          console.error('WarehouseManagement: Error fetching inventory:', error);
+          throw error;
+        }
+        
+        console.log('WarehouseManagement: Fetched inventory:', data);
+        return (data || []) as InventoryItem[];
+      } catch (error) {
+        console.error('WarehouseManagement: Query error:', error);
         throw error;
       }
-      
-      console.log('Fetched inventory:', data);
-      return data as InventoryItem[];
     }
   });
 
+  console.log('WarehouseManagement: isLoading:', isLoading, 'inventory:', inventory?.length, 'error:', error);
+
   const stats = useMemo(() => {
+    console.log('WarehouseManagement: Computing stats for inventory:', inventory?.length);
+    
     if (!inventory || inventory.length === 0) {
       return {
         total: 0,
@@ -68,22 +79,33 @@ const WarehouseManagement = () => {
     const totalValue = inventory.reduce((sum, item) => sum + (item.current_stock * (item.unit_price || 0)), 0);
     const outOfStock = inventory.filter(item => item.current_stock === 0).length;
 
-    return {
+    const result = {
       total: totalItems,
       lowStock: lowStockItems,
       totalValue,
       outOfStock
     };
+    
+    console.log('WarehouseManagement: Computed stats:', result);
+    return result;
   }, [inventory]);
 
   const filteredInventory = useMemo(() => {
-    if (!inventory) return [];
+    console.log('WarehouseManagement: Filtering inventory, searchTerm:', searchTerm);
     
-    return inventory.filter(item =>
+    if (!inventory) {
+      console.log('WarehouseManagement: No inventory to filter');
+      return [];
+    }
+    
+    const filtered = inventory.filter(item =>
       item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.category?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    console.log('WarehouseManagement: Filtered inventory count:', filtered.length);
+    return filtered;
   }, [inventory, searchTerm]);
 
   const getStockStatus = (item: InventoryItem) => {
@@ -92,13 +114,27 @@ const WarehouseManagement = () => {
     return { status: 'In Stock', color: 'bg-green-100 text-green-800' };
   };
 
+  if (error) {
+    console.error('WarehouseManagement: Rendering error state:', error);
+    return (
+      <div className="p-6">
+        <div className="text-red-600">
+          Error loading warehouse data: {error.message}
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
+    console.log('WarehouseManagement: Rendering loading state');
     return (
       <div className="flex items-center justify-center min-h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
+
+  console.log('WarehouseManagement: Rendering main content');
 
   return (
     <div className="space-y-6">
@@ -190,43 +226,51 @@ const WarehouseManagement = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInventory.map((item) => {
-                const stockStatus = getStockStatus(item);
-                return (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.sku}</TableCell>
-                    <TableCell>{item.product_name}</TableCell>
-                    <TableCell>{item.category || 'N/A'}</TableCell>
-                    <TableCell>{item.current_stock}</TableCell>
-                    <TableCell>{item.minimum_stock}</TableCell>
-                    <TableCell>${item.unit_price?.toFixed(2) || '0.00'}</TableCell>
-                    <TableCell>
-                      <Badge className={stockStatus.color}>
-                        {stockStatus.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{item.warehouse_location || 'N/A'}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingItem(item)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setStockMovementItem(item)}
-                        >
-                          <Package className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {filteredInventory.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                    No inventory items found. Add an item to get started.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredInventory.map((item) => {
+                  const stockStatus = getStockStatus(item);
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.sku}</TableCell>
+                      <TableCell>{item.product_name}</TableCell>
+                      <TableCell>{item.category || 'N/A'}</TableCell>
+                      <TableCell>{item.current_stock}</TableCell>
+                      <TableCell>{item.minimum_stock}</TableCell>
+                      <TableCell>${item.unit_price?.toFixed(2) || '0.00'}</TableCell>
+                      <TableCell>
+                        <Badge className={stockStatus.color}>
+                          {stockStatus.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{item.warehouse_location || 'N/A'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingItem(item)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setStockMovementItem(item)}
+                          >
+                            <Package className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -31,26 +31,37 @@ const FleetManagement = () => {
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const { toast } = useToast();
 
+  console.log('FleetManagement: Component rendering');
+
   const { data: vehicles = [], isLoading, error } = useQuery({
     queryKey: ['vehicles'],
     queryFn: async () => {
-      console.log('Fetching vehicles...');
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      console.log('FleetManagement: Fetching vehicles...');
+      try {
+        const { data, error } = await supabase
+          .from('vehicles')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching vehicles:', error);
+        if (error) {
+          console.error('FleetManagement: Error fetching vehicles:', error);
+          throw error;
+        }
+        
+        console.log('FleetManagement: Fetched vehicles:', data);
+        return (data || []) as Vehicle[];
+      } catch (error) {
+        console.error('FleetManagement: Query error:', error);
         throw error;
       }
-      
-      console.log('Fetched vehicles:', data);
-      return data as Vehicle[];
     }
   });
 
+  console.log('FleetManagement: isLoading:', isLoading, 'vehicles:', vehicles?.length, 'error:', error);
+
   const stats = useMemo(() => {
+    console.log('FleetManagement: Computing stats for vehicles:', vehicles?.length);
+    
     if (!vehicles || vehicles.length === 0) {
       return {
         total: 0,
@@ -67,22 +78,33 @@ const FleetManagement = () => {
       ? Math.round(vehicles.reduce((sum, v) => sum + (v.current_mileage || 0), 0) / totalVehicles)
       : 0;
 
-    return {
+    const result = {
       total: totalVehicles,
       active: activeVehicles,
       maintenance: maintenanceVehicles,
       avgMileage
     };
+    
+    console.log('FleetManagement: Computed stats:', result);
+    return result;
   }, [vehicles]);
 
   const filteredVehicles = useMemo(() => {
-    if (!vehicles) return [];
+    console.log('FleetManagement: Filtering vehicles, searchTerm:', searchTerm);
     
-    return vehicles.filter(vehicle =>
+    if (!vehicles) {
+      console.log('FleetManagement: No vehicles to filter');
+      return [];
+    }
+    
+    const filtered = vehicles.filter(vehicle =>
       vehicle.vehicle_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.model?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    console.log('FleetManagement: Filtered vehicles count:', filtered.length);
+    return filtered;
   }, [vehicles, searchTerm]);
 
   const getStatusBadgeColor = (status: string) => {
@@ -95,7 +117,7 @@ const FleetManagement = () => {
   };
 
   if (error) {
-    console.error('Fleet management error:', error);
+    console.error('FleetManagement: Rendering error state:', error);
     return (
       <div className="p-6">
         <div className="text-red-600">
@@ -106,12 +128,15 @@ const FleetManagement = () => {
   }
 
   if (isLoading) {
+    console.log('FleetManagement: Rendering loading state');
     return (
       <div className="flex items-center justify-center min-h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
+
+  console.log('FleetManagement: Rendering main content');
 
   return (
     <div className="p-6 space-y-6">
