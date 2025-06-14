@@ -1,5 +1,4 @@
 
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,36 +62,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('=== Fetching profile for user:', userId, 'forceRefresh:', forceRefresh);
       
       if (forceRefresh) {
-        // Clear any existing cached data
         setProfile(null);
         console.log('=== Cleared existing profile data');
       }
       
-      // Fetch profile data with cache-busting timestamp
-      const profileQuery = supabase
+      // First, let's check what's actually in the database
+      console.log('=== Checking all user_roles entries for debugging...');
+      const { data: allRoles, error: allRolesError } = await supabase
+        .from('user_roles')
+        .select('*');
+      console.log('=== ALL user_roles in database:', allRoles);
+      
+      // Fetch profile data
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId);
-      
-      if (forceRefresh) {
-        // Add a random parameter to bust any potential caching
-        profileQuery.limit(1);
-      }
-      
-      const { data: profileData, error: profileError } = await profileQuery.maybeSingle();
+        .eq('id', userId)
+        .maybeSingle();
 
       console.log('=== Profile response:', { data: profileData, error: profileError });
 
-      // Fetch role data with cache-busting
-      const roleQuery = supabase
+      // Fetch role data - let's be more explicit about this query
+      console.log('=== Fetching role for user_id:', userId);
+      const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .limit(1);
-        
-      const { data: roleData, error: roleError } = await roleQuery;
+        .select('user_id, role, created_at')
+        .eq('user_id', userId);
 
-      console.log('=== Role response:', { data: roleData, error: roleError });
+      console.log('=== Role query response:', { 
+        data: roleData, 
+        error: roleError,
+        userId: userId,
+        roleDataLength: roleData?.length 
+      });
 
       let userProfile: UserProfile;
 
@@ -100,9 +102,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let userRole: 'admin' | 'employee' | 'driver' = 'employee';
       if (roleData && roleData.length > 0) {
         userRole = roleData[0].role || 'employee';
-        console.log('=== Role found in database:', userRole);
+        console.log('=== Role found in database:', userRole, 'from record:', roleData[0]);
       } else {
-        console.log('No role found in database, using default employee role');
+        console.log('=== No role found in database for user:', userId, 'using default employee role');
       }
 
       // If no profile exists, create a basic one
@@ -118,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      console.log('=== Setting profile with role:', userProfile.role);
+      console.log('=== Final profile being set:', userProfile);
       setProfile(userProfile);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
@@ -224,9 +226,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const redirectUrl = `${window.location.origin}/`;
     
-    console.log('=== Signing up with role:', role);
+    console.log('=== SIGNUP PROCESS STARTING ===');
+    console.log('=== Email:', email);
+    console.log('=== Selected role:', role);
+    console.log('=== Redirect URL:', redirectUrl);
     
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -239,6 +244,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    console.log('=== SignUp response:', { data: signUpData, error: signUpError });
+
     if (signUpError) {
       toast({
         title: "Sign Up Error",
@@ -249,45 +256,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: signUpError };
     }
 
-    // Wait longer for the trigger to complete and database to be updated
-    console.log('=== Waiting for database trigger to complete...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait for the trigger to complete
+    console.log('=== Waiting 5 seconds for database trigger to complete...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
 
     // Get the user that was just created
     const { data: { user: newUser } } = await supabase.auth.getUser();
-    console.log('=== New user created:', newUser?.id);
+    console.log('=== New user from getUser():', newUser?.id);
     
     if (newUser) {
-      // First, delete any existing role entries for this user to ensure clean state
+      // Let's check what the trigger actually created
+      console.log('=== Checking what trigger created...');
+      const { data: triggerResult } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', newUser.id);
+      console.log('=== Trigger created roles:', triggerResult);
+
+      // Delete any existing role entries to ensure clean state
       console.log('=== Cleaning existing roles for user...');
-      await supabase
+      const { error: deleteError } = await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', newUser.id);
+      
+      if (deleteError) {
+        console.error('Error deleting existing roles:', deleteError);
+      }
 
-      // Insert the correct role
-      console.log('=== Inserting correct role:', role);
-      const { error: roleInsertError } = await supabase
+      // Insert the correct role with explicit logging
+      console.log('=== Inserting role:', role, 'for user:', newUser.id);
+      const { data: insertData, error: roleInsertError } = await supabase
         .from('user_roles')
         .insert({ 
           user_id: newUser.id, 
           role: role 
-        });
+        })
+        .select();
+
+      console.log('=== Role insert response:', { data: insertData, error: roleInsertError });
 
       if (roleInsertError) {
         console.error('Error inserting user role:', roleInsertError);
       } else {
-        console.log('=== Role inserted successfully:', role);
+        console.log('=== Role inserted successfully:', insertData);
       }
 
-      // Verify the role was set correctly
+      // Final verification with detailed logging
       const { data: finalRoleCheck } = await supabase
         .from('user_roles')
-        .select('role')
-        .eq('user_id', newUser.id)
-        .maybeSingle();
+        .select('*')
+        .eq('user_id', newUser.id);
       
       console.log('=== Final role verification:', finalRoleCheck);
+      
+      // Also check the user's metadata
+      console.log('=== User metadata:', newUser.user_metadata);
     }
 
     toast({
@@ -363,4 +387,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
