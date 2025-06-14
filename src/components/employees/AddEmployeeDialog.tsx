@@ -35,7 +35,7 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
       
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: employeeData.email,
-        password: 'TempPassword123!', // You might want to generate a random password
+        password: 'TempPassword123!',
         options: {
           emailRedirectTo: redirectUrl,
           data: {
@@ -56,37 +56,86 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
 
       console.log('User created successfully:', authData.user.id);
 
-      // Step 2: Update the profile (the trigger should have created a basic profile)
-      const { error: profileError } = await supabase
+      // Step 2: Create or update the profile (handle case where trigger didn't run yet)
+      const { data: existingProfile } = await supabase
         .from('profiles')
-        .update({
-          first_name: employeeData.firstName,
-          last_name: employeeData.lastName,
-          phone: employeeData.phone,
-          department: employeeData.department,
-          employee_id: employeeData.employeeId
-        })
-        .eq('id', authData.user.id);
+        .select('id')
+        .eq('id', authData.user.id)
+        .maybeSingle();
 
-      if (profileError) {
-        console.error('Profile update error:', profileError);
-        throw profileError;
+      if (existingProfile) {
+        // Profile exists, update it
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            first_name: employeeData.firstName,
+            last_name: employeeData.lastName,
+            phone: employeeData.phone,
+            department: employeeData.department,
+            employee_id: employeeData.employeeId
+          })
+          .eq('id', authData.user.id);
+
+        if (profileError) {
+          console.error('Profile update error:', profileError);
+          throw profileError;
+        }
+      } else {
+        // Profile doesn't exist, create it
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            email: employeeData.email,
+            first_name: employeeData.firstName,
+            last_name: employeeData.lastName,
+            phone: employeeData.phone,
+            department: employeeData.department,
+            employee_id: employeeData.employeeId
+          });
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          throw profileError;
+        }
       }
 
-      console.log('Profile updated successfully');
+      console.log('Profile handled successfully');
 
-      // Step 3: Update the user role
-      const { error: roleError } = await supabase
+      // Step 3: Create or update the user role
+      const { data: existingRole } = await supabase
         .from('user_roles')
-        .update({ role: employeeData.role })
-        .eq('user_id', authData.user.id);
+        .select('id')
+        .eq('user_id', authData.user.id)
+        .maybeSingle();
 
-      if (roleError) {
-        console.error('Role update error:', roleError);
-        throw roleError;
+      if (existingRole) {
+        // Role exists, update it
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .update({ role: employeeData.role })
+          .eq('user_id', authData.user.id);
+
+        if (roleError) {
+          console.error('Role update error:', roleError);
+          throw roleError;
+        }
+      } else {
+        // Role doesn't exist, create it
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: authData.user.id,
+            role: employeeData.role
+          });
+
+        if (roleError) {
+          console.error('Role creation error:', roleError);
+          throw roleError;
+        }
       }
 
-      console.log('Role updated successfully');
+      console.log('Role handled successfully');
 
       return authData.user;
     },
