@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -324,11 +325,7 @@ const WarehouseManagement = () => {
                       <Checkbox
                         checked={isAllSelected}
                         onCheckedChange={handleSelectAll}
-                        ref={(ref) => {
-                          if (ref) {
-                            ref.indeterminate = isIndeterminate;
-                          }
-                        }}
+                        {...(isIndeterminate ? { 'data-state': 'indeterminate' } : {})}
                       />
                     </TableHead>
                     <TableHead>SKU</TableHead>
