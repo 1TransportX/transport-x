@@ -30,39 +30,48 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
       console.log('=== STARTING EMPLOYEE CREATION ===');
       console.log('Employee data:', employeeData);
       
-      // Step 1: Create the user account using regular signUp
-      console.log('Step 1: Creating user account...');
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: employeeData.email,
-        password: 'TempPassword123!',
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            first_name: employeeData.firstName,
-            last_name: employeeData.lastName
-          }
-        }
-      });
-
-      if (authError) {
-        console.error('❌ Auth error:', authError);
-        throw new Error(`Authentication failed: ${authError.message}`);
-      }
-
-      if (!authData.user) {
-        console.error('❌ No user returned from auth');
-        throw new Error('Failed to create user account - no user returned');
-      }
-
-      console.log('✅ User created successfully:', authData.user.id);
-
-      // Step 2: Create profile directly (don't rely on triggers)
-      console.log('Step 2: Creating profile...');
-      
       try {
-        const { error: profileError } = await supabase
+        // Step 1: Create the user account
+        console.log('Step 1: Creating user account...');
+        const redirectUrl = `${window.location.origin}/`;
+        
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: employeeData.email,
+          password: 'TempPassword123!',
+          options: {
+            emailRedirectTo: redirectUrl,
+            data: {
+              first_name: employeeData.firstName,
+              last_name: employeeData.lastName
+            }
+          }
+        });
+
+        if (authError) {
+          console.error('❌ Auth error:', authError);
+          throw new Error(`Authentication failed: ${authError.message}`);
+        }
+
+        if (!authData.user) {
+          console.error('❌ No user returned from auth');
+          throw new Error('Failed to create user account - no user returned');
+        }
+
+        console.log('✅ User created successfully:', authData.user.id);
+
+        // Step 2: Create profile
+        console.log('Step 2: Creating profile...');
+        console.log('Profile data to insert:', {
+          id: authData.user.id,
+          email: employeeData.email,
+          first_name: employeeData.firstName,
+          last_name: employeeData.lastName,
+          phone: employeeData.phone,
+          department: employeeData.department,
+          employee_id: employeeData.employeeId
+        });
+        
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .insert({
             id: authData.user.id,
@@ -72,79 +81,60 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
             phone: employeeData.phone,
             department: employeeData.department,
             employee_id: employeeData.employeeId
-          });
+          })
+          .select()
+          .single();
 
         if (profileError) {
           console.error('❌ Profile creation error:', profileError);
-          // If profile already exists, try to update it
-          if (profileError.code === '23505') { // Unique constraint violation
-            console.log('Profile exists, updating instead...');
-            const { error: updateError } = await supabase
-              .from('profiles')
-              .update({
-                first_name: employeeData.firstName,
-                last_name: employeeData.lastName,
-                phone: employeeData.phone,
-                department: employeeData.department,
-                employee_id: employeeData.employeeId
-              })
-              .eq('id', authData.user.id);
-
-            if (updateError) {
-              console.error('❌ Profile update error:', updateError);
-              throw new Error(`Profile update failed: ${updateError.message}`);
-            }
-            console.log('✅ Profile updated successfully');
-          } else {
-            throw new Error(`Profile creation failed: ${profileError.message}`);
-          }
-        } else {
-          console.log('✅ Profile created successfully');
+          console.error('Profile error details:', {
+            code: profileError.code,
+            message: profileError.message,
+            details: profileError.details,
+            hint: profileError.hint
+          });
+          throw new Error(`Profile creation failed: ${profileError.message}`);
         }
-      } catch (error) {
-        console.error('❌ Error in profile step:', error);
-        throw error;
-      }
 
-      // Step 3: Create role
-      console.log('Step 3: Creating role...');
-      
-      try {
-        const { error: roleError } = await supabase
+        console.log('✅ Profile created successfully:', profileData);
+
+        // Step 3: Create role
+        console.log('Step 3: Creating role...');
+        console.log('Role data to insert:', {
+          user_id: authData.user.id,
+          role: employeeData.role
+        });
+        
+        const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .insert({
             user_id: authData.user.id,
             role: employeeData.role
-          });
+          })
+          .select()
+          .single();
 
         if (roleError) {
           console.error('❌ Role creation error:', roleError);
-          // If role already exists, try to update it
-          if (roleError.code === '23505') { // Unique constraint violation
-            console.log('Role exists, updating instead...');
-            const { error: updateError } = await supabase
-              .from('user_roles')
-              .update({ role: employeeData.role })
-              .eq('user_id', authData.user.id);
-
-            if (updateError) {
-              console.error('❌ Role update error:', updateError);
-              throw new Error(`Role update failed: ${updateError.message}`);
-            }
-            console.log('✅ Role updated successfully');
-          } else {
-            throw new Error(`Role creation failed: ${roleError.message}`);
-          }
-        } else {
-          console.log('✅ Role created successfully');
+          console.error('Role error details:', {
+            code: roleError.code,
+            message: roleError.message,
+            details: roleError.details,
+            hint: roleError.hint
+          });
+          throw new Error(`Role creation failed: ${roleError.message}`);
         }
+
+        console.log('✅ Role created successfully:', roleData);
+        console.log('=== EMPLOYEE CREATION COMPLETED SUCCESSFULLY ===');
+        
+        return authData.user;
+
       } catch (error) {
-        console.error('❌ Error in role step:', error);
+        console.error('❌ Detailed error in employee creation:', error);
+        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
         throw error;
       }
-
-      console.log('=== EMPLOYEE CREATION COMPLETED SUCCESSFULLY ===');
-      return authData.user;
     },
     onSuccess: () => {
       console.log('✅ Mutation completed successfully');
@@ -157,7 +147,12 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
       resetForm();
     },
     onError: (error: any) => {
-      console.error('❌ Mutation failed:', error);
+      console.error('❌ Mutation failed with error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      });
       toast({
         title: "Error",
         description: error.message || "Failed to add employee.",
