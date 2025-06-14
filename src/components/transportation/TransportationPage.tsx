@@ -14,6 +14,7 @@ const TransportationPage = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [showAssignRouteDialog, setShowAssignRouteDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState('fleet');
 
   console.log('TransportationPage: Component rendering for role:', profile?.role);
 
@@ -24,6 +25,10 @@ const TransportationPage = () => {
       </div>
     );
   }
+
+  const handleCardClick = (tab: string) => {
+    setActiveTab(tab);
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -43,9 +48,12 @@ const TransportationPage = () => {
         )}
       </div>
 
-      {/* Quick Stats */}
+      {/* Quick Stats - Now Clickable */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-blue-200"
+          onClick={() => handleCardClick('fleet')}
+        >
           <CardContent className="p-6">
             <div className="flex items-center gap-2">
               <Truck className="h-8 w-8 text-blue-600" />
@@ -57,7 +65,10 @@ const TransportationPage = () => {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-green-200"
+          onClick={() => handleCardClick('routes')}
+        >
           <CardContent className="p-6">
             <div className="flex items-center gap-2">
               <Route className="h-8 w-8 text-green-600" />
@@ -69,20 +80,25 @@ const TransportationPage = () => {
           </CardContent>
         </Card>
         
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-8 w-8 text-purple-600" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Driver</p>
-                <p className="text-2xl font-bold">Assignment</p>
+        {profile.role === 'admin' && (
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-purple-200"
+            onClick={() => handleCardClick('assignments')}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-8 w-8 text-purple-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Driver</p>
+                  <p className="text-2xl font-bold">Assignment</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      <Tabs defaultValue="fleet" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="fleet">Fleet Management</TabsTrigger>
           <TabsTrigger value="routes">Route Management</TabsTrigger>
