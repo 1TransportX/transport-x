@@ -11,6 +11,10 @@ interface UserProfile {
   phone: string | null;
   department: string | null;
   employee_id: string | null;
+  hire_date: string | null;
+  is_active: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
   role: 'admin' | 'employee' | 'driver';
 }
 
@@ -34,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
 
   const createFallbackProfile = (userId: string, userEmail: string, userData?: any): UserProfile => {
+    const now = new Date().toISOString();
     return {
       id: userId,
       email: userEmail,
@@ -42,6 +47,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       phone: null,
       department: null,
       employee_id: null,
+      hire_date: null,
+      is_active: true,
+      created_at: now,
+      updated_at: now,
       role: 'employee'
     };
   };
