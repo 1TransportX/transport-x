@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -74,25 +75,41 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
 
   const fetchInventory = async () => {
     try {
+      console.log('Starting to fetch inventory...');
+      
       const { data, error } = await supabase
         .from('inventory')
         .select('id, product_name, current_stock')
+        .gt('current_stock', 0)
         .order('product_name');
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('Supabase error fetching inventory:', error);
         throw error;
       }
       
-      console.log('Fetched inventory for delivery dialog:', data);
-      console.log('Number of inventory items:', data?.length || 0);
+      console.log('Raw inventory data from Supabase:', data);
+      console.log('Number of inventory items fetched:', data?.length || 0);
+      
+      if (!data || data.length === 0) {
+        console.warn('No inventory items found with stock > 0');
+        
+        // Try fetching all inventory items to debug
+        const { data: allData, error: allError } = await supabase
+          .from('inventory')
+          .select('id, product_name, current_stock')
+          .order('product_name');
+          
+        console.log('All inventory items (including zero stock):', allData);
+        if (allError) console.error('Error fetching all inventory:', allError);
+      }
       
       setInventory(data || []);
     } catch (error) {
       console.error('Error fetching inventory:', error);
       toast({
         title: "Error",
-        description: "Failed to load inventory items",
+        description: "Failed to load inventory items. Please check if products exist in warehouse.",
         variant: "destructive"
       });
     }
@@ -116,6 +133,18 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
     setLoading(true);
 
     try {
+      // Validate that at least one item is selected
+      const validItems = formData.items.filter(item => item.inventory_id && item.quantity > 0);
+      
+      if (validItems.length === 0) {
+        toast({
+          title: "Error",
+          description: "Please add at least one item to the delivery",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Create delivery
       const { data: delivery, error: deliveryError } = await supabase
         .from('deliveries')
@@ -136,13 +165,11 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
       if (deliveryError) throw deliveryError;
 
       // Create delivery items
-      const itemsToInsert = formData.items.filter(item => item.inventory_id && item.quantity > 0);
-      
-      if (itemsToInsert.length > 0) {
+      if (validItems.length > 0) {
         const { error: itemsError } = await supabase
           .from('delivery_items')
           .insert(
-            itemsToInsert.map(item => ({
+            validItems.map(item => ({
               delivery_id: delivery.id,
               inventory_id: item.inventory_id,
               quantity: item.quantity
@@ -208,6 +235,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
   };
 
   console.log('Current inventory state in dialog:', inventory);
+  console.log('Inventory loading state:', loading);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -303,7 +331,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
                       <SelectContent>
                         {inventory.length === 0 ? (
                           <div className="p-2 text-sm text-gray-500">
-                            No products available in inventory
+                            No products available with stock. Please add inventory in warehouse first.
                           </div>
                         ) : (
                           inventory.map((product) => (
