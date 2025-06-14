@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Employee {
   id: string;
@@ -39,6 +40,7 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
   const [isActive, setIsActive] = useState(true);
   
   const { toast } = useToast();
+  const { user, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -126,8 +128,15 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
 
       console.log('Employee updated successfully');
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      
+      // If the current user is updating their own profile, refresh their auth profile
+      if (user && user.id === employee.id) {
+        console.log('Refreshing current user profile after role update');
+        await refreshProfile();
+      }
+      
       toast({
         title: "Success",
         description: "Employee updated successfully.",
