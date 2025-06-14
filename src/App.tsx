@@ -10,7 +10,7 @@ import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import EmployeeList from "./components/employees/EmployeeList";
-import FleetManagement from "./components/fleet/FleetManagement";
+import TransportationPage from "./components/transportation/TransportationPage";
 import WarehouseManagement from "./components/warehouse/WarehouseManagement";
 import SettingsPage from "./components/settings/SettingsPage";
 import ReportsPage from "./components/reports/ReportsPage";
@@ -42,9 +42,9 @@ const App = () => {
                     <EmployeeList />
                   </ProtectedRoute>
                 } />
-                <Route path="fleet" element={
+                <Route path="transportation" element={
                   <ProtectedRoute allowedRoles={['admin', 'driver']}>
-                    <FleetManagement />
+                    <TransportationPage />
                   </ProtectedRoute>
                 } />
                 <Route path="warehouse" element={

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { 
   BarChart3, 
   Users, 
-  Truck, 
+  Route, 
   Package, 
   Settings, 
   User,
@@ -36,7 +36,7 @@ const Navigation = () => {
     if (profile.role === 'admin') {
       items.push(
         { path: '/employees', label: 'Employees', icon: Users, roles: ['admin'] },
-        { path: '/fleet', label: 'Fleet', icon: Truck, roles: ['admin'] },
+        { path: '/transportation', label: 'Transportation', icon: Route, roles: ['admin'] },
         { path: '/warehouse', label: 'Warehouse', icon: Package, roles: ['admin'] },
         { path: '/reports', label: 'Reports', icon: FileText, roles: ['admin'] },
         { path: '/settings', label: 'Settings', icon: Settings, roles: ['admin'] }
@@ -48,7 +48,7 @@ const Navigation = () => {
       );
     } else if (profile.role === 'driver') {
       items.push(
-        { path: '/fleet', label: 'Fleet', icon: Truck, roles: ['driver'] },
+        { path: '/transportation', label: 'Transportation', icon: Route, roles: ['driver'] },
         { path: '/profile', label: 'Profile', icon: User, roles: ['driver'] }
       );
     }
