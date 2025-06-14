@@ -28,7 +28,7 @@ interface VehicleFormData {
 }
 
 const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange }) => {
-  const { register, handleSubmit, reset, setValue } = useForm<VehicleFormData>();
+  const { register, handleSubmit, reset, setValue, watch } = useForm<VehicleFormData>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -63,6 +63,11 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
     addVehicleMutation.mutate(data);
   };
 
+  const handleMakeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    setValue('make', value);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -84,8 +89,9 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
               <Label htmlFor="make">Make</Label>
               <Input
                 id="make"
-                {...register('make', { required: true })}
-                placeholder="Ford"
+                value={watch('make') || ''}
+                onChange={handleMakeChange}
+                placeholder="FORD"
               />
             </div>
             <div>
