@@ -20,6 +20,7 @@ interface Vehicle {
   year: number | null;
   fuel_type: string | null;
   current_mileage: number;
+  fuel_economy: number | null;
   status: 'active' | 'maintenance' | 'retired';
   last_service_date: string | null;
   next_service_due: number | null;
@@ -250,7 +251,9 @@ const FleetManagement = () => {
                     <TableCell>{vehicle.year || 'N/A'}</TableCell>
                     <TableCell>{vehicle.fuel_type || 'N/A'}</TableCell>
                     <TableCell>{(vehicle.current_mileage || 0).toLocaleString()} km</TableCell>
-                    <TableCell>N/A Km/L</TableCell>
+                    <TableCell>
+                      {vehicle.fuel_economy ? `${vehicle.fuel_economy} Km/L` : 'N/A'}
+                    </TableCell>
                     <TableCell>
                       <Badge className={getStatusBadgeColor(vehicle.status)}>
                         {vehicle.status}

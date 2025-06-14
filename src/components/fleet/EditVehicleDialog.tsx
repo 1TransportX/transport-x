@@ -18,6 +18,7 @@ interface Vehicle {
   year: number | null;
   fuel_type: string | null;
   current_mileage: number;
+  fuel_economy: number | null;
   status: 'active' | 'maintenance' | 'retired';
   last_service_date: string | null;
   next_service_due: number | null;
@@ -57,7 +58,7 @@ const EditVehicleDialog: React.FC<EditVehicleDialogProps> = ({ vehicle, open, on
         year: vehicle.year || new Date().getFullYear(),
         fuel_type: fuelType,
         current_mileage: vehicle.current_mileage,
-        fuel_economy: 0,
+        fuel_economy: vehicle.fuel_economy || 0,
         status: vehicle.status,
         last_service_date: vehicle.last_service_date || '',
         next_service_due: vehicle.next_service_due || undefined
@@ -67,10 +68,9 @@ const EditVehicleDialog: React.FC<EditVehicleDialogProps> = ({ vehicle, open, on
 
   const updateVehicleMutation = useMutation({
     mutationFn: async (data: VehicleFormData) => {
-      const { fuel_economy, ...vehicleData } = data;
       const { error } = await supabase
         .from('vehicles')
-        .update(vehicleData)
+        .update(data)
         .eq('id', vehicle.id);
 
       if (error) throw error;

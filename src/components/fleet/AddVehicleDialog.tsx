@@ -35,10 +35,9 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
 
   const addVehicleMutation = useMutation({
     mutationFn: async (data: VehicleFormData) => {
-      const { fuel_economy, ...vehicleData } = data;
       const { error } = await supabase
         .from('vehicles')
-        .insert([vehicleData]);
+        .insert([data]);
 
       if (error) throw error;
     },
