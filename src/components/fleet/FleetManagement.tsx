@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -225,6 +224,7 @@ const FleetManagement = () => {
                 <TableHead>Year</TableHead>
                 <TableHead>Fuel Type</TableHead>
                 <TableHead>Kilometers</TableHead>
+                <TableHead>Fuel Economy</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last Service</TableHead>
                 <TableHead>Actions</TableHead>
@@ -233,7 +233,7 @@ const FleetManagement = () => {
             <TableBody>
               {filteredVehicles.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                     No vehicles found. Add a vehicle to get started.
                   </TableCell>
                 </TableRow>
@@ -250,6 +250,7 @@ const FleetManagement = () => {
                     <TableCell>{vehicle.year || 'N/A'}</TableCell>
                     <TableCell>{vehicle.fuel_type || 'N/A'}</TableCell>
                     <TableCell>{(vehicle.current_mileage || 0).toLocaleString()} km</TableCell>
+                    <TableCell>N/A Km/L</TableCell>
                     <TableCell>
                       <Badge className={getStatusBadgeColor(vehicle.status)}>
                         {vehicle.status}
