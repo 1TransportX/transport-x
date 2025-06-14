@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -66,6 +65,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
         .order('vehicle_number');
 
       if (error) throw error;
+      console.log('Fetched vehicles:', data);
       setVehicles(data || []);
     } catch (error) {
       console.error('Error fetching vehicles:', error);
@@ -81,6 +81,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
         .order('product_name');
 
       if (error) throw error;
+      console.log('Fetched inventory:', data);
       setInventory(data || []);
     } catch (error) {
       console.error('Error fetching inventory:', error);
@@ -196,6 +197,8 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
     }));
   };
 
+  console.log('Inventory items available:', inventory);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -277,21 +280,32 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
                 <div className="flex-1">
                   <Select
                     value={item.inventory_id}
-                    onValueChange={(value) => updateItem(index, 'inventory_id', value)}
+                    onValueChange={(value) => {
+                      console.log('Selected product:', value);
+                      updateItem(index, 'inventory_id', value);
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select product" />
                     </SelectTrigger>
-                    <SelectContent className="z-[100] bg-white border border-gray-200 shadow-lg">
-                      {inventory.map((product) => (
-                        <SelectItem 
-                          key={product.id} 
-                          value={product.id}
-                          className="hover:bg-gray-100 cursor-pointer"
-                        >
-                          {product.product_name} (Stock: {product.current_stock})
-                        </SelectItem>
-                      ))}
+                    <SelectContent 
+                      className="z-[9999] bg-white border border-gray-200 shadow-lg max-h-60 overflow-y-auto"
+                      position="popper"
+                      sideOffset={5}
+                    >
+                      {inventory.length === 0 ? (
+                        <div className="p-2 text-sm text-gray-500">No products available</div>
+                      ) : (
+                        inventory.map((product) => (
+                          <SelectItem 
+                            key={product.id} 
+                            value={product.id}
+                            className="hover:bg-gray-100 cursor-pointer focus:bg-gray-100"
+                          >
+                            {product.product_name} (Stock: {product.current_stock})
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
