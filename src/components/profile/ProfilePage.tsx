@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { User, Phone, Mail, Calendar, Building } from 'lucide-react';
+import RoleUpdater from '../RoleUpdater';
 
 const ProfilePage = () => {
   const { profile, user, isLoading: authLoading } = useAuth();
@@ -355,6 +356,19 @@ const ProfilePage = () => {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Role Management Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Role Management</CardTitle>
+          <CardDescription>
+            Update your role permissions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RoleUpdater />
         </CardContent>
       </Card>
     </div>

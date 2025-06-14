@@ -11,6 +11,8 @@ const RoleUpdater = () => {
     await updateUserRole(role);
   };
 
+  const canSetAdminRole = profile?.role === 'admin';
+
   return (
     <Card className="max-w-md mx-auto mt-4">
       <CardHeader>
@@ -34,13 +36,20 @@ const RoleUpdater = () => {
         >
           Set Role to Employee
         </Button>
-        <Button 
-          onClick={() => handleRoleUpdate('admin')} 
-          className="w-full"
-          variant="outline"
-        >
-          Set Role to Admin
-        </Button>
+        {canSetAdminRole && (
+          <Button 
+            onClick={() => handleRoleUpdate('admin')} 
+            className="w-full"
+            variant="outline"
+          >
+            Set Role to Admin
+          </Button>
+        )}
+        {!canSetAdminRole && (
+          <p className="text-sm text-gray-500 text-center mt-2">
+            Only administrators can assign admin roles
+          </p>
+        )}
       </CardContent>
     </Card>
   );
