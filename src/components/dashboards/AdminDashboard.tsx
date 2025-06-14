@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Truck, Package, DollarSign, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import AddEmployeeDialog from '@/components/employees/AddEmployeeDialog';
@@ -20,6 +20,7 @@ const AdminDashboard = () => {
   const { data: employees = [], isLoading: employeesLoading } = useQuery({
     queryKey: ['dashboard-employees'],
     queryFn: async () => {
+      console.log('=== Fetching employees for dashboard...');
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -28,12 +29,21 @@ const AdminDashboard = () => {
         `)
         .eq('is_active', true);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching employees:', error);
+        throw error;
+      }
       
-      return data.map(profile => ({
+      console.log('=== Raw employee data:', data);
+      
+      const processedEmployees = data.map(profile => ({
         ...profile,
         role: profile.user_roles?.[0]?.role || 'employee'
       }));
+      
+      console.log('=== Processed employees with roles:', processedEmployees);
+      
+      return processedEmployees;
     },
     refetchInterval: 30000, // Refresh every 30 seconds
     staleTime: 10000 // Consider data stale after 10 seconds
@@ -178,14 +188,17 @@ const AdminDashboard = () => {
     };
   });
 
-  // Calculate role distribution instead of department distribution
+  // Calculate role distribution with proper data processing
   const roleCounts = employees.reduce((acc, emp) => {
     const role = emp.role || 'employee';
     acc[role] = (acc[role] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const roleData = Object.entries(roleCounts).map(([name, count], index) => {
+  console.log('=== Role counts:', roleCounts);
+  console.log('=== Total employees for percentage calc:', totalEmployees);
+
+  const roleData = Object.entries(roleCounts).map(([roleKey, count], index) => {
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
     const roleLabels = {
       admin: 'Admin',
@@ -193,12 +206,19 @@ const AdminDashboard = () => {
       driver: 'Driver'
     };
     
+    const percentage = totalEmployees > 0 ? Math.round((count / totalEmployees) * 100) : 0;
+    
+    console.log(`=== Role ${roleKey}: ${count} employees = ${percentage}%`);
+    
     return {
-      name: roleLabels[name as keyof typeof roleLabels] || name,
-      value: Math.round((count / totalEmployees) * 100),
+      name: roleLabels[roleKey as keyof typeof roleLabels] || roleKey,
+      value: count, // Use actual count instead of percentage for the pie chart
+      percentage: percentage, // Keep percentage for display
       color: colors[index % colors.length]
     };
   });
+
+  console.log('=== Final role data for chart:', roleData);
 
   // Schedule maintenance mutation
   const scheduleMaintenanceMutation = useMutation({
@@ -394,10 +414,10 @@ const AdminDashboard = () => {
         <Card>
           <CardHeader>
             <CardTitle>Employee Role Distribution</CardTitle>
-            <CardDescription>Employee allocation by role</CardDescription>
+            <CardDescription>Employee allocation by role ({totalEmployees} total employees)</CardDescription>
           </CardHeader>
           <CardContent>
-            {totalEmployees > 0 ? (
+            {totalEmployees > 0 && roleData.length > 0 ? (
               <>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
@@ -414,24 +434,33 @@ const AdminDashboard = () => {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip 
+                      formatter={(value, name) => [`${value} employees`, name]}
+                    />
+                    <Legend />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="grid grid-cols-2 gap-2 mt-4">
                   {roleData.map((role, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: role.color }}
-                      />
-                      <span className="text-sm text-gray-600">{role.name}: {role.value}%</span>
+                    <div key={index} className="flex items-center justify-between space-x-2">
+                      <div className="flex items-center space-x-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: role.color }}
+                        />
+                        <span className="text-sm text-gray-600">{role.name}</span>
+                      </div>
+                      <span className="text-sm font-medium">{role.value} ({role.percentage}%)</span>
                     </div>
                   ))}
                 </div>
               </>
             ) : (
               <div className="flex items-center justify-center h-64 text-gray-500">
-                No employee data available
+                <div className="text-center">
+                  <p className="text-lg font-medium">No employee data available</p>
+                  <p className="text-sm">Add some employees to see the role distribution</p>
+                </div>
               </div>
             )}
           </CardContent>
