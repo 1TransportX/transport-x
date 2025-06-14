@@ -59,9 +59,11 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
 
         console.log('✅ User created successfully:', authData.user.id);
 
-        // Step 2: Create profile
+        // Step 2: Create profile - Check current user first
         console.log('Step 2: Creating profile...');
-        console.log('Profile data to insert:', {
+        console.log('Current session user:', (await supabase.auth.getUser()).data.user?.id);
+        
+        const profileData = {
           id: authData.user.id,
           email: employeeData.email,
           first_name: employeeData.firstName,
@@ -69,34 +71,78 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
           phone: employeeData.phone,
           department: employeeData.department,
           employee_id: employeeData.employeeId
-        });
+        };
         
-        const { data: profileData, error: profileError } = await supabase
+        console.log('Profile data to insert:', profileData);
+        
+        // Check if profile already exists
+        console.log('Checking if profile already exists...');
+        const { data: existingProfile, error: checkError } = await supabase
           .from('profiles')
-          .insert({
-            id: authData.user.id,
-            email: employeeData.email,
-            first_name: employeeData.firstName,
-            last_name: employeeData.lastName,
-            phone: employeeData.phone,
-            department: employeeData.department,
-            employee_id: employeeData.employeeId
-          })
-          .select()
-          .single();
-
-        if (profileError) {
-          console.error('❌ Profile creation error:', profileError);
-          console.error('Profile error details:', {
-            code: profileError.code,
-            message: profileError.message,
-            details: profileError.details,
-            hint: profileError.hint
-          });
-          throw new Error(`Profile creation failed: ${profileError.message}`);
+          .select('*')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+          
+        if (checkError) {
+          console.error('❌ Error checking existing profile:', checkError);
+        } else {
+          console.log('Existing profile check result:', existingProfile);
         }
+        
+        if (existingProfile) {
+          console.log('Profile already exists, updating instead...');
+          const { data: updateResult, error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              first_name: employeeData.firstName,
+              last_name: employeeData.lastName,
+              phone: employeeData.phone,
+              department: employeeData.department,
+              employee_id: employeeData.employeeId
+            })
+            .eq('id', authData.user.id)
+            .select()
+            .single();
 
-        console.log('✅ Profile created successfully:', profileData);
+          if (updateError) {
+            console.error('❌ Profile update error:', updateError);
+            console.error('Update error details:', {
+              code: updateError.code,
+              message: updateError.message,
+              details: updateError.details,
+              hint: updateError.hint
+            });
+            throw new Error(`Profile update failed: ${updateError.message}`);
+          }
+          
+          console.log('✅ Profile updated successfully:', updateResult);
+        } else {
+          console.log('Creating new profile...');
+          const { data: insertResult, error: insertError } = await supabase
+            .from('profiles')
+            .insert(profileData)
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('❌ Profile creation error:', insertError);
+            console.error('Insert error details:', {
+              code: insertError.code,
+              message: insertError.message,
+              details: insertError.details,
+              hint: insertError.hint
+            });
+            
+            // Check if it's a permissions issue
+            if (insertError.code === '42501' || insertError.message?.includes('permission')) {
+              throw new Error('Permission denied: Admin privileges required to create employee profiles');
+            }
+            
+            throw new Error(`Profile creation failed: ${insertError.message}`);
+          }
+
+          console.log('✅ Profile created successfully:', insertResult);
+        }
 
         // Step 3: Create role
         console.log('Step 3: Creating role...');
@@ -105,27 +151,56 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
           role: employeeData.role
         });
         
-        const { data: roleData, error: roleError } = await supabase
+        // Check if role already exists
+        const { data: existingRole, error: roleCheckError } = await supabase
           .from('user_roles')
-          .insert({
-            user_id: authData.user.id,
-            role: employeeData.role
-          })
-          .select()
-          .single();
+          .select('*')
+          .eq('user_id', authData.user.id)
+          .maybeSingle();
+          
+        if (roleCheckError) {
+          console.error('❌ Error checking existing role:', roleCheckError);
+        }
+        
+        if (existingRole) {
+          console.log('Role already exists, updating...');
+          const { data: roleUpdateResult, error: roleUpdateError } = await supabase
+            .from('user_roles')
+            .update({ role: employeeData.role })
+            .eq('user_id', authData.user.id)
+            .select()
+            .single();
 
-        if (roleError) {
-          console.error('❌ Role creation error:', roleError);
-          console.error('Role error details:', {
-            code: roleError.code,
-            message: roleError.message,
-            details: roleError.details,
-            hint: roleError.hint
-          });
-          throw new Error(`Role creation failed: ${roleError.message}`);
+          if (roleUpdateError) {
+            console.error('❌ Role update error:', roleUpdateError);
+            throw new Error(`Role update failed: ${roleUpdateError.message}`);
+          }
+          
+          console.log('✅ Role updated successfully:', roleUpdateResult);
+        } else {
+          const { data: roleData, error: roleError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: authData.user.id,
+              role: employeeData.role
+            })
+            .select()
+            .single();
+
+          if (roleError) {
+            console.error('❌ Role creation error:', roleError);
+            console.error('Role error details:', {
+              code: roleError.code,
+              message: roleError.message,
+              details: roleError.details,
+              hint: roleError.hint
+            });
+            throw new Error(`Role creation failed: ${roleError.message}`);
+          }
+
+          console.log('✅ Role created successfully:', roleData);
         }
 
-        console.log('✅ Role created successfully:', roleData);
         console.log('=== EMPLOYEE CREATION COMPLETED SUCCESSFULLY ===');
         
         return authData.user;
