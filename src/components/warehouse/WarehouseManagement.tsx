@@ -7,11 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Package, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Edit, Package, AlertTriangle, TrendingUp, TrendingDown, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddInventoryDialog from './AddInventoryDialog';
 import EditInventoryDialog from './EditInventoryDialog';
 import StockMovementDialog from './StockMovementDialog';
+import StockMovementHistory from './StockMovementHistory';
 
 interface InventoryItem {
   id: string;
@@ -200,81 +202,100 @@ const WarehouseManagement = () => {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Inventory ({filteredInventory.length})</CardTitle>
-          <Input
-            placeholder="Search inventory..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
-          />
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Product Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Current Stock</TableHead>
-                <TableHead>Min Stock</TableHead>
-                <TableHead>Unit Price</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredInventory.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                    No inventory items found. Add an item to get started.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredInventory.map((item) => {
-                  const stockStatus = getStockStatus(item);
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.sku}</TableCell>
-                      <TableCell>{item.product_name}</TableCell>
-                      <TableCell>{item.category || 'N/A'}</TableCell>
-                      <TableCell>{item.current_stock}</TableCell>
-                      <TableCell>{item.minimum_stock}</TableCell>
-                      <TableCell>${item.unit_price?.toFixed(2) || '0.00'}</TableCell>
-                      <TableCell>
-                        <Badge className={stockStatus.color}>
-                          {stockStatus.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{item.warehouse_location || 'N/A'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditingItem(item)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setStockMovementItem(item)}
-                          >
-                            <Package className="h-4 w-4" />
-                          </Button>
-                        </div>
+      <Tabs defaultValue="inventory" className="w-full">
+        <TabsList>
+          <TabsTrigger value="inventory" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Inventory
+          </TabsTrigger>
+          <TabsTrigger value="movements" className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Movement History
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="inventory">
+          <Card>
+            <CardHeader>
+              <CardTitle>Inventory ({filteredInventory.length})</CardTitle>
+              <Input
+                placeholder="Search inventory..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Product Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Current Stock</TableHead>
+                    <TableHead>Min Stock</TableHead>
+                    <TableHead>Unit Price</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInventory.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                        No inventory items found. Add an item to get started.
                       </TableCell>
                     </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                  ) : (
+                    filteredInventory.map((item) => {
+                      const stockStatus = getStockStatus(item);
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.sku}</TableCell>
+                          <TableCell>{item.product_name}</TableCell>
+                          <TableCell>{item.category || 'N/A'}</TableCell>
+                          <TableCell>{item.current_stock}</TableCell>
+                          <TableCell>{item.minimum_stock}</TableCell>
+                          <TableCell>${item.unit_price?.toFixed(2) || '0.00'}</TableCell>
+                          <TableCell>
+                            <Badge className={stockStatus.color}>
+                              {stockStatus.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{item.warehouse_location || 'N/A'}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingItem(item)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setStockMovementItem(item)}
+                              >
+                                <Package className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="movements">
+          <StockMovementHistory />
+        </TabsContent>
+      </Tabs>
 
       <AddInventoryDialog 
         open={showAddDialog} 
