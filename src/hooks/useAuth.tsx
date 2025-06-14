@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +27,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
+  updateUserRole: (role: 'admin' | 'employee' | 'driver') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +55,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updated_at: now,
       role: 'employee'
     };
+  };
+
+  const updateUserRole = async (role: 'admin' | 'employee' | 'driver') => {
+    if (!user) return;
+    
+    try {
+      console.log('=== Manually updating user role to:', role);
+      
+      // First, try to update existing role
+      const { data: existingRole, error: selectError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (selectError) {
+        console.error('Error checking existing role:', selectError);
+        return;
+      }
+
+      if (existingRole) {
+        // Update existing role
+        const { error: updateError } = await supabase
+          .from('user_roles')
+          .update({ role })
+          .eq('user_id', user.id);
+
+        if (updateError) {
+          console.error('Error updating role:', updateError);
+          return;
+        }
+        console.log('=== Role updated successfully');
+      } else {
+        // Insert new role
+        const { error: insertError } = await supabase
+          .from('user_roles')
+          .insert({ user_id: user.id, role });
+
+        if (insertError) {
+          console.error('Error inserting role:', insertError);
+          return;
+        }
+        console.log('=== Role inserted successfully');
+      }
+
+      // Refresh the profile to get the updated role
+      await refreshProfile();
+      
+      toast({
+        title: "Role Updated",
+        description: `Your role has been updated to ${role}.`,
+      });
+    } catch (error) {
+      console.error('Error in updateUserRole:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update role.",
+        variant: "destructive"
+      });
+    }
   };
 
   const fetchUserProfile = async (userId: string, userEmail: string, forceRefresh: boolean = false) => {
@@ -327,7 +387,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signIn, 
       signOut, 
       isLoading,
-      refreshProfile
+      refreshProfile,
+      updateUserRole
     }}>
       {children}
     </AuthContext.Provider>

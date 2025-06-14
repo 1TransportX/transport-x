@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import AdminDashboard from './dashboards/AdminDashboard';
 import EmployeeDashboard from './dashboards/EmployeeDashboard';
 import DriverDashboard from './dashboards/DriverDashboard';
+import RoleUpdater from './RoleUpdater';
 
 const Dashboard = () => {
   const { profile, isLoading } = useAuth();
@@ -31,22 +32,31 @@ const Dashboard = () => {
 
   console.log('=== Dashboard - rendering for role:', profile.role);
 
-  switch (profile.role) {
-    case 'admin':
-      return <AdminDashboard />;
-    case 'employee':
-      return <EmployeeDashboard />;
-    case 'driver':
-      return <DriverDashboard />;
-    default:
-      console.log('Dashboard - unknown role:', profile.role);
-      return (
-        <div className="p-6">
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-gray-600 mt-2">Role not recognized: {profile.role}</p>
-        </div>
-      );
-  }
+  return (
+    <div>
+      {/* Temporary role updater - remove this after fixing your role */}
+      <RoleUpdater />
+      
+      {(() => {
+        switch (profile.role) {
+          case 'admin':
+            return <AdminDashboard />;
+          case 'employee':
+            return <EmployeeDashboard />;
+          case 'driver':
+            return <DriverDashboard />;
+          default:
+            console.log('Dashboard - unknown role:', profile.role);
+            return (
+              <div className="p-6">
+                <h1 className="text-3xl font-bold">Dashboard</h1>
+                <p className="text-gray-600 mt-2">Role not recognized: {profile.role}</p>
+              </div>
+            );
+        }
+      })()}
+    </div>
+  );
 };
 
 export default Dashboard;
