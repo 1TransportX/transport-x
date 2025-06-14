@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -189,7 +188,15 @@ const RouteManagement = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Delivery Routes ({filteredDeliveries.length})</CardTitle>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Delivery Routes ({filteredDeliveries.length})</CardTitle>
+            </div>
+            <Button className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Route
+            </Button>
+          </div>
           <Input
             placeholder="Search routes..."
             value={searchTerm}

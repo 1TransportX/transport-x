@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Truck, Route, MapPin, Plus, Users, Calendar } from 'lucide-react';
+import { Plus, Users, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import FleetManagement from '@/components/fleet/FleetManagement';
 import RouteManagement from './RouteManagement';
@@ -26,10 +26,6 @@ const TransportationPage = () => {
     );
   }
 
-  const handleCardClick = (tab: string) => {
-    setActiveTab(tab);
-  };
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -37,65 +33,6 @@ const TransportationPage = () => {
           <h1 className="text-3xl font-bold">Transportation Management</h1>
           <p className="text-gray-600 mt-2">Manage fleet, routes, and driver assignments.</p>
         </div>
-        {profile.role === 'admin' && (
-          <Button 
-            onClick={() => setShowAssignRouteDialog(true)}
-            className="flex items-center gap-2"
-          >
-            <Users className="h-4 w-4" />
-            Assign Routes to Driver
-          </Button>
-        )}
-      </div>
-
-      {/* Quick Stats - Now Clickable */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card 
-          className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-blue-200"
-          onClick={() => handleCardClick('fleet')}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <Truck className="h-8 w-8 text-blue-600" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Fleet</p>
-                <p className="text-2xl font-bold">Management</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-green-200"
-          onClick={() => handleCardClick('routes')}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <Route className="h-8 w-8 text-green-600" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Route</p>
-                <p className="text-2xl font-bold">Planning</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {profile.role === 'admin' && (
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-purple-200"
-            onClick={() => handleCardClick('assignments')}
-          >
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-8 w-8 text-purple-600" />
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Driver</p>
-                  <p className="text-2xl font-bold">Assignment</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -129,14 +66,14 @@ const TransportationPage = () => {
                   <Calendar className="h-16 w-16 text-gray-400" />
                   <h3 className="text-lg font-medium text-gray-900">Route Assignment Center</h3>
                   <p className="text-gray-600 text-center max-w-md">
-                    Use the "Assign Routes to Driver" button above to assign delivery routes to your drivers.
+                    Assign delivery routes to your drivers and manage route schedules.
                   </p>
                   <Button 
                     onClick={() => setShowAssignRouteDialog(true)}
                     className="flex items-center gap-2"
                   >
-                    <Plus className="h-4 w-4" />
-                    Assign New Routes
+                    <Users className="h-4 w-4" />
+                    Assign Routes to Driver
                   </Button>
                 </div>
               </CardContent>
