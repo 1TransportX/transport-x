@@ -28,18 +28,35 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
 
   const addEmployeeMutation = useMutation({
     mutationFn: async (employeeData: any) => {
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      console.log('Starting employee creation process...');
+      
+      // Step 1: Create the user account using regular signUp
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: employeeData.email,
-        password: 'temporary123',
-        email_confirm: true,
-        user_metadata: {
-          first_name: employeeData.firstName,
-          last_name: employeeData.lastName
+        password: 'TempPassword123!', // You might want to generate a random password
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            first_name: employeeData.firstName,
+            last_name: employeeData.lastName
+          }
         }
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw authError;
+      }
 
+      if (!authData.user) {
+        throw new Error('Failed to create user account');
+      }
+
+      console.log('User created successfully:', authData.user.id);
+
+      // Step 2: Update the profile (the trigger should have created a basic profile)
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -51,14 +68,25 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
         })
         .eq('id', authData.user.id);
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        throw profileError;
+      }
 
+      console.log('Profile updated successfully');
+
+      // Step 3: Update the user role
       const { error: roleError } = await supabase
         .from('user_roles')
         .update({ role: employeeData.role })
         .eq('user_id', authData.user.id);
 
-      if (roleError) throw roleError;
+      if (roleError) {
+        console.error('Role update error:', roleError);
+        throw roleError;
+      }
+
+      console.log('Role updated successfully');
 
       return authData.user;
     },
@@ -66,12 +94,13 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast({
         title: "Success",
-        description: "Employee added successfully.",
+        description: "Employee added successfully. A temporary password has been set.",
       });
       onOpenChange(false);
       resetForm();
     },
     onError: (error: any) => {
+      console.error('Employee creation failed:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to add employee.",
