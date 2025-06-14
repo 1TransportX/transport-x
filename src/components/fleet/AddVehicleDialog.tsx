@@ -63,9 +63,9 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
     addVehicleMutation.mutate(data);
   };
 
-  const handleMakeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVehicleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    setValue('make', value);
+    setValue('vehicle_number', value);
   };
 
   return (
@@ -79,7 +79,8 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
             <Label htmlFor="vehicle_number">Vehicle Number</Label>
             <Input
               id="vehicle_number"
-              {...register('vehicle_number', { required: true })}
+              value={watch('vehicle_number') || ''}
+              onChange={handleVehicleNumberChange}
               placeholder="VH001"
             />
           </div>
@@ -89,9 +90,8 @@ const AddVehicleDialog: React.FC<AddVehicleDialogProps> = ({ open, onOpenChange 
               <Label htmlFor="make">Make</Label>
               <Input
                 id="make"
-                value={watch('make') || ''}
-                onChange={handleMakeChange}
-                placeholder="FORD"
+                {...register('make', { required: true })}
+                placeholder="Ford"
               />
             </div>
             <div>
