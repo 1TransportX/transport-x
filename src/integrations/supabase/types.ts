@@ -21,6 +21,7 @@ export type Database = {
           notes: string | null
           total_hours: number | null
           user_id: string | null
+          vehicle_id: string | null
         }
         Insert: {
           break_duration?: number | null
@@ -33,6 +34,7 @@ export type Database = {
           notes?: string | null
           total_hours?: number | null
           user_id?: string | null
+          vehicle_id?: string | null
         }
         Update: {
           break_duration?: number | null
@@ -45,6 +47,7 @@ export type Database = {
           notes?: string | null
           total_hours?: number | null
           user_id?: string | null
+          vehicle_id?: string | null
         }
         Relationships: [
           {
@@ -52,6 +55,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
         ]

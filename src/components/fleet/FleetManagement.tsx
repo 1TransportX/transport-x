@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Truck, Fuel, Wrench, MapPin } from 'lucide-react';
+import { Plus, Edit, Truck, Fuel, Wrench, MapPin, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddVehicleDialog from './AddVehicleDialog';
 import EditVehicleDialog from './EditVehicleDialog';
 import VehicleTrackingDialog from './VehicleTrackingDialog';
+import VehicleAssignmentDialog from './VehicleAssignmentDialog';
 
 interface Vehicle {
   id: string;
@@ -31,6 +33,7 @@ const FleetManagement = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [trackingVehicle, setTrackingVehicle] = useState<Vehicle | null>(null);
+  const [assigningVehicle, setAssigningVehicle] = useState<Vehicle | null>(null);
   const { toast } = useToast();
 
   console.log('FleetManagement: Component rendering');
@@ -277,6 +280,13 @@ const FleetManagement = () => {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => setAssigningVehicle(vehicle)}
+                        >
+                          <UserCheck className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => setTrackingVehicle(vehicle)}
                         >
                           <MapPin className="h-4 w-4" />
@@ -301,6 +311,14 @@ const FleetManagement = () => {
           vehicle={editingVehicle}
           open={!!editingVehicle}
           onOpenChange={(open) => !open && setEditingVehicle(null)}
+        />
+      )}
+
+      {assigningVehicle && (
+        <VehicleAssignmentDialog 
+          vehicle={assigningVehicle}
+          open={!!assigningVehicle}
+          onOpenChange={(open) => !open && setAssigningVehicle(null)}
         />
       )}
 
