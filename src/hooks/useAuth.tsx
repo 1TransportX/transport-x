@@ -33,6 +33,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  const createFallbackProfile = (userId: string, userEmail: string, userData?: any): UserProfile => {
+    return {
+      id: userId,
+      email: userEmail,
+      first_name: userData?.user_metadata?.first_name || null,
+      last_name: userData?.user_metadata?.last_name || null,
+      phone: null,
+      department: null,
+      employee_id: null,
+      role: 'employee'
+    };
+  };
+
   const fetchUserProfile = async (userId: string) => {
     try {
       console.log('Fetching profile for user:', userId);
@@ -42,20 +55,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no data
+        .maybeSingle();
 
       if (profileError && profileError.code !== 'PGRST116') {
         console.error('Error fetching profile:', profileError);
         // For other errors, create a basic profile
-        profileData = {
-          id: userId,
-          email: user?.email || '',
-          first_name: user?.user_metadata?.first_name || null,
-          last_name: user?.user_metadata?.last_name || null,
-          phone: null,
-          department: null,
-          employee_id: null
-        };
+        const { data: userData } = await supabase.auth.getUser();
+        profileData = createFallbackProfile(userId, user?.email || '', userData?.user);
       }
 
       if (!profileData) {
@@ -76,15 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (insertError) {
             console.error('Error creating profile:', insertError);
             // Create a fallback profile object
-            profileData = {
-              id: userId,
-              email: userData.user.email || '',
-              first_name: userData.user.user_metadata?.first_name || null,
-              last_name: userData.user.user_metadata?.last_name || null,
-              phone: null,
-              department: null,
-              employee_id: null
-            };
+            profileData = createFallbackProfile(userId, userData.user.email || '', userData.user);
           } else {
             profileData = newProfile;
           }
@@ -98,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .maybeSingle(); // Use maybeSingle instead of single
+        .maybeSingle();
 
       if (roleError && roleError.code !== 'PGRST116') {
         console.error('Error fetching role:', roleError);
@@ -139,16 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error in fetchUserProfile:', error);
       // Create a minimal fallback profile to prevent infinite loading
       if (user) {
-        setProfile({
-          id: userId,
-          email: user.email || '',
-          first_name: user.user_metadata?.first_name || null,
-          last_name: user.user_metadata?.last_name || null,
-          phone: null,
-          department: null,
-          employee_id: null,
-          role: 'employee'
-        });
+        setProfile(createFallbackProfile(userId, user.email || '', user));
       }
     }
   };
