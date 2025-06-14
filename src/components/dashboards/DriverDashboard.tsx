@@ -1,52 +1,157 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, Truck, Clock, CheckCircle, Navigation, Camera } from 'lucide-react';
+import { MapPin, Truck, Clock, CheckCircle, Navigation, Camera, Plus } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import AddDeliveryDialog from './AddDeliveryDialog';
+
+interface Delivery {
+  id: string;
+  delivery_number: string;
+  customer_name: string;
+  customer_address: string;
+  scheduled_date: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  notes: string;
+  delivery_items: Array<{
+    id: string;
+    quantity: number;
+    inventory: {
+      product_name: string;
+    };
+  }>;
+}
+
+interface Vehicle {
+  id: string;
+  vehicle_number: string;
+  make: string;
+  model: string;
+  current_mileage: number;
+  fuel_type: string;
+  status: string;
+}
 
 const DriverDashboard = () => {
-  const todayRoutes = [
-    { 
-      id: 1, 
-      customer: 'ABC Corp', 
-      address: '123 Business Ave, City', 
-      time: '9:00 AM', 
-      status: 'completed',
-      packages: 3
-    },
-    { 
-      id: 2, 
-      customer: 'Tech Solutions Inc', 
-      address: '456 Tech Park, Downtown', 
-      time: '11:30 AM', 
-      status: 'in-progress',
-      packages: 5
-    },
-    { 
-      id: 3, 
-      customer: 'Retail Store XYZ', 
-      address: '789 Shopping District', 
-      time: '2:00 PM', 
-      status: 'pending',
-      packages: 2
-    },
-    { 
-      id: 4, 
-      customer: 'Manufacturing Ltd', 
-      address: '321 Industrial Zone', 
-      time: '4:30 PM', 
-      status: 'pending',
-      packages: 8
-    }
-  ];
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  const vehicleInfo = {
-    id: 'VH-007',
-    model: 'Ford Transit',
-    fuel: '75%',
-    mileage: '24,567 km',
-    nextMaintenance: '25,000 km'
+  useEffect(() => {
+    if (profile?.id) {
+      fetchDriverData();
+    }
+  }, [profile?.id]);
+
+  const fetchDriverData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch deliveries assigned to this driver
+      const { data: deliveriesData, error: deliveriesError } = await supabase
+        .from('deliveries')
+        .select(`
+          *,
+          delivery_items(
+            id,
+            quantity,
+            inventory(product_name)
+          )
+        `)
+        .eq('driver_id', profile?.id)
+        .eq('scheduled_date', new Date().toISOString().split('T')[0])
+        .order('created_at', { ascending: true });
+
+      if (deliveriesError) throw deliveriesError;
+      setDeliveries(deliveriesData || []);
+
+      // Fetch assigned vehicle
+      const { data: assignmentData, error: assignmentError } = await supabase
+        .from('vehicle_assignments')
+        .select(`
+          vehicle_id,
+          vehicles(*)
+        `)
+        .eq('driver_id', profile?.id)
+        .eq('is_active', true)
+        .single();
+
+      if (assignmentError && assignmentError.code !== 'PGRST116') {
+        console.error('Assignment error:', assignmentError);
+      } else if (assignmentData?.vehicles) {
+        setVehicle(assignmentData.vehicles as Vehicle);
+      }
+
+    } catch (error) {
+      console.error('Error fetching driver data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load driver data",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleStatusUpdate = async (deliveryId: string, newStatus: string) => {
+    try {
+      const updateData: any = { status: newStatus };
+      if (newStatus === 'completed') {
+        updateData.completed_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from('deliveries')
+        .update(updateData)
+        .eq('id', deliveryId);
+
+      if (error) throw error;
+
+      await fetchDriverData();
+      toast({
+        title: "Success",
+        description: `Delivery ${newStatus === 'completed' ? 'completed' : 'started'}`,
+      });
+    } catch (error) {
+      console.error('Error updating delivery:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update delivery status",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleNavigation = (address: string) => {
+    const encodedAddress = encodeURIComponent(address);
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`, '_blank');
+  };
+
+  const handleProofUpload = () => {
+    toast({
+      title: "Feature Coming Soon",
+      description: "Proof of delivery upload will be available soon",
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const completedCount = deliveries.filter(d => d.status === 'completed').length;
+  const inProgressCount = deliveries.filter(d => d.status === 'in_progress').length;
+  const pendingCount = deliveries.filter(d => d.status === 'pending').length;
 
   return (
     <div className="p-6 space-y-6">
@@ -56,13 +161,21 @@ const DriverDashboard = () => {
           <p className="text-gray-600">Your routes and vehicle status for today</p>
         </div>
         <div className="flex space-x-3">
-          <Button className="bg-blue-600 hover:bg-blue-700">
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => deliveries.length > 0 && handleNavigation(deliveries[0]?.customer_address)}
+            disabled={deliveries.length === 0}
+          >
             <Navigation className="h-4 w-4 mr-2" />
             Start Navigation
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleProofUpload}>
             <Camera className="h-4 w-4 mr-2" />
             Upload Proof
+          </Button>
+          <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Route
           </Button>
         </div>
       </div>
@@ -74,7 +187,7 @@ const DriverDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Deliveries</p>
-                <p className="text-2xl font-bold text-gray-900">4</p>
+                <p className="text-2xl font-bold text-gray-900">{deliveries.length}</p>
               </div>
               <MapPin className="h-8 w-8 text-blue-600" />
             </div>
@@ -86,7 +199,7 @@ const DriverDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-green-600">1</p>
+                <p className="text-2xl font-bold text-green-600">{completedCount}</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
@@ -98,7 +211,7 @@ const DriverDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">In Progress</p>
-                <p className="text-2xl font-bold text-orange-600">1</p>
+                <p className="text-2xl font-bold text-orange-600">{inProgressCount}</p>
               </div>
               <Clock className="h-8 w-8 text-orange-600" />
             </div>
@@ -109,8 +222,8 @@ const DriverDashboard = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Vehicle Fuel</p>
-                <p className="text-2xl font-bold text-blue-600">{vehicleInfo.fuel}</p>
+                <p className="text-sm font-medium text-gray-600">Vehicle</p>
+                <p className="text-2xl font-bold text-blue-600">{vehicle ? 'Assigned' : 'None'}</p>
               </div>
               <Truck className="h-8 w-8 text-blue-600" />
             </div>
@@ -127,83 +240,118 @@ const DriverDashboard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {todayRoutes.map((route) => (
-              <div 
-                key={route.id} 
-                className={`flex items-center justify-between p-4 rounded-lg border ${
-                  route.status === 'completed' ? 'bg-green-50 border-green-200' :
-                  route.status === 'in-progress' ? 'bg-blue-50 border-blue-200' :
-                  'bg-white border-gray-200'
-                } hover:shadow-md transition-shadow`}
-              >
-                <div className="flex items-center space-x-4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-                    route.status === 'completed' ? 'bg-green-500' :
-                    route.status === 'in-progress' ? 'bg-blue-500' : 'bg-gray-400'
-                  }`}>
-                    {route.id}
+          {deliveries.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">No routes scheduled for today</p>
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add First Route
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {deliveries.map((delivery, index) => (
+                <div 
+                  key={delivery.id} 
+                  className={`flex items-center justify-between p-4 rounded-lg border ${
+                    delivery.status === 'completed' ? 'bg-green-50 border-green-200' :
+                    delivery.status === 'in_progress' ? 'bg-blue-50 border-blue-200' :
+                    'bg-white border-gray-200'
+                  } hover:shadow-md transition-shadow`}
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
+                      delivery.status === 'completed' ? 'bg-green-500' :
+                      delivery.status === 'in_progress' ? 'bg-blue-500' : 'bg-gray-400'
+                    }`}>
+                      {index + 1}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{delivery.customer_name}</p>
+                      <p className="text-sm text-gray-600">{delivery.customer_address}</p>
+                      <p className="text-sm text-gray-500">
+                        {delivery.delivery_items?.length || 0} items • #{delivery.delivery_number}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{route.customer}</p>
-                    <p className="text-sm text-gray-600">{route.address}</p>
-                    <p className="text-sm text-gray-500">{route.time} • {route.packages} packages</p>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      delivery.status === 'completed' ? 'bg-green-100 text-green-800' :
+                      delivery.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {delivery.status.replace('_', ' ')}
+                    </span>
+                    {delivery.status === 'in_progress' && (
+                      <Button 
+                        size="sm"
+                        onClick={() => handleStatusUpdate(delivery.id, 'completed')}
+                      >
+                        Complete Delivery
+                      </Button>
+                    )}
+                    {delivery.status === 'pending' && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleStatusUpdate(delivery.id, 'in_progress')}
+                      >
+                        Start Route
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleNavigation(delivery.customer_address)}
+                    >
+                      <Navigation className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    route.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    route.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {route.status}
-                  </span>
-                  {route.status === 'in-progress' && (
-                    <Button size="sm">
-                      Complete Delivery
-                    </Button>
-                  )}
-                  {route.status === 'pending' && (
-                    <Button size="sm" variant="outline">
-                      Start Route
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Vehicle Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Truck className="h-5 w-5 mr-2" />
-            Vehicle Information - {vehicleInfo.id}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">Model</p>
-              <p className="font-medium">{vehicleInfo.model}</p>
+      {vehicle && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Truck className="h-5 w-5 mr-2" />
+              Vehicle Information - {vehicle.vehicle_number}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">Model</p>
+                <p className="font-medium">{vehicle.make} {vehicle.model}</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">Fuel Type</p>
+                <p className="font-medium">{vehicle.fuel_type}</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">Mileage</p>
+                <p className="font-medium">{vehicle.current_mileage.toLocaleString()} km</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">Status</p>
+                <p className="font-medium text-green-600">{vehicle.status}</p>
+              </div>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">Fuel Level</p>
-              <p className="font-medium text-green-600">{vehicleInfo.fuel}</p>
-            </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">Mileage</p>
-              <p className="font-medium">{vehicleInfo.mileage}</p>
-            </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">Next Service</p>
-              <p className="font-medium text-orange-600">{vehicleInfo.nextMaintenance}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      <AddDeliveryDialog
+        isOpen={isAddDialogOpen}
+        onClose={() => setIsAddDialogOpen(false)}
+        onSuccess={fetchDriverData}
+        driverId={profile?.id}
+      />
     </div>
   );
 };
