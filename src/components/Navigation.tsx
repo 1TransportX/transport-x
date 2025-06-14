@@ -58,6 +58,9 @@ const Navigation = () => {
 
   const navigationItems = getNavigationItems();
 
+  console.log('=== Navigation - profile role:', profile?.role);
+  console.log('=== Navigation - items:', navigationItems);
+
   return (
     <nav className="bg-white shadow-sm border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
