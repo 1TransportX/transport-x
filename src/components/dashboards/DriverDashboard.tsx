@@ -53,7 +53,14 @@ const DriverDashboard = () => {
     try {
       setLoading(true);
       
-      // Fetch deliveries assigned to this driver
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date();
+      const todayString = today.toISOString().split('T')[0];
+      
+      console.log('Fetching deliveries for date:', todayString);
+      console.log('Driver ID:', profile?.id);
+      
+      // Fetch deliveries assigned to this driver for today or recent dates
       const { data: deliveriesData, error: deliveriesError } = await supabase
         .from('deliveries')
         .select(`
@@ -65,11 +72,23 @@ const DriverDashboard = () => {
           )
         `)
         .eq('driver_id', profile?.id)
-        .eq('scheduled_date', new Date().toISOString().split('T')[0])
+        .gte('scheduled_date', todayString) // Get today and future deliveries
+        .order('scheduled_date', { ascending: true })
         .order('created_at', { ascending: true });
 
+      console.log('Deliveries query result:', deliveriesData);
+      console.log('Deliveries error:', deliveriesError);
+
       if (deliveriesError) throw deliveriesError;
-      setDeliveries(deliveriesData || []);
+      
+      // Filter to show today's deliveries primarily, but also include recent ones if today is empty
+      const todaysDeliveries = deliveriesData?.filter(d => d.scheduled_date === todayString) || [];
+      
+      console.log('Today\'s deliveries:', todaysDeliveries);
+      console.log('All fetched deliveries:', deliveriesData);
+      
+      // If no deliveries for today, show all upcoming deliveries
+      setDeliveries(todaysDeliveries.length > 0 ? todaysDeliveries : (deliveriesData || []));
 
       // Fetch assigned vehicle
       const { data: assignmentData, error: assignmentError } = await supabase
@@ -138,6 +157,16 @@ const DriverDashboard = () => {
     toast({
       title: "Feature Coming Soon",
       description: "Proof of delivery upload will be available soon",
+    });
+  };
+
+  // Updated function to handle successful delivery addition
+  const handleDeliveryAdded = async () => {
+    console.log('Delivery added successfully, refreshing data...');
+    await fetchDriverData();
+    toast({
+      title: "Success",
+      description: "Delivery route added successfully",
     });
   };
 
@@ -270,7 +299,7 @@ const DriverDashboard = () => {
                       <p className="font-medium text-gray-900">{delivery.customer_name}</p>
                       <p className="text-sm text-gray-600">{delivery.customer_address}</p>
                       <p className="text-sm text-gray-500">
-                        {delivery.delivery_items?.length || 0} items • #{delivery.delivery_number}
+                        {delivery.delivery_items?.length || 0} items • #{delivery.delivery_number} • {delivery.scheduled_date}
                       </p>
                     </div>
                   </div>
@@ -355,7 +384,7 @@ const DriverDashboard = () => {
       <AddDeliveryDialog
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
-        onSuccess={fetchDriverData}
+        onSuccess={handleDeliveryAdded}
         driverId={profile?.id}
       />
     </div>
