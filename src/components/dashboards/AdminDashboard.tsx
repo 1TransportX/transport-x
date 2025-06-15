@@ -267,6 +267,17 @@ const AdminDashboard = () => {
   // Generate report action
   const generateReportMutation = useMutation({
     mutationFn: async () => {
+      console.log('=== Starting report generation...');
+      
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('User error:', userError);
+        throw new Error('User not authenticated');
+      }
+
+      console.log('=== Current user:', user.id);
+
       // Simulate report generation delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -279,22 +290,30 @@ const AdminDashboard = () => {
         generatedAt: new Date().toISOString()
       };
 
-      // Save the report to database using type assertion temporarily
-      const { data: savedReport, error } = await (supabase as any)
+      console.log('=== Report data prepared:', reportData);
+
+      // Save the report to database
+      const { data: savedReport, error } = await supabase
         .from('reports')
         .insert({
           title: `Operational Report - ${new Date().toLocaleDateString()}`,
           data: reportData,
-          generated_by: (await supabase.auth.getUser()).data.user?.id
+          generated_by: user.id
         })
         .select()
         .single();
 
-      if (error) throw error;
+      console.log('=== Insert result:', { data: savedReport, error });
+
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
 
       return { reportData, savedReport };
     },
     onSuccess: ({ reportData }) => {
+      console.log('=== Report generation successful');
       setCurrentReportData(reportData);
       setShowReportDisplay(true);
       queryClient.invalidateQueries({ queryKey: ['reports'] });
@@ -303,10 +322,11 @@ const AdminDashboard = () => {
         description: "Operational report has been generated and saved.",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('=== Report generation failed:', error);
       toast({
         title: "Error",
-        description: "Failed to generate report.",
+        description: error.message || "Failed to generate report.",
         variant: "destructive",
       });
     }
