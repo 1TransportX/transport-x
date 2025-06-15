@@ -26,31 +26,46 @@ const SecureLocationSearchInput: React.FC<SecureLocationSearchInputProps> = ({
   const [inputValue, setInputValue] = useState(value);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [searchTerm, setSearchTerm] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const { suggestions, isLoading, error, searchLocations, getPlaceDetails, clearSuggestions } = useLocationSearch();
-
-  // Debounced search
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (inputValue && inputValue !== value) {
-        searchLocations(inputValue);
-        setShowSuggestions(true);
-      }
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [inputValue, value, searchLocations]);
 
   // Update input when prop value changes
   useEffect(() => {
     setInputValue(value);
   }, [value]);
 
+  // Debounced search effect
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      if (searchTerm && searchTerm.length >= 3 && searchTerm !== value) {
+        console.log('Searching for:', searchTerm);
+        searchLocations(searchTerm);
+        setShowSuggestions(true);
+      } else if (searchTerm.length < 3) {
+        clearSuggestions();
+        setShowSuggestions(false);
+      }
+    }, 300);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [searchTerm, value, searchLocations, clearSuggestions]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
+    setSearchTerm(newValue);
     setSelectedIndex(-1);
     
     // If user clears the input, also clear the parent value
@@ -58,12 +73,15 @@ const SecureLocationSearchInput: React.FC<SecureLocationSearchInputProps> = ({
       onChange('');
       clearSuggestions();
       setShowSuggestions(false);
+      setSearchTerm('');
     }
   };
 
   const handleSuggestionClick = async (suggestion: any) => {
+    console.log('Selected suggestion:', suggestion);
     setShowSuggestions(false);
     setInputValue(suggestion.description);
+    setSearchTerm(''); // Clear search term to prevent further searches
     
     // Get detailed address information
     const detailedAddress = await getPlaceDetails(suggestion.place_id);
@@ -107,6 +125,12 @@ const SecureLocationSearchInput: React.FC<SecureLocationSearchInputProps> = ({
     }, 200);
   };
 
+  const handleFocus = () => {
+    if (suggestions.length > 0 && searchTerm.length >= 3) {
+      setShowSuggestions(true);
+    }
+  };
+
   return (
     <div className={cn("relative", className)}>
       <Label htmlFor="secure-location-search">{label}</Label>
@@ -123,11 +147,7 @@ const SecureLocationSearchInput: React.FC<SecureLocationSearchInputProps> = ({
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
-          onFocus={() => {
-            if (suggestions.length > 0) {
-              setShowSuggestions(true);
-            }
-          }}
+          onFocus={handleFocus}
           placeholder={placeholder}
           required={required}
           className="pl-10 pr-10"

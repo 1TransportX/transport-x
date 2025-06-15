@@ -32,6 +32,8 @@ export const useLocationSearch = (): LocationSearchHook => {
     setError(null);
 
     try {
+      console.log('Searching for locations with input:', input);
+      
       const { data, error: functionError } = await supabase.functions.invoke('google-maps-proxy', {
         body: {
           action: 'autocomplete',
@@ -43,20 +45,27 @@ export const useLocationSearch = (): LocationSearchHook => {
         }
       });
 
+      console.log('Google Maps response:', data);
+
       if (functionError) {
+        console.error('Function error:', functionError);
         throw functionError;
       }
 
       if (data?.status === 'OK' && data?.predictions) {
-        setSuggestions(data.predictions.map((prediction: any) => ({
+        const mappedSuggestions = data.predictions.map((prediction: any) => ({
           place_id: prediction.place_id,
           description: prediction.description,
-        })));
-      } else {
+        }));
+        console.log('Mapped suggestions:', mappedSuggestions);
+        setSuggestions(mappedSuggestions);
+      } else if (data?.status === 'ZERO_RESULTS') {
+        console.log('No results found for:', input);
         setSuggestions([]);
-        if (data?.status !== 'ZERO_RESULTS') {
-          setError('Failed to fetch location suggestions');
-        }
+      } else {
+        console.error('Unexpected API response:', data);
+        setSuggestions([]);
+        setError('Failed to fetch location suggestions');
       }
     } catch (err) {
       console.error('Location search error:', err);
@@ -69,6 +78,8 @@ export const useLocationSearch = (): LocationSearchHook => {
 
   const getPlaceDetails = useCallback(async (placeId: string): Promise<string | null> => {
     try {
+      console.log('Getting place details for:', placeId);
+      
       const { data, error: functionError } = await supabase.functions.invoke('google-maps-proxy', {
         body: {
           action: 'place-details',
@@ -77,13 +88,16 @@ export const useLocationSearch = (): LocationSearchHook => {
       });
 
       if (functionError) {
+        console.error('Place details function error:', functionError);
         throw functionError;
       }
 
       if (data?.status === 'OK' && data?.result) {
+        console.log('Place details result:', data.result);
         return data.result.formatted_address || null;
       }
       
+      console.log('No place details found');
       return null;
     } catch (err) {
       console.error('Place details error:', err);
