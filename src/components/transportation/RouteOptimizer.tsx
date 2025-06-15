@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -192,15 +191,47 @@ const RouteOptimizer = () => {
   };
 
   const openInGoogleMaps = () => {
-    if (!optimizedRoute || !currentLocation) return;
+    if (!optimizedRoute || !currentLocation) {
+      toast({
+        title: "No Route or Location",
+        description: "Please optimize a route and ensure location access is enabled.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    const waypoints = optimizedRoute.optimizedOrder
+    console.log('Opening Google Maps for optimized route:', optimizedRoute);
+
+    // Create ordered deliveries based on optimized order
+    const orderedDeliveries = optimizedRoute.optimizedOrder
       .map(index => optimizedRoute.deliveries[index])
-      .filter(d => d.latitude && d.longitude)
-      .map(d => `${d.latitude},${d.longitude}`)
-      .join('|');
+      .filter(d => d.latitude && d.longitude);
+
+    if (orderedDeliveries.length === 0) {
+      toast({
+        title: "No Valid Coordinates",
+        description: "No deliveries have valid coordinates for mapping.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('Ordered deliveries for Google Maps:', orderedDeliveries);
+
+    // Create Google Maps URL with waypoints in the correct order
+    const waypoints = orderedDeliveries
+      .map(delivery => `${delivery.latitude},${delivery.longitude}`)
+      .join('/');
 
     const url = `https://www.google.com/maps/dir/${currentLocation.latitude},${currentLocation.longitude}/${waypoints}`;
+
+    console.log('Opening Google Maps URL:', url);
+    console.log('Waypoints in order:', orderedDeliveries.map(d => ({ 
+      id: d.id, 
+      address: d.address, 
+      coords: `${d.latitude},${d.longitude}` 
+    })));
+    
     window.open(url, '_blank');
   };
 

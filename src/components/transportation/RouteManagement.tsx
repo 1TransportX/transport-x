@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -158,16 +157,16 @@ const RouteManagement = () => {
     }
   };
 
-  // Function to geocode all missing coordinates
+  // Function to geocode all missing coordinates - only for pending and in_progress deliveries
   const geocodeAllMissingAddresses = async () => {
     const deliveriesWithoutCoordinates = deliveries.filter(d => 
-      !d.latitude || !d.longitude
+      (!d.latitude || !d.longitude) && (d.status === 'pending' || d.status === 'in_progress')
     );
 
     if (deliveriesWithoutCoordinates.length === 0) {
       toast({
         title: "All Set",
-        description: "All deliveries already have coordinates.",
+        description: "All pending/in-progress deliveries already have coordinates.",
       });
       return;
     }
@@ -288,13 +287,13 @@ const RouteManagement = () => {
       return;
     }
 
-    // Filter only pending deliveries
-    const pendingDeliveries = deliveriesForDate.filter(d => d.status === 'pending');
+    // Filter only pending and in_progress deliveries
+    const pendingDeliveries = deliveriesForDate.filter(d => d.status === 'pending' || d.status === 'in_progress');
     
     if (pendingDeliveries.length === 0) {
       toast({
         title: "No Pending Deliveries",
-        description: "No pending deliveries found for this date.",
+        description: "No pending or in-progress deliveries found for this date.",
         variant: "destructive"
       });
       return;
@@ -382,15 +381,16 @@ const RouteManagement = () => {
       return;
     }
 
-    // Filter deliveries that have valid coordinates
+    // Filter deliveries that have valid coordinates and are not completed
     const validDeliveries = deliveriesForDate.filter(d => 
       d.latitude && d.longitude && !isNaN(Number(d.latitude)) && !isNaN(Number(d.longitude))
+      && (d.status === 'pending' || d.status === 'in_progress')
     );
     
     if (validDeliveries.length === 0) {
       toast({
         title: "No Valid Coordinates",
-        description: "No deliveries have valid coordinates for mapping.",
+        description: "No pending/in-progress deliveries have valid coordinates for mapping.",
         variant: "destructive"
       });
       return;
@@ -501,7 +501,9 @@ const RouteManagement = () => {
     }
   };
 
-  const missingCoordinatesCount = deliveries.filter(d => !d.latitude || !d.longitude).length;
+  const missingCoordinatesCount = deliveries.filter(d => 
+    (!d.latitude || !d.longitude) && (d.status === 'pending' || d.status === 'in_progress')
+  ).length;
 
   if (error) {
     return (
