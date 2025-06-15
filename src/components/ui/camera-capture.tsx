@@ -45,7 +45,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     try {
       console.log('[CameraCapture] Requesting camera access...');
       
-      // Stop any existing stream
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
@@ -104,10 +103,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     setError(null);
   };
 
-  const handleCapturePhoto = (event: React.MouseEvent<HTMLButtonElement>) => {
-    console.log('[CameraCapture] Capture button clicked - preventing default');
-    event.preventDefault();
-    event.stopPropagation();
+  const handleCapturePhoto = () => {
+    console.log('[CameraCapture] Capture button clicked');
     
     if (!videoRef.current || !canvasRef.current || !isVideoReady) {
       console.error('[CameraCapture] Cannot capture - video not ready');
@@ -143,21 +140,15 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     }, 'image/jpeg', 0.85);
   };
 
-  const handleCancel = (event: React.MouseEvent<HTMLButtonElement>) => {
-    console.log('[CameraCapture] Cancel button clicked - preventing default');
-    event.preventDefault();
-    event.stopPropagation();
-    
+  const handleCancel = () => {
+    console.log('[CameraCapture] Cancel button clicked');
     onCancel();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div 
-      className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
       <div className="relative w-full h-full flex flex-col">
         {/* Loading state */}
         {isLoading && (
@@ -170,15 +161,12 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         {error && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white p-4 bg-black">
             <p className="mb-6 text-center text-lg">{error}</p>
-            <Button 
+            <button
               onClick={handleCancel}
-              variant="outline"
-              size="lg"
-              className="bg-white/20 border-white/30 text-white hover:bg-white/30"
-              type="button"
+              className="bg-white/20 border border-white/30 text-white hover:bg-white/30 px-6 py-3 rounded-lg"
             >
               Close
-            </Button>
+            </button>
           </div>
         )}
 
@@ -201,26 +189,21 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             {/* Bottom controls */}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6 pb-8 z-20">
               <div className="flex justify-center items-center space-x-4">
-                <Button
+                <button
                   onClick={handleCancel}
-                  variant="outline"
-                  size="lg"
-                  className="bg-white/10 border-white/30 text-white hover:bg-white/20 h-14 px-6"
-                  type="button"
+                  className="bg-white/10 border border-white/30 text-white hover:bg-white/20 h-14 px-6 rounded-lg flex items-center"
                 >
                   <X className="h-6 w-6 mr-2" />
                   Cancel
-                </Button>
+                </button>
                 
                 {isVideoReady && (
-                  <Button
+                  <button
                     onClick={handleCapturePhoto}
-                    size="lg"
-                    className="bg-white hover:bg-gray-200 text-black h-16 w-16 rounded-full p-0 shadow-lg"
-                    type="button"
+                    className="bg-white hover:bg-gray-200 text-black h-16 w-16 rounded-full flex items-center justify-center shadow-lg"
                   >
                     <Camera className="h-8 w-8" />
-                  </Button>
+                  </button>
                 )}
               </div>
             </div>
