@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import LocationSearchInput from '@/components/transportation/LocationSearchInput';
+import GoogleMapsApiKeyInput from '@/components/transportation/GoogleMapsApiKeyInput';
 
 interface AddDeliveryDialogProps {
   isOpen: boolean;
@@ -38,6 +40,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>('');
   
   const [formData, setFormData] = useState({
     customer_name: '',
@@ -53,8 +56,32 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
     if (isOpen) {
       fetchVehicles();
       fetchInventory();
+      
+      // Check for existing API key
+      const storedApiKey = localStorage.getItem('google_maps_api_key');
+      if (storedApiKey) {
+        setGoogleMapsApiKey(storedApiKey);
+      }
     }
   }, [isOpen]);
+
+  // Update the Google Maps script when API key changes
+  useEffect(() => {
+    if (googleMapsApiKey) {
+      // Remove existing script if any
+      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      // Add new script with updated API key
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+  }, [googleMapsApiKey]);
 
   const fetchVehicles = async () => {
     try {
@@ -310,6 +337,8 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
           <DialogTitle>Add New Delivery Route</DialogTitle>
         </DialogHeader>
 
+        <GoogleMapsApiKeyInput onApiKeySet={setGoogleMapsApiKey} />
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -336,11 +365,11 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="customer_address">Customer Address</Label>
-            <Textarea
-              id="customer_address"
+            <LocationSearchInput
               value={formData.customer_address}
-              onChange={(e) => setFormData(prev => ({ ...prev, customer_address: e.target.value }))}
+              onChange={(address) => setFormData(prev => ({ ...prev, customer_address: address }))}
+              placeholder="Start typing an address..."
+              label="Customer Address"
               required
             />
           </div>
@@ -462,7 +491,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || !googleMapsApiKey}>
               {loading ? 'Creating...' : 'Create Delivery'}
             </Button>
           </div>
