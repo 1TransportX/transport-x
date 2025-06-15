@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, MapPin, Package, User, Route, Zap, Navigation, CheckCircle } from 'lucide-react';
+import { Plus, Calendar, MapPin, Package, User, Route, Zap, Navigation, CheckCircle, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddDeliveryDialog from '@/components/dashboards/AddDeliveryDialog';
 import RouteOptimizer from './RouteOptimizer';
@@ -43,6 +44,7 @@ const RouteManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDeliveryDialog, setShowAddDeliveryDialog] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{latitude: number; longitude: number} | null>(null);
+  const [isGeocodingAddresses, setIsGeocodingAddresses] = useState(false);
   const { toast } = useToast();
   
   const {
