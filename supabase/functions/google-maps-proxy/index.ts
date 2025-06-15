@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -181,6 +180,42 @@ serve(async (req) => {
             'User-Agent': 'Supabase-Edge-Function/1.0'
           }
         });
+        break;
+
+      case 'geocode':
+        const { address, region = 'in' } = params;
+        
+        if (!address || typeof address !== 'string' || address.length < 3 || address.length > 300) {
+          return new Response('Invalid address parameter', { 
+            status: 400, 
+            headers: corsHeaders 
+          });
+        }
+
+        const sanitizedAddress = sanitizeInput(address);
+        
+        if (sanitizedAddress.length < 3) {
+          return new Response('Address too short after sanitization', { 
+            status: 400, 
+            headers: corsHeaders 
+          });
+        }
+        
+        const geocodeUrl = new URL('https://maps.googleapis.com/maps/api/geocode/json');
+        geocodeUrl.searchParams.set('address', sanitizedAddress);
+        geocodeUrl.searchParams.set('key', googleMapsApiKey);
+        geocodeUrl.searchParams.set('region', region);
+
+        console.log('Making geocoding request to Google Maps API');
+
+        response = await fetch(geocodeUrl.toString(), {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Supabase-Edge-Function/1.0'
+          }
+        });
+
+        console.log('Google Maps geocoding response status:', response.status);
         break;
 
       default:

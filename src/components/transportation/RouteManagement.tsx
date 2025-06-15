@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, MapPin, Package, User, Route, Zap, Navigation, CheckCircle } from 'lucide-react';
+import { Plus, Calendar, MapPin, Package, User, Route, Zap, Navigation, CheckCircle, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddDeliveryDialog from '@/components/dashboards/AddDeliveryDialog';
 import RouteOptimizer from './RouteOptimizer';
@@ -44,6 +43,7 @@ const RouteManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDeliveryDialog, setShowAddDeliveryDialog] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{latitude: number; longitude: number} | null>(null);
+  const [isGeocodingAddresses, setIsGeocodingAddresses] = useState(false);
   const { toast } = useToast();
   
   const {
@@ -117,6 +117,110 @@ const RouteManagement = () => {
     }
   });
 
+  // Function to geocode a single address
+  const geocodeAddress = async (address: string) => {
+    try {
+      console.log('Geocoding address:', address);
+      
+      const { data, error } = await supabase.functions.invoke('google-maps-proxy', {
+        body: {
+          action: 'geocode',
+          params: {
+            address: address.trim(),
+            region: 'in'
+          }
+        }
+      });
+
+      if (error) {
+        console.error('Geocoding error:', error);
+        return null;
+      }
+
+      if (data?.status === 'OK' && data?.results && data.results.length > 0) {
+        const location = data.results[0].geometry.location;
+        console.log('Geocoded location:', location);
+        return {
+          latitude: location.lat,
+          longitude: location.lng,
+          formatted_address: data.results[0].formatted_address
+        };
+      }
+
+      console.log('No geocoding results for address:', address);
+      return null;
+    } catch (error) {
+      console.error('Geocoding error for address', address, ':', error);
+      return null;
+    }
+  };
+
+  // Function to geocode all missing coordinates
+  const geocodeAllMissingAddresses = async () => {
+    const deliveriesWithoutCoordinates = deliveries.filter(d => 
+      !d.latitude || !d.longitude
+    );
+
+    if (deliveriesWithoutCoordinates.length === 0) {
+      toast({
+        title: "All Set",
+        description: "All deliveries already have coordinates.",
+      });
+      return;
+    }
+
+    setIsGeocodingAddresses(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      for (const delivery of deliveriesWithoutCoordinates) {
+        const coordinates = await geocodeAddress(delivery.customer_address);
+        
+        if (coordinates) {
+          // Update the delivery with coordinates
+          const { error } = await supabase
+            .from('deliveries')
+            .update({
+              latitude: coordinates.latitude,
+              longitude: coordinates.longitude
+            })
+            .eq('id', delivery.id);
+
+          if (error) {
+            console.error('Error updating coordinates for delivery', delivery.id, ':', error);
+            failCount++;
+          } else {
+            successCount++;
+          }
+        } else {
+          failCount++;
+        }
+
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      toast({
+        title: "Geocoding Complete",
+        description: `Successfully geocoded ${successCount} addresses. ${failCount} failed.`,
+        variant: successCount > 0 ? "default" : "destructive"
+      });
+
+      // Refresh the data
+      refetch();
+    } catch (error) {
+      console.error('Error during batch geocoding:', error);
+      toast({
+        title: "Geocoding Error",
+        description: "An error occurred while geocoding addresses.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeocodingAddresses(false);
+    }
+  };
+
   const groupedDeliveries = useMemo((): GroupedDeliveries => {
     if (!deliveries) return {};
     
@@ -168,6 +272,20 @@ const RouteManagement = () => {
       toast({
         title: "Location Required",
         description: "Please allow location access to optimize routes.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // First, check if we need to geocode any addresses
+    const deliveriesWithoutCoordinates = deliveriesForDate.filter(d => 
+      d.status === 'pending' && (!d.latitude || !d.longitude)
+    );
+
+    if (deliveriesWithoutCoordinates.length > 0) {
+      toast({
+        title: "Geocoding Required",
+        description: `${deliveriesWithoutCoordinates.length} deliveries need coordinates. Please click "Get Missing Coordinates" first.`,
         variant: "destructive"
       });
       return;
@@ -341,6 +459,8 @@ const RouteManagement = () => {
     }
   };
 
+  const missingCoordinatesCount = deliveries.filter(d => !d.latitude || !d.longitude).length;
+
   if (error) {
     return (
       <div className="p-6">
@@ -411,6 +531,36 @@ const RouteManagement = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Missing Coordinates Alert */}
+      {missingCoordinatesCount > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-orange-600" />
+                <div>
+                  <p className="font-medium text-orange-800">
+                    {missingCoordinatesCount} deliveries missing coordinates
+                  </p>
+                  <p className="text-sm text-orange-600">
+                    Coordinates are required for route optimization and navigation.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={geocodeAllMissingAddresses}
+                disabled={isGeocodingAddresses}
+                className="flex items-center gap-2"
+                variant="outline"
+              >
+                <RefreshCw className={`h-4 w-4 ${isGeocodingAddresses ? 'animate-spin' : ''}`} />
+                {isGeocodingAddresses ? 'Getting Coordinates...' : 'Get Missing Coordinates'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="daily-routes" className="w-full">
         <TabsList>
