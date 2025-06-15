@@ -38,7 +38,7 @@ export const useLocationSearch = (): LocationSearchHook => {
           params: {
             input: input.trim(),
             types: ['address'],
-            componentRestrictions: { country: 'us' }
+            componentRestrictions: { country: 'in' }
           }
         }
       });
