@@ -126,7 +126,7 @@ const DriverDashboard = () => {
     }
   };
 
-  const handleStatusUpdate = async (deliveryId: string, newStatus: string) => {
+  const handleStatusUpdate = async (deliveryId: string, newStatus: 'pending' | 'in_progress' | 'completed' | 'cancelled') => {
     if (newStatus === 'completed') {
       // Find the delivery and open completion dialog
       const delivery = todaysDeliveries.find(d => d.id === deliveryId) || 
