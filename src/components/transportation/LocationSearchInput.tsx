@@ -4,6 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MapPin } from 'lucide-react';
 
+// Extend the Window interface to include google
+declare global {
+  interface Window {
+    google: typeof google;
+  }
+}
+
 interface LocationSearchInputProps {
   value: string;
   onChange: (address: string) => void;
@@ -25,7 +32,7 @@ const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
 
   useEffect(() => {
     // Check if Google Maps API is already loaded
-    if (window.google && window.google.maps && window.google.maps.places) {
+    if (window.google?.maps?.places) {
       initializeAutocomplete();
       setIsLoaded(true);
     } else {
@@ -34,8 +41,8 @@ const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
     }
 
     return () => {
-      if (autocompleteRef.current) {
-        google.maps.event.clearInstanceListeners(autocompleteRef.current);
+      if (autocompleteRef.current && window.google?.maps?.event) {
+        window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
       }
     };
   }, []);
@@ -45,7 +52,7 @@ const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
     if (document.querySelector('script[src*="maps.googleapis.com"]')) {
       // Wait for it to load
       const checkGoogle = setInterval(() => {
-        if (window.google && window.google.maps && window.google.maps.places) {
+        if (window.google?.maps?.places) {
           clearInterval(checkGoogle);
           initializeAutocomplete();
           setIsLoaded(true);
@@ -54,8 +61,15 @@ const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
       return;
     }
 
+    // Get API key from localStorage
+    const apiKey = localStorage.getItem('google_maps_api_key');
+    if (!apiKey) {
+      console.warn('Google Maps API key not found');
+      return;
+    }
+
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
     script.async = true;
     script.defer = true;
     script.onload = () => {
@@ -69,9 +83,9 @@ const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
   };
 
   const initializeAutocomplete = () => {
-    if (!inputRef.current || !window.google) return;
+    if (!inputRef.current || !window.google?.maps?.places) return;
 
-    autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
+    autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
       types: ['address'],
       componentRestrictions: { country: 'us' }, // Restrict to US addresses
       fields: ['formatted_address', 'geometry', 'place_id']
