@@ -39,7 +39,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
-          facingMode: 'environment', // Use back camera on mobile
+          facingMode: 'environment',
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }
@@ -75,14 +75,11 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
     if (!context) return;
 
-    // Set canvas dimensions to match video
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    // Draw the video frame to canvas
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert canvas to blob/file
     canvas.toBlob((blob) => {
       if (blob) {
         const file = new File([blob], `receipt_${Date.now()}.jpg`, {
@@ -102,18 +99,23 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center">
-      <div className="relative w-full h-full max-w-lg max-h-lg">
+    <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center">
+      <div className="relative w-full h-full">
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-white">Starting camera...</div>
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
+            <div className="text-white text-lg">Starting camera...</div>
           </div>
         )}
         
         {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4">
-            <p className="mb-4 text-center">{error}</p>
-            <Button onClick={handleCancel} variant="outline">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white p-4 bg-black">
+            <p className="mb-6 text-center text-lg">{error}</p>
+            <Button 
+              onClick={handleCancel} 
+              variant="outline"
+              size="lg"
+              className="bg-white/20 border-white/30 text-white hover:bg-white/30"
+            >
               Close
             </Button>
           </div>
@@ -123,7 +125,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           <>
             <video
               ref={videoRef}
-              className="w-full h-full object-cover rounded-lg"
+              className="w-full h-full object-cover"
               autoPlay
               playsInline
               muted
@@ -131,26 +133,32 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             
             <canvas ref={canvasRef} className="hidden" />
             
-            <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-4">
-              <Button
-                onClick={handleCancel}
-                variant="outline"
-                size="lg"
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-              >
-                <X className="h-5 w-5 mr-2" />
-                Cancel
-              </Button>
-              
-              <Button
-                onClick={capturePhoto}
-                size="lg"
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Camera className="h-5 w-5 mr-2" />
-                Capture
-              </Button>
+            {/* Mobile-optimized controls */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pb-8">
+              <div className="flex justify-center items-center space-x-6">
+                <Button
+                  onClick={handleCancel}
+                  variant="outline"
+                  size="lg"
+                  className="bg-white/10 border-white/30 text-white hover:bg-white/20 h-14 px-6"
+                >
+                  <X className="h-6 w-6 mr-2" />
+                  Cancel
+                </Button>
+                
+                {/* Large circular capture button for mobile */}
+                <Button
+                  onClick={capturePhoto}
+                  size="lg"
+                  className="bg-white hover:bg-gray-200 text-black h-16 w-16 rounded-full p-0 shadow-lg"
+                >
+                  <Camera className="h-8 w-8" />
+                </Button>
+              </div>
             </div>
+
+            {/* Safe area indicator for mobile */}
+            <div className="absolute top-4 left-4 right-4 h-0.5 bg-white/30 rounded-full" />
           </>
         )}
       </div>
