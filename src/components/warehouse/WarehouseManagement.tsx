@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Package, TrendingUp, AlertTriangle, BarChart3 } from 'lucide-react';
+import { Plus, Search, Package } from 'lucide-react';
 import { useInventoryData } from '@/hooks/useInventoryData';
 import InventoryTable from './InventoryTable';
 import StockMovementHistory from './StockMovementHistory';
@@ -15,34 +15,37 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const WarehouseManagement = () => {
   const { 
     inventory, 
-    stockMovements, 
+    filteredInventory,
     isLoading, 
-    refreshInventory, 
-    refreshStockMovements 
+    error,
+    stats,
+    searchTerm,
+    setSearchTerm,
+    selectedItems,
+    handleSelectAll,
+    handleSelectItem,
+    handleDeleteSelected,
+    isDeleting
   } = useInventoryData();
   
-  const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [stockMovementItem, setStockMovementItem] = useState(null);
   const isMobile = useIsMobile();
-
-  const filteredInventory = inventory.filter(item =>
-    item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const lowStockItems = inventory.filter(item => item.current_stock <= item.minimum_stock);
-  const totalValue = inventory.reduce((sum, item) => sum + (item.current_stock * (item.unit_price || 0)), 0);
-
-  const handleInventoryAdded = () => {
-    refreshInventory();
-    setIsAddDialogOpen(false);
-  };
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-red-600">Error loading inventory: {error.message}</div>
       </div>
     );
   }
@@ -97,12 +100,7 @@ const WarehouseManagement = () => {
       </div>
 
       {/* Stats Cards */}
-      <WarehouseStats 
-        totalItems={inventory.length}
-        lowStockItems={lowStockItems.length}
-        totalValue={totalValue}
-        recentMovements={stockMovements.length}
-      />
+      <WarehouseStats stats={stats} />
 
       {/* Main Content */}
       <Card>
@@ -126,15 +124,22 @@ const WarehouseManagement = () => {
             <TabsContent value="inventory" className={`${isMobile ? 'mt-4' : 'mt-6'}`}>
               <InventoryTable 
                 inventory={filteredInventory}
-                onInventoryUpdate={refreshInventory}
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                selectedItems={selectedItems}
+                onSelectAll={handleSelectAll}
+                onSelectItem={handleSelectItem}
+                onEditItem={setEditingItem}
+                onStockMovement={setStockMovementItem}
+                onDeleteSelected={handleDeleteSelected}
+                showDeleteDialog={showDeleteDialog}
+                onShowDeleteDialog={setShowDeleteDialog}
+                isDeleting={isDeleting}
               />
             </TabsContent>
             
             <TabsContent value="movements" className={`${isMobile ? 'mt-4' : 'mt-6'}`}>
-              <StockMovementHistory 
-                movements={stockMovements}
-                onMovementAdded={refreshStockMovements}
-              />
+              <StockMovementHistory />
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -143,7 +148,6 @@ const WarehouseManagement = () => {
       <AddInventoryDialog
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
-        onInventoryAdded={handleInventoryAdded}
       />
     </div>
   );
