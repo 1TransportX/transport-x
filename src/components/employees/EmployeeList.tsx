@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -32,10 +32,37 @@ const EmployeeList = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Set up real-time subscription for user_roles changes
+  useEffect(() => {
+    console.log('Setting up real-time subscription for user_roles changes');
+    
+    const channel = supabase
+      .channel('user-roles-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_roles'
+        },
+        (payload) => {
+          console.log('User role changed:', payload);
+          // Invalidate and refetch employees when any role changes
+          queryClient.invalidateQueries({ queryKey: ['employees'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up user_roles subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   const { data: employees = [], isLoading, error } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
-      console.log('Fetching employees...');
+      console.log('Fetching employees with latest roles...');
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -49,7 +76,7 @@ const EmployeeList = () => {
         throw error;
       }
       
-      console.log('Fetched employees data:', data);
+      console.log('Fetched employees data with roles:', data);
       
       return data.map(profile => ({
         ...profile,

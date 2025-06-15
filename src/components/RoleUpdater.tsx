@@ -3,12 +3,19 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
 
 const RoleUpdater = () => {
   const { updateUserRole, profile } = useAuth();
+  const queryClient = useQueryClient();
 
   const handleRoleUpdate = async (role: 'admin' | 'employee' | 'driver') => {
+    console.log('=== RoleUpdater: Updating role to:', role);
     await updateUserRole(role);
+    
+    // Invalidate employees query to refresh the employee list
+    console.log('=== RoleUpdater: Invalidating employees query');
+    queryClient.invalidateQueries({ queryKey: ['employees'] });
   };
 
   const canSetAdminRole = profile?.role === 'admin';
