@@ -12,6 +12,8 @@ import FleetManagement from '@/components/fleet/FleetManagement';
 import RouteManagement from './RouteManagement';
 import AssignRouteToDriverDialog from '@/components/dashboards/AssignRouteToDriverDialog';
 import { ResponsiveText } from '@/components/ui/responsive-text';
+import { ResponsiveHeader } from '@/components/ui/responsive-header';
+import { ResponsiveTabs, ResponsiveTabsList, ResponsiveTabsTrigger, ResponsiveTabsContent } from '@/components/ui/responsive-tabs';
 
 const TransportationPage = () => {
   const { profile } = useAuth();
@@ -38,24 +40,24 @@ const TransportationPage = () => {
       label: 'Driver Assignments',
       content: (
         <Card>
-          <CardHeader>
+          <CardHeader className={isMobile ? 'p-4' : 'p-6'}>
             <CardTitle className={isMobile ? 'text-lg' : 'text-2xl'}>Driver Route Assignments</CardTitle>
             <CardDescription className={isMobile ? 'text-sm' : 'text-base'}>
               Assign delivery routes to drivers and manage route schedules.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center justify-center py-8 sm:py-12 space-y-4">
-              <Calendar className={`${isMobile ? 'h-12 w-12' : 'h-16 w-16'} text-gray-400`} />
-              <h3 className={`${isMobile ? 'text-base' : 'text-lg'} font-medium text-gray-900 text-center`}>
+          <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+            <div className={`flex flex-col items-center justify-center ${isMobile ? 'py-6 space-y-3' : 'py-8 sm:py-12 space-y-4'}`}>
+              <Calendar className={`${isMobile ? 'h-10 w-10' : 'h-12 w-12 sm:h-16 sm:w-16'} text-gray-400`} />
+              <h3 className={`${isMobile ? 'text-sm' : 'text-base sm:text-lg'} font-medium text-gray-900 text-center`}>
                 Route Assignment Center
               </h3>
-              <p className={`${isMobile ? 'text-sm' : 'text-base'} text-gray-600 text-center max-w-md px-4`}>
+              <p className={`${isMobile ? 'text-xs' : 'text-sm sm:text-base'} text-gray-600 text-center max-w-md px-4`}>
                 Assign delivery routes to your drivers and manage route schedules.
               </p>
               <Button 
                 onClick={() => setShowAssignRouteDialog(true)}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 relative z-50"
                 size={isMobile ? 'sm' : 'default'}
               >
                 <Users className="h-4 w-4" />
@@ -70,21 +72,17 @@ const TransportationPage = () => {
 
   if (isMobile) {
     return (
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <ResponsiveText as="h1" size="3xl" className="font-bold">
-            Transportation Management
-          </ResponsiveText>
-          <ResponsiveText size="sm" className="text-gray-600">
-            Manage fleet, routes, and driver assignments.
-          </ResponsiveText>
-        </div>
+      <div className="space-y-4 p-3">
+        <ResponsiveHeader
+          title="Transportation Management"
+          subtitle="Manage fleet, routes, and driver assignments."
+        />
 
         <Accordion type="single" collapsible className="space-y-2">
           {tabs.map((tab) => (
             <AccordionItem key={tab.value} value={tab.value} className="border rounded-lg">
               <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                <span className="font-medium">{tab.label}</span>
+                <span className="font-medium text-sm">{tab.label}</span>
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4">
                 {tab.content}
@@ -106,32 +104,30 @@ const TransportationPage = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Transportation Management</h1>
-          <p className="text-gray-600 mt-2">Manage fleet, routes, and driver assignments.</p>
-        </div>
-      </div>
+      <ResponsiveHeader
+        title="Transportation Management"
+        subtitle="Manage fleet, routes, and driver assignments."
+      />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="routes">Route Management</TabsTrigger>
-          <TabsTrigger value="fleet">Fleet Management</TabsTrigger>
+      <ResponsiveTabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <ResponsiveTabsList>
+          <ResponsiveTabsTrigger value="routes">Route Management</ResponsiveTabsTrigger>
+          <ResponsiveTabsTrigger value="fleet">Fleet Management</ResponsiveTabsTrigger>
           {profile.role === 'admin' && (
-            <TabsTrigger value="assignments">Driver Assignments</TabsTrigger>
+            <ResponsiveTabsTrigger value="assignments">Driver Assignments</ResponsiveTabsTrigger>
           )}
-        </TabsList>
+        </ResponsiveTabsList>
 
-        <TabsContent value="routes" className="space-y-4">
+        <ResponsiveTabsContent value="routes" className="space-y-4">
           <RouteManagement />
-        </TabsContent>
+        </ResponsiveTabsContent>
 
-        <TabsContent value="fleet" className="space-y-4">
+        <ResponsiveTabsContent value="fleet" className="space-y-4">
           <FleetManagement />
-        </TabsContent>
+        </ResponsiveTabsContent>
 
         {profile.role === 'admin' && (
-          <TabsContent value="assignments" className="space-y-4">
+          <ResponsiveTabsContent value="assignments" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Driver Route Assignments</CardTitle>
@@ -148,7 +144,7 @@ const TransportationPage = () => {
                   </p>
                   <Button 
                     onClick={() => setShowAssignRouteDialog(true)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 relative z-50"
                   >
                     <Users className="h-4 w-4" />
                     Assign Routes to Driver
@@ -156,9 +152,9 @@ const TransportationPage = () => {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </ResponsiveTabsContent>
         )}
-      </Tabs>
+      </ResponsiveTabs>
 
       <AssignRouteToDriverDialog 
         isOpen={showAssignRouteDialog}

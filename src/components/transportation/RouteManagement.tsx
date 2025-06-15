@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Calendar, MapPin, Package, User, Route, Zap, Navigation, CheckCircle, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddDeliveryDialog from '@/components/dashboards/AddDeliveryDialog';
 import RouteOptimizer from './RouteOptimizer';
 import { useRouteOptimization } from '@/hooks/useRouteOptimization';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { ResponsiveTabs, ResponsiveTabsList, ResponsiveTabsTrigger, ResponsiveTabsContent } from '@/components/ui/responsive-tabs';
+import { ResponsiveHeader } from '@/components/ui/responsive-header';
 
 interface Delivery {
   id: string;
@@ -45,6 +47,7 @@ const RouteManagement = () => {
   const [currentLocation, setCurrentLocation] = useState<{latitude: number; longitude: number} | null>(null);
   const [isGeocodingAddresses, setIsGeocodingAddresses] = useState(false);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   const {
     optimizeRoute,
@@ -505,9 +508,44 @@ const RouteManagement = () => {
     (!d.latitude || !d.longitude) && (d.status === 'pending' || d.status === 'in_progress')
   ).length;
 
+  // Mobile card renderer for deliveries
+  const renderMobileDeliveryCard = (delivery: Delivery) => (
+    <Card key={delivery.id} className="p-3">
+      <div className="space-y-2">
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <p className="font-medium text-sm">{delivery.delivery_number}</p>
+            <p className="text-sm text-gray-900">{delivery.customer_name}</p>
+          </div>
+          <Badge className={getStatusBadgeColor(delivery.status) + ' text-xs'}>
+            {delivery.status.replace('_', ' ').toUpperCase()}
+          </Badge>
+        </div>
+        <p className="text-xs text-gray-600 break-words">{delivery.customer_address}</p>
+        <div className="text-xs text-gray-500 space-y-1">
+          <p>Date: {new Date(delivery.scheduled_date).toLocaleDateString()}</p>
+          <p>Driver: {delivery.profiles 
+            ? `${delivery.profiles.first_name} ${delivery.profiles.last_name}`
+            : 'Unassigned'
+          }</p>
+          {delivery.delivery_items?.length > 0 && (
+            <div>
+              <p>Items:</p>
+              <div className="ml-2">
+                {delivery.delivery_items.map((item, index) => (
+                  <p key={index}>{item.quantity}x {item.inventory?.product_name}</p>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+
   if (error) {
     return (
-      <div className="p-6">
+      <div className={isMobile ? 'p-3' : 'p-6'}>
         <div className="text-red-600">
           Error loading route data: {error.message}
         </div>
@@ -524,52 +562,52 @@ const RouteManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className={`space-y-4 ${isMobile ? 'space-y-3' : 'space-y-6'}`}>
+      {/* Stats Cards - 2x2 grid on mobile */}
+      <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-1 md:grid-cols-4 gap-4'}`}>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-3' : 'p-6'}`}>
             <div className="flex items-center gap-2">
-              <MapPin className="h-8 w-8 text-blue-600" />
+              <MapPin className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-blue-600`} />
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Routes</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600`}>Total Routes</p>
+                <p className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}>{stats.total}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-3' : 'p-6'}`}>
             <div className="flex items-center gap-2">
-              <User className="h-8 w-8 text-green-600" />
+              <User className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-green-600`} />
               <div>
-                <p className="text-sm font-medium text-gray-600">Assigned</p>
-                <p className="text-2xl font-bold">{stats.assigned}</p>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600`}>Assigned</p>
+                <p className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}>{stats.assigned}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-3' : 'p-6'}`}>
             <div className="flex items-center gap-2">
-              <Calendar className="h-8 w-8 text-yellow-600" />
+              <Calendar className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-yellow-600`} />
               <div>
-                <p className="text-sm font-medium text-gray-600">Unassigned</p>
-                <p className="text-2xl font-bold">{stats.unassigned}</p>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600`}>Unassigned</p>
+                <p className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}>{stats.unassigned}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-3' : 'p-6'}`}>
             <div className="flex items-center gap-2">
-              <Package className="h-8 w-8 text-purple-600" />
+              <Package className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-purple-600`} />
               <div>
-                <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-2xl font-bold">{stats.completed}</p>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600`}>Completed</p>
+                <p className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}>{stats.completed}</p>
               </div>
             </div>
           </CardContent>
@@ -579,15 +617,15 @@ const RouteManagement = () => {
       {/* Missing Coordinates Alert */}
       {missingCoordinatesCount > 0 && (
         <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+          <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
+            <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'items-center justify-between'}`}>
               <div className="flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-orange-600" />
                 <div>
-                  <p className="font-medium text-orange-800">
+                  <p className={`font-medium text-orange-800 ${isMobile ? 'text-sm' : ''}`}>
                     {missingCoordinatesCount} deliveries missing coordinates
                   </p>
-                  <p className="text-sm text-orange-600">
+                  <p className={`text-orange-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                     Coordinates will be automatically fetched when needed for route optimization.
                   </p>
                 </div>
@@ -597,38 +635,40 @@ const RouteManagement = () => {
                 disabled={isGeocodingAddresses}
                 className="flex items-center gap-2"
                 variant="outline"
+                size={isMobile ? "sm" : "default"}
               >
                 <RefreshCw className={`h-4 w-4 ${isGeocodingAddresses ? 'animate-spin' : ''}`} />
-                {isGeocodingAddresses ? 'Getting Coordinates...' : 'Get Missing Coordinates'}
+                {isGeocodingAddresses ? 'Getting...' : isMobile ? 'Get Coords' : 'Get Missing Coordinates'}
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      <Tabs defaultValue="daily-routes" className="w-full">
-        <TabsList>
-          <TabsTrigger value="daily-routes" className="flex items-center gap-2">
+      <ResponsiveTabs defaultValue="daily-routes" className="w-full">
+        <ResponsiveTabsList>
+          <ResponsiveTabsTrigger value="daily-routes" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Daily Route Optimization
-          </TabsTrigger>
-          <TabsTrigger value="optimizer" className="flex items-center gap-2">
+            {isMobile ? 'Daily' : 'Daily Route Optimization'}
+          </ResponsiveTabsTrigger>
+          <ResponsiveTabsTrigger value="optimizer" className="flex items-center gap-2">
             <Route className="h-4 w-4" />
-            Manual Route Optimizer
-          </TabsTrigger>
-          <TabsTrigger value="deliveries" className="flex items-center gap-2">
+            {isMobile ? 'Manual' : 'Manual Route Optimizer'}
+          </ResponsiveTabsTrigger>
+          <ResponsiveTabsTrigger value="deliveries" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
-            All Deliveries
-          </TabsTrigger>
-        </TabsList>
+            {isMobile ? 'All' : 'All Deliveries'}
+          </ResponsiveTabsTrigger>
+        </ResponsiveTabsList>
 
-        <TabsContent value="daily-routes">
+        <ResponsiveTabsContent value="daily-routes">
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Daily Route Planning</h3>
+            <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-between items-center'}`}>
+              <h3 className={`${isMobile ? 'text-base' : 'text-lg'} font-semibold`}>Daily Route Planning</h3>
               <Button 
                 className="flex items-center gap-2"
                 onClick={() => setShowAddDeliveryDialog(true)}
+                size={isMobile ? "sm" : "default"}
               >
                 <Plus className="h-4 w-4" />
                 Add Route
@@ -643,28 +683,28 @@ const RouteManagement = () => {
               
               return (
                 <Card key={date}>
-                  <CardHeader>
-                    <div className="flex justify-between items-center">
+                  <CardHeader className={isMobile ? 'p-3 pb-2' : 'p-6'}>
+                    <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'justify-between items-center'}`}>
                       <div>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className={`flex items-center gap-2 ${isMobile ? 'text-base' : ''}`}>
                           <Calendar className="h-5 w-5" />
                           {new Date(date).toLocaleDateString('en-US', { 
-                            weekday: 'long', 
+                            weekday: isMobile ? 'short' : 'long', 
                             year: 'numeric', 
-                            month: 'long', 
+                            month: isMobile ? 'short' : 'long', 
                             day: 'numeric' 
                           })}
                           {allCompleted && (
-                            <Badge className="bg-green-100 text-green-800 ml-2">
+                            <Badge className="bg-green-100 text-green-800 ml-2 text-xs">
                               Route Completed
                             </Badge>
                           )}
                         </CardTitle>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {deliveriesForDate.length} total deliveries, {pendingCount} pending, {completedCount} completed
+                        <p className={`text-gray-600 mt-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                          {deliveriesForDate.length} total, {pendingCount} pending, {completedCount} completed
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className={`flex ${isMobile ? 'flex-col space-y-2 w-full' : 'gap-2'}`}>
                         <Button
                           onClick={() => handleOptimizeRouteForDate(date, deliveriesForDate)}
                           disabled={pendingCount === 0 || isOptimizing}
@@ -672,7 +712,7 @@ const RouteManagement = () => {
                           size="sm"
                         >
                           <Zap className="h-4 w-4" />
-                          {isOptimizing ? 'Optimizing...' : 'Optimize Route'}
+                          {isOptimizing ? 'Optimizing...' : isMobile ? 'Optimize' : 'Optimize Route'}
                         </Button>
                         <Button
                           variant="outline"
@@ -682,7 +722,7 @@ const RouteManagement = () => {
                           size="sm"
                         >
                           <Navigation className="h-4 w-4" />
-                          View in Maps
+                          {isMobile ? 'Maps' : 'View in Maps'}
                         </Button>
                         <Button
                           onClick={() => handleCompleteRoute(date, deliveriesForDate)}
@@ -691,24 +731,24 @@ const RouteManagement = () => {
                           size="sm"
                         >
                           <CheckCircle className="h-4 w-4" />
-                          Complete Route
+                          {isMobile ? 'Complete' : 'Complete Route'}
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className={isMobile ? 'p-3 pt-0' : 'p-6 pt-0'}>
                     {optimizedRoute && (
-                      <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                        <div className="flex items-center gap-4">
+                      <div className={`bg-blue-50 ${isMobile ? 'p-3' : 'p-4'} rounded-lg mb-4`}>
+                        <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'items-center gap-4'}`}>
                           <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm font-medium">
+                            <span className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>
                               Optimized Route: {optimizedRoute.totalDistance.toFixed(1)} km
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Route className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm font-medium">
+                            <span className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>
                               Duration: {optimizedRoute.totalDuration} minutes
                             </span>
                           </div>
@@ -716,23 +756,150 @@ const RouteManagement = () => {
                       </div>
                     )}
                     
-                    <Table>
-                      <TableHeader>
+                    {isMobile ? (
+                      <div className="space-y-2">
+                        {deliveriesForDate.map((delivery) => renderMobileDeliveryCard(delivery))}
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Delivery #</TableHead>
+                              <TableHead>Customer</TableHead>
+                              <TableHead>Address</TableHead>
+                              <TableHead>Driver</TableHead>
+                              <TableHead>Items</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {deliveriesForDate.map((delivery) => (
+                              <TableRow key={delivery.id}>
+                                <TableCell className="font-medium">{delivery.delivery_number}</TableCell>
+                                <TableCell>{delivery.customer_name}</TableCell>
+                                <TableCell className="max-w-xs truncate">{delivery.customer_address}</TableCell>
+                                <TableCell>
+                                  {delivery.profiles 
+                                    ? `${delivery.profiles.first_name} ${delivery.profiles.last_name}`
+                                    : 'Unassigned'
+                                  }
+                                </TableCell>
+                                <TableCell>
+                                  <div className="text-sm">
+                                    {delivery.delivery_items?.length > 0 ? (
+                                      delivery.delivery_items.map((item, index) => (
+                                        <div key={index}>
+                                          {item.quantity}x {item.inventory?.product_name}
+                                        </div>
+                                      ))
+                                    ) : (
+                                      'No items'
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={getStatusBadgeColor(delivery.status)}>
+                                    {delivery.status.replace('_', ' ').toUpperCase()}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+            
+            {Object.keys(groupedDeliveries).length === 0 && (
+              <Card>
+                <CardContent className={`${isMobile ? 'p-6' : 'p-12'} text-center`}>
+                  <Calendar className={`${isMobile ? 'h-12 w-12' : 'h-16 w-16'} text-gray-400 mx-auto mb-4`} />
+                  <h3 className={`${isMobile ? 'text-base' : 'text-lg'} font-medium text-gray-900 mb-2`}>No Scheduled Deliveries</h3>
+                  <p className={`text-gray-600 mb-4 ${isMobile ? 'text-sm' : ''}`}>
+                    Add some delivery routes to see daily optimization suggestions.
+                  </p>
+                  <Button onClick={() => setShowAddDeliveryDialog(true)} size={isMobile ? "sm" : "default"}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add First Delivery
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </ResponsiveTabsContent>
+
+        <ResponsiveTabsContent value="optimizer">
+          <RouteOptimizer />
+        </ResponsiveTabsContent>
+
+        <ResponsiveTabsContent value="deliveries">
+          <Card>
+            <CardHeader className={isMobile ? 'p-3 pb-2' : 'p-6'}>
+              <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'justify-between items-center'}`}>
+                <div>
+                  <CardTitle className={isMobile ? 'text-base' : ''}>All Delivery Routes ({filteredDeliveries.length})</CardTitle>
+                </div>
+                <Button 
+                  className="flex items-center gap-2"
+                  onClick={() => setShowAddDeliveryDialog(true)}
+                  size={isMobile ? "sm" : "default"}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Route
+                </Button>
+              </div>
+              <Input
+                placeholder="Search routes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={isMobile ? "text-sm" : "max-w-sm"}
+              />
+            </CardHeader>
+            <CardContent className={isMobile ? 'p-3 pt-0' : 'p-6 pt-0'}>
+              {isMobile ? (
+                <div className="space-y-2">
+                  {filteredDeliveries.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 text-sm">
+                      No delivery routes found.
+                    </div>
+                  ) : (
+                    filteredDeliveries.map((delivery) => renderMobileDeliveryCard(delivery))
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Route Number</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Address</TableHead>
+                        <TableHead>Scheduled Date</TableHead>
+                        <TableHead>Assigned Driver</TableHead>
+                        <TableHead>Items</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredDeliveries.length === 0 ? (
                         <TableRow>
-                          <TableHead>Delivery #</TableHead>
-                          <TableHead>Customer</TableHead>
-                          <TableHead>Address</TableHead>
-                          <TableHead>Driver</TableHead>
-                          <TableHead>Items</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                            No delivery routes found.
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {deliveriesForDate.map((delivery) => (
+                      ) : (
+                        filteredDeliveries.map((delivery) => (
                           <TableRow key={delivery.id}>
                             <TableCell className="font-medium">{delivery.delivery_number}</TableCell>
                             <TableCell>{delivery.customer_name}</TableCell>
                             <TableCell className="max-w-xs truncate">{delivery.customer_address}</TableCell>
+                            <TableCell>
+                              {new Date(delivery.scheduled_date).toLocaleDateString()}
+                            </TableCell>
                             <TableCell>
                               {delivery.profiles 
                                 ? `${delivery.profiles.first_name} ${delivery.profiles.last_name}`
@@ -758,120 +925,16 @@ const RouteManagement = () => {
                               </Badge>
                             </TableCell>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              );
-            })}
-            
-            {Object.keys(groupedDeliveries).length === 0 && (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Scheduled Deliveries</h3>
-                  <p className="text-gray-600 mb-4">
-                    Add some delivery routes to see daily optimization suggestions.
-                  </p>
-                  <Button onClick={() => setShowAddDeliveryDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add First Delivery
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="optimizer">
-          <RouteOptimizer />
-        </TabsContent>
-
-        <TabsContent value="deliveries">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>All Delivery Routes ({filteredDeliveries.length})</CardTitle>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
-                <Button 
-                  className="flex items-center gap-2"
-                  onClick={() => setShowAddDeliveryDialog(true)}
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Route
-                </Button>
-              </div>
-              <Input
-                placeholder="Search routes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Route Number</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Scheduled Date</TableHead>
-                    <TableHead>Assigned Driver</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDeliveries.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                        No delivery routes found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredDeliveries.map((delivery) => (
-                      <TableRow key={delivery.id}>
-                        <TableCell className="font-medium">{delivery.delivery_number}</TableCell>
-                        <TableCell>{delivery.customer_name}</TableCell>
-                        <TableCell className="max-w-xs truncate">{delivery.customer_address}</TableCell>
-                        <TableCell>
-                          {new Date(delivery.scheduled_date).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          {delivery.profiles 
-                            ? `${delivery.profiles.first_name} ${delivery.profiles.last_name}`
-                            : 'Unassigned'
-                          }
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {delivery.delivery_items?.length > 0 ? (
-                              delivery.delivery_items.map((item, index) => (
-                                <div key={index}>
-                                  {item.quantity}x {item.inventory?.product_name}
-                                </div>
-                              ))
-                            ) : (
-                              'No items'
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusBadgeColor(delivery.status)}>
-                            {delivery.status.replace('_', ' ').toUpperCase()}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              )}
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </ResponsiveTabsContent>
+      </ResponsiveTabs>
 
       <AddDeliveryDialog 
         isOpen={showAddDeliveryDialog}

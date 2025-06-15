@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import AddDeliveryDialog from './AddDeliveryDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { ResponsiveHeader } from '@/components/ui/responsive-header';
 
 interface Delivery {
   id: string;
@@ -39,6 +40,7 @@ interface Vehicle {
 const DriverDashboard = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [todaysDeliveries, setTodaysDeliveries] = useState<Delivery[]>([]);
   const [allDeliveries, setAllDeliveries] = useState<Delivery[]>([]);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
@@ -175,29 +177,29 @@ const DriverDashboard = () => {
   const renderDeliveryCard = (delivery: Delivery, index: number) => (
     <div 
       key={delivery.id} 
-      className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-lg border ${
+      className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 rounded-lg border ${
         delivery.status === 'completed' ? 'bg-green-50 border-green-200' :
         delivery.status === 'in_progress' ? 'bg-blue-50 border-blue-200' :
         'bg-white border-gray-200'
       } hover:shadow-md transition-shadow space-y-3 sm:space-y-0`}
     >
-      <div className="flex items-center space-x-4 w-full sm:w-auto">
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
+      <div className="flex items-center space-x-3 sm:space-x-4 w-full sm:w-auto">
+        <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm ${
           delivery.status === 'completed' ? 'bg-green-500' :
           delivery.status === 'in_progress' ? 'bg-blue-500' : 'bg-gray-400'
         }`}>
           {index + 1}
         </div>
         <div className="flex-1 sm:flex-none">
-          <p className="font-medium text-gray-900">{delivery.customer_name}</p>
-          <p className="text-sm text-gray-600">{delivery.customer_address}</p>
-          <p className="text-sm text-gray-500">
+          <p className="font-medium text-gray-900 text-sm sm:text-base">{delivery.customer_name}</p>
+          <p className="text-xs sm:text-sm text-gray-600 break-words">{delivery.customer_address}</p>
+          <p className="text-xs text-gray-500">
             {delivery.delivery_items?.length || 0} items • #{delivery.delivery_number} • {delivery.scheduled_date}
           </p>
         </div>
       </div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+        <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
           delivery.status === 'completed' ? 'bg-green-100 text-green-800' :
           delivery.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
           delivery.status === 'cancelled' ? 'bg-red-100 text-red-800' :
@@ -205,14 +207,14 @@ const DriverDashboard = () => {
         }`}>
           {delivery.status.replace('_', ' ')}
         </span>
-        <div className="flex space-x-2 w-full sm:w-auto">
+        <div className="flex space-x-1 sm:space-x-2 w-full sm:w-auto">
           {delivery.status === 'in_progress' && (
             <Button 
               size="sm"
               onClick={() => handleStatusUpdate(delivery.id, 'completed')}
-              className="flex-1 sm:flex-none"
+              className="flex-1 sm:flex-none text-xs"
             >
-              Complete Delivery
+              Complete
             </Button>
           )}
           {delivery.status === 'pending' && (
@@ -220,18 +222,18 @@ const DriverDashboard = () => {
               size="sm" 
               variant="outline"
               onClick={() => handleStatusUpdate(delivery.id, 'in_progress')}
-              className="flex-1 sm:flex-none"
+              className="flex-1 sm:flex-none text-xs"
             >
-              Start Route
+              Start
             </Button>
           )}
           <Button
             size="sm"
             variant="ghost"
             onClick={() => handleNavigation(delivery.customer_address)}
-            className="flex-none"
+            className="flex-none p-1 sm:p-2"
           >
-            <Navigation className="h-4 w-4" />
+            <Navigation className="h-3 w-3 sm:h-4 sm:w-4" />
           </Button>
         </div>
       </div>
@@ -251,78 +253,83 @@ const DriverDashboard = () => {
   const pendingCount = todaysDeliveries.filter(d => d.status === 'pending').length;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Driver Dashboard</h1>
-          <p className="text-gray-600">Your routes and vehicle status for today</p>
-        </div>
-        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
-            onClick={() => todaysDeliveries.length > 0 && handleNavigation(todaysDeliveries[0]?.customer_address)}
-            disabled={todaysDeliveries.length === 0}
-          >
-            <Navigation className="h-4 w-4 mr-2" />
-            Start Navigation
-          </Button>
-          <Button variant="outline" onClick={handleProofUpload} className="w-full sm:w-auto">
-            <Camera className="h-4 w-4 mr-2" />
-            Upload Proof
-          </Button>
-          <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Route
-          </Button>
-        </div>
-      </div>
+    <div className={`${isMobile ? 'p-3 space-y-4' : 'p-6 space-y-6'}`}>
+      <ResponsiveHeader
+        title="Driver Dashboard"
+        subtitle="Your routes and vehicle status for today"
+      >
+        <Button 
+          className="bg-blue-600 hover:bg-blue-700"
+          onClick={() => todaysDeliveries.length > 0 && handleNavigation(todaysDeliveries[0]?.customer_address)}
+          disabled={todaysDeliveries.length === 0}
+          size={isMobile ? "sm" : "default"}
+        >
+          <Navigation className="h-4 w-4 mr-2" />
+          {isMobile ? 'Navigate' : 'Start Navigation'}
+        </Button>
+        <Button 
+          variant="outline" 
+          onClick={handleProofUpload}
+          size={isMobile ? "sm" : "default"}
+        >
+          <Camera className="h-4 w-4 mr-2" />
+          {isMobile ? 'Upload' : 'Upload Proof'}
+        </Button>
+        <Button 
+          onClick={() => setIsAddDialogOpen(true)}
+          size={isMobile ? "sm" : "default"}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          {isMobile ? 'Add' : 'Add Route'}
+        </Button>
+      </ResponsiveHeader>
 
-      {/* Status Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Status Overview - 2x2 grid on mobile */}
+      <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-1 md:grid-cols-4 gap-6'}`}>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Today</p>
-                <p className="text-2xl font-bold text-gray-900">{todaysDeliveries.length}</p>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600`}>Total Today</p>
+                <p className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-gray-900`}>{todaysDeliveries.length}</p>
               </div>
-              <MapPin className="h-8 w-8 text-blue-600" />
+              <MapPin className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-blue-600`} />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-green-600">{completedCount}</p>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600`}>Completed</p>
+                <p className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-green-600`}>{completedCount}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-green-600" />
+              <CheckCircle className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-green-600`} />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">In Progress</p>
-                <p className="text-2xl font-bold text-orange-600">{inProgressCount}</p>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600`}>In Progress</p>
+                <p className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-orange-600`}>{inProgressCount}</p>
               </div>
-              <Clock className="h-8 w-8 text-orange-600" />
+              <Clock className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-orange-600`} />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Vehicle</p>
-                <p className="text-2xl font-bold text-blue-600">{vehicle ? 'Assigned' : 'None'}</p>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600`}>Vehicle</p>
+                <p className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-blue-600`}>{vehicle ? 'Assigned' : 'None'}</p>
               </div>
-              <Truck className="h-8 w-8 text-blue-600" />
+              <Truck className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-blue-600`} />
             </div>
           </CardContent>
         </Card>
@@ -330,46 +337,46 @@ const DriverDashboard = () => {
 
       {/* Routes Tabs */}
       <Card>
-        <CardHeader>
+        <CardHeader className={isMobile ? 'p-4 pb-2' : 'p-6'}>
           <CardTitle className="flex items-center">
             <MapPin className="h-5 w-5 mr-2" />
             Route Management
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className={isMobile ? 'p-4 pt-0' : 'p-6 pt-0'}>
           <Tabs defaultValue="today" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="today">Today's Routes</TabsTrigger>
-              <TabsTrigger value="scheduled">All Scheduled Routes</TabsTrigger>
+            <TabsList className={`${isMobile ? 'w-full' : 'grid w-full'} grid-cols-2`}>
+              <TabsTrigger value="today" className={isMobile ? 'text-xs' : ''}>Today's Routes</TabsTrigger>
+              <TabsTrigger value="scheduled" className={isMobile ? 'text-xs' : ''}>All Scheduled</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="today" className="mt-6">
+            <TabsContent value="today" className={`${isMobile ? 'mt-4' : 'mt-6'}`}>
               {todaysDeliveries.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 mb-4">No routes scheduled for today</p>
-                  <Button onClick={() => setIsAddDialogOpen(true)}>
+                <div className="text-center py-6 sm:py-8">
+                  <p className={`text-gray-500 mb-4 ${isMobile ? 'text-sm' : ''}`}>No routes scheduled for today</p>
+                  <Button onClick={() => setIsAddDialogOpen(true)} size={isMobile ? "sm" : "default"}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add First Route
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className={`space-y-3 ${isMobile ? 'space-y-2' : 'space-y-4'}`}>
                   {todaysDeliveries.map((delivery, index) => renderDeliveryCard(delivery, index))}
                 </div>
               )}
             </TabsContent>
             
-            <TabsContent value="scheduled" className="mt-6">
+            <TabsContent value="scheduled" className={`${isMobile ? 'mt-4' : 'mt-6'}`}>
               {allDeliveries.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 mb-4">No scheduled routes found</p>
-                  <Button onClick={() => setIsAddDialogOpen(true)}>
+                <div className="text-center py-6 sm:py-8">
+                  <p className={`text-gray-500 mb-4 ${isMobile ? 'text-sm' : ''}`}>No scheduled routes found</p>
+                  <Button onClick={() => setIsAddDialogOpen(true)} size={isMobile ? "sm" : "default"}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add First Route
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className={`space-y-3 ${isMobile ? 'space-y-2' : 'space-y-4'}`}>
                   {allDeliveries.map((delivery, index) => renderDeliveryCard(delivery, index))}
                 </div>
               )}
@@ -378,32 +385,32 @@ const DriverDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Vehicle Information */}
+      {/* Vehicle Information - 2x2 grid on mobile */}
       {vehicle && (
         <Card>
-          <CardHeader>
+          <CardHeader className={isMobile ? 'p-4 pb-2' : 'p-6'}>
             <CardTitle className="flex items-center">
               <Truck className="h-5 w-5 mr-2" />
               Vehicle Information - {vehicle.vehicle_number}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">Model</p>
-                <p className="font-medium">{vehicle.make} {vehicle.model}</p>
+          <CardContent className={isMobile ? 'p-4 pt-0' : 'p-6 pt-0'}>
+            <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4'}`}>
+              <div className={`text-center ${isMobile ? 'p-3' : 'p-4'} bg-gray-50 rounded-lg`}>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>Model</p>
+                <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>{vehicle.make} {vehicle.model}</p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">Fuel Type</p>
-                <p className="font-medium">{vehicle.fuel_type}</p>
+              <div className={`text-center ${isMobile ? 'p-3' : 'p-4'} bg-gray-50 rounded-lg`}>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>Fuel Type</p>
+                <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>{vehicle.fuel_type}</p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">Mileage</p>
-                <p className="font-medium">{vehicle.current_mileage.toLocaleString()} km</p>
+              <div className={`text-center ${isMobile ? 'p-3' : 'p-4'} bg-gray-50 rounded-lg`}>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>Mileage</p>
+                <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>{vehicle.current_mileage.toLocaleString()} km</p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">Status</p>
-                <p className="font-medium text-green-600">{vehicle.status}</p>
+              <div className={`text-center ${isMobile ? 'p-3' : 'p-4'} bg-gray-50 rounded-lg`}>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>Status</p>
+                <p className={`font-medium text-green-600 ${isMobile ? 'text-sm' : ''}`}>{vehicle.status}</p>
               </div>
             </div>
           </CardContent>
