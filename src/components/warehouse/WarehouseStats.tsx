@@ -14,50 +14,50 @@ interface WarehouseStatsProps {
 
 const WarehouseStats: React.FC<WarehouseStatsProps> = ({ stats }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4 md:p-6">
           <div className="flex items-center gap-2">
-            <Package className="h-8 w-8 text-blue-600" />
+            <Package className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Items</p>
-              <p className="text-2xl font-bold">{stats.total}</p>
+              <p className="text-xs md:text-sm font-medium text-gray-600">Total Items</p>
+              <p className="text-lg md:text-2xl font-bold">{stats.total}</p>
             </div>
           </div>
         </CardContent>
       </Card>
       
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4 md:p-6">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="h-8 w-8 text-yellow-600" />
+            <AlertTriangle className="h-6 w-6 md:h-8 md:w-8 text-yellow-600" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Low Stock</p>
-              <p className="text-2xl font-bold">{stats.lowStock}</p>
+              <p className="text-xs md:text-sm font-medium text-gray-600">Low Stock</p>
+              <p className="text-lg md:text-2xl font-bold">{stats.lowStock}</p>
             </div>
           </div>
         </CardContent>
       </Card>
       
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4 md:p-6">
           <div className="flex items-center gap-2">
-            <TrendingDown className="h-8 w-8 text-red-600" />
+            <TrendingDown className="h-6 w-6 md:h-8 md:w-8 text-red-600" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Out of Stock</p>
-              <p className="text-2xl font-bold">{stats.outOfStock}</p>
+              <p className="text-xs md:text-sm font-medium text-gray-600">Out of Stock</p>
+              <p className="text-lg md:text-2xl font-bold">{stats.outOfStock}</p>
             </div>
           </div>
         </CardContent>
       </Card>
       
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4 md:p-6">
           <div className="flex items-center gap-2">
-            <TrendingUp className="h-8 w-8 text-green-600" />
+            <TrendingUp className="h-6 w-6 md:h-8 md:w-8 text-green-600" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Value</p>
-              <p className="text-2xl font-bold">${stats.totalValue.toLocaleString()}</p>
+              <p className="text-xs md:text-sm font-medium text-gray-600">Total Value</p>
+              <p className="text-lg md:text-2xl font-bold">${stats.totalValue.toLocaleString()}</p>
             </div>
           </div>
         </CardContent>

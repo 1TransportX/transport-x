@@ -387,22 +387,22 @@ const AdminDashboard = () => {
         </Button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* KPI Cards - Updated to 2x2 grid on mobile */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
         {kpiData.map((kpi, index) => (
           <Card key={index} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{kpi.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{kpi.value}</p>
-                  <p className={`text-sm flex items-center ${kpi.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                    <TrendingUp className="h-4 w-4 mr-1" />
+                  <p className="text-xs md:text-sm font-medium text-gray-600">{kpi.title}</p>
+                  <p className="text-lg md:text-2xl font-bold text-gray-900">{kpi.value}</p>
+                  <p className={`text-xs md:text-sm flex items-center ${kpi.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+                    <TrendingUp className="h-3 w-3 md:h-4 md:w-4 mr-1" />
                     {kpi.change}
                   </p>
                 </div>
-                <div className="bg-blue-100 p-3 rounded-full">
-                  <kpi.icon className="h-6 w-6 text-blue-600" />
+                <div className="bg-blue-100 p-2 md:p-3 rounded-full">
+                  <kpi.icon className="h-4 w-4 md:h-6 md:w-6 text-blue-600" />
                 </div>
               </div>
             </CardContent>
