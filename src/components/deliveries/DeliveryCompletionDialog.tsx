@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Camera, Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { CameraCapture } from '@/components/ui/camera-capture';
 
 interface DeliveryCompletionDialogProps {
   isOpen: boolean;
@@ -39,8 +39,8 @@ const DeliveryCompletionDialog: React.FC<DeliveryCompletionDialogProps> = ({
   const [receiptPhoto, setReceiptPhoto] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleReceiptUpload = (file: File) => {
@@ -63,24 +63,7 @@ const DeliveryCompletionDialog: React.FC<DeliveryCompletionDialogProps> = ({
         return;
       }
 
-      // Request camera permission first
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        // Stop the stream immediately as we just wanted to check permission
-        stream.getTracks().forEach(track => track.stop());
-        
-        // Now trigger the file input with camera capture
-        if (cameraInputRef.current) {
-          cameraInputRef.current.click();
-        }
-      } catch (permissionError) {
-        console.error('Camera permission denied:', permissionError);
-        toast({
-          title: "Camera Permission Required",
-          description: "Please allow camera access to take photos, or use the upload option instead.",
-          variant: "destructive"
-        });
-      }
+      setIsCameraOpen(true);
     } catch (error) {
       console.error('Camera access error:', error);
       toast({
@@ -89,6 +72,15 @@ const DeliveryCompletionDialog: React.FC<DeliveryCompletionDialogProps> = ({
         variant: "destructive"
       });
     }
+  };
+
+  const handleCameraPhoto = (file: File) => {
+    handleReceiptUpload(file);
+    setIsCameraOpen(false);
+  };
+
+  const handleCameraCancel = () => {
+    setIsCameraOpen(false);
   };
 
   const handleFileSelect = () => {
@@ -224,155 +216,155 @@ const DeliveryCompletionDialog: React.FC<DeliveryCompletionDialogProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Complete Delivery</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Complete Delivery</DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="bg-gray-50 p-3 rounded-lg">
-            <p className="text-sm font-medium">Delivery: {delivery.delivery_number}</p>
-            <p className="text-sm text-gray-600">Customer: {delivery.customer_name}</p>
-            <p className="text-sm text-gray-600">Current Mileage: {currentMileage} km</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="mileageAfter" className="text-sm font-medium">
-              Mileage After Delivery (km) *
-            </Label>
-            <Input
-              id="mileageAfter"
-              type="number"
-              value={mileageAfter}
-              onChange={(e) => setMileageAfter(e.target.value)}
-              placeholder="Enter mileage after delivery"
-              min={currentMileage}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="odometerReading" className="text-sm font-medium">
-              Final Odometer Reading (km) *
-            </Label>
-            <Input
-              id="odometerReading"
-              type="number"
-              value={odometerReading}
-              onChange={(e) => setOdometerReading(e.target.value)}
-              placeholder="Enter final odometer reading"
-            />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="fuelRefilled"
-              checked={fuelRefilled}
-              onCheckedChange={setFuelRefilled}
-            />
-            <Label htmlFor="fuelRefilled" className="text-sm font-medium">
-              Did you refuel the vehicle?
-            </Label>
-          </div>
-
-          {fuelRefilled && (
-            <div className="space-y-4 border-t pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="fuelCost" className="text-sm font-medium">
-                  Fuel Cost *
-                </Label>
-                <Input
-                  id="fuelCost"
-                  type="number"
-                  step="0.01"
-                  value={fuelCost}
-                  onChange={(e) => setFuelCost(e.target.value)}
-                  placeholder="Enter fuel cost"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Fuel Receipt Photo *</Label>
-                
-                {receiptPreview ? (
-                  <div className="relative">
-                    <img 
-                      src={receiptPreview} 
-                      alt="Receipt preview" 
-                      className="w-full h-32 object-cover rounded-lg border"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      className="absolute top-2 right-2"
-                      onClick={removeReceipt}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleCameraCapture}
-                      className="flex-1"
-                    >
-                      <Camera className="h-4 w-4 mr-2" />
-                      Camera
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleFileSelect}
-                      className="flex-1"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload
-                    </Button>
-                  </div>
-                )}
-
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={(e) => e.target.files?.[0] && handleReceiptUpload(e.target.files[0])}
-                  className="hidden"
-                />
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => e.target.files?.[0] && handleReceiptUpload(e.target.files[0])}
-                  className="hidden"
-                />
-              </div>
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="text-sm font-medium">Delivery: {delivery.delivery_number}</p>
+              <p className="text-sm text-gray-600">Customer: {delivery.customer_name}</p>
+              <p className="text-sm text-gray-600">Current Mileage: {currentMileage} km</p>
             </div>
-          )}
 
-          <div className="flex space-x-2 pt-4">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="flex-1"
-            >
-              {isSubmitting ? 'Recording...' : 'Complete Delivery'}
-            </Button>
+            <div className="space-y-2">
+              <Label htmlFor="mileageAfter" className="text-sm font-medium">
+                Mileage After Delivery (km) *
+              </Label>
+              <Input
+                id="mileageAfter"
+                type="number"
+                value={mileageAfter}
+                onChange={(e) => setMileageAfter(e.target.value)}
+                placeholder="Enter mileage after delivery"
+                min={currentMileage}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="odometerReading" className="text-sm font-medium">
+                Final Odometer Reading (km) *
+              </Label>
+              <Input
+                id="odometerReading"
+                type="number"
+                value={odometerReading}
+                onChange={(e) => setOdometerReading(e.target.value)}
+                placeholder="Enter final odometer reading"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="fuelRefilled"
+                checked={fuelRefilled}
+                onCheckedChange={setFuelRefilled}
+              />
+              <Label htmlFor="fuelRefilled" className="text-sm font-medium">
+                Did you refuel the vehicle?
+              </Label>
+            </div>
+
+            {fuelRefilled && (
+              <div className="space-y-4 border-t pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fuelCost" className="text-sm font-medium">
+                    Fuel Cost *
+                  </Label>
+                  <Input
+                    id="fuelCost"
+                    type="number"
+                    step="0.01"
+                    value={fuelCost}
+                    onChange={(e) => setFuelCost(e.target.value)}
+                    placeholder="Enter fuel cost"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Fuel Receipt Photo *</Label>
+                  
+                  {receiptPreview ? (
+                    <div className="relative">
+                      <img 
+                        src={receiptPreview} 
+                        alt="Receipt preview" 
+                        className="w-full h-32 object-cover rounded-lg border"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        className="absolute top-2 right-2"
+                        onClick={removeReceipt}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex space-x-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCameraCapture}
+                        className="flex-1"
+                      >
+                        <Camera className="h-4 w-4 mr-2" />
+                        Camera
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleFileSelect}
+                        className="flex-1"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload
+                      </Button>
+                    </div>
+                  )}
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => e.target.files?.[0] && handleReceiptUpload(e.target.files[0])}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex space-x-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="flex-1"
+              >
+                {isSubmitting ? 'Recording...' : 'Complete Delivery'}
+              </Button>
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <CameraCapture
+        isOpen={isCameraOpen}
+        onCapture={handleCameraPhoto}
+        onCancel={handleCameraCancel}
+      />
+    </>
   );
 };
 
