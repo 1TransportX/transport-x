@@ -79,6 +79,8 @@ serve(async (req) => {
       });
     }
 
+    console.log('Google Maps API key found, length:', googleMapsApiKey.length);
+
     let requestBody;
     try {
       requestBody = await req.json();
@@ -135,12 +137,16 @@ serve(async (req) => {
           autocompleteUrl.searchParams.set('components', `country:${componentRestrictions.country}`);
         }
 
+        console.log('Making request to Google Maps API with URL:', autocompleteUrl.toString().replace(googleMapsApiKey, 'API_KEY_HIDDEN'));
+
         response = await fetch(autocompleteUrl.toString(), {
           method: 'GET',
           headers: {
             'User-Agent': 'Supabase-Edge-Function/1.0'
           }
         });
+
+        console.log('Google Maps API response status:', response.status);
         break;
 
       case 'place-details':
@@ -165,6 +171,8 @@ serve(async (req) => {
         detailsUrl.searchParams.set('place_id', placeId);
         detailsUrl.searchParams.set('key', googleMapsApiKey);
         detailsUrl.searchParams.set('fields', 'formatted_address,geometry,place_id');
+
+        console.log('Making place details request to Google Maps API');
 
         response = await fetch(detailsUrl.toString(), {
           method: 'GET',
@@ -194,6 +202,11 @@ serve(async (req) => {
     
     // Enhanced logging for security monitoring
     console.log(`Maps API request: ${action} from ${clientIP} - Status: ${data.status || 'success'} - Timestamp: ${new Date().toISOString()}`);
+
+    // Log any API errors for debugging
+    if (data.status && data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+      console.error('Google Maps API returned error status:', data.status, 'Error message:', data.error_message);
+    }
 
     return new Response(JSON.stringify(data), {
       headers: { 
