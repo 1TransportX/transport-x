@@ -139,14 +139,10 @@ const DriverDashboard = () => {
     }
 
     try {
-      const updateData: any = { status: newStatus };
-      if (newStatus === 'in_progress') {
-        updateData.started_at = new Date().toISOString();
-      }
-
+      // Only update the status, don't try to update non-existent started_at column
       const { error } = await supabase
         .from('deliveries')
-        .update(updateData)
+        .update({ status: newStatus })
         .eq('id', deliveryId);
 
       if (error) throw error;
