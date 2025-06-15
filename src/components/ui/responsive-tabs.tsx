@@ -30,8 +30,6 @@ export const ResponsiveTabs: React.FC<ResponsiveTabsProps> = ({
   children,
   className
 }) => {
-  const isMobile = useIsMobile();
-
   return (
     <Tabs
       defaultValue={defaultValue}
@@ -52,7 +50,9 @@ export const ResponsiveTabsList: React.FC<ResponsiveTabsListProps> = ({
 
   return (
     <TabsList className={cn(
-      isMobile ? "w-full overflow-x-auto flex-nowrap justify-start" : "inline-flex",
+      isMobile 
+        ? "w-full overflow-x-auto flex-nowrap justify-start gap-1 p-1 h-auto" 
+        : "inline-flex",
       className
     )}>
       {children}
@@ -71,7 +71,9 @@ export const ResponsiveTabsTrigger: React.FC<ResponsiveTabsTriggerProps> = ({
     <TabsTrigger
       value={value}
       className={cn(
-        isMobile ? "whitespace-nowrap flex-shrink-0 text-xs px-2 py-1.5" : "",
+        isMobile 
+          ? "whitespace-nowrap flex-shrink-0 text-xs px-3 py-2 min-w-fit h-auto" 
+          : "text-sm px-3 py-1.5",
         className
       )}
     >

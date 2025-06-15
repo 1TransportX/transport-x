@@ -20,13 +20,13 @@ export const ResponsiveHeader: React.FC<ResponsiveHeaderProps> = ({
 
   if (isMobile) {
     return (
-      <div className={cn("space-y-3", className)}>
-        <div className="space-y-1">
+      <div className={cn("space-y-4", className)}>
+        <div className="space-y-2">
           <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
           {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
         </div>
         {children && (
-          <div className="flex flex-col space-y-2 w-full">
+          <div className="flex flex-col space-y-3 w-full">
             {children}
           </div>
         )}

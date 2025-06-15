@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ResponsiveHeader } from '@/components/ui/responsive-header';
 import AddEmployeeDialog from './AddEmployeeDialog';
 import EditEmployeeDialog from './EditEmployeeDialog';
 
@@ -150,17 +151,16 @@ const EmployeeList = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Employee Management</h1>
-          <p className="text-gray-600 mt-2">Manage employee records, roles, and information.</p>
-        </div>
+    <div className="p-3 sm:p-6 space-y-6">
+      <ResponsiveHeader
+        title="Employee Management"
+        subtitle="Manage employee records, roles, and information."
+      >
         <Button onClick={() => setShowAddDialog(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Add Employee
         </Button>
-      </div>
+      </ResponsiveHeader>
 
       <Card>
         <CardHeader>

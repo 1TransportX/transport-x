@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { 
   BarChart3, 
   Users, 
@@ -73,18 +73,20 @@ const MobileNavigation = () => {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
-          <Menu className="h-6 w-6" />
+        <Button variant="ghost" size="icon" className="md:hidden h-9 w-9 p-0">
+          <Menu className="h-5 w-5" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-80 p-0">
+      <SheetContent side="left" className="w-80 p-0 bg-white">
         <div className="flex flex-col h-full">
-          <div className="p-6 border-b">
-            <Link to="/dashboard" className="flex items-center space-x-2" onClick={handleNavClick}>
-              <BarChart3 className="h-6 w-6 text-blue-600" />
-              <span className="text-lg font-bold text-gray-900">ETW Manager</span>
-            </Link>
-          </div>
+          <SheetHeader className="p-6 border-b">
+            <SheetTitle asChild>
+              <Link to="/dashboard" className="flex items-center space-x-2" onClick={handleNavClick}>
+                <BarChart3 className="h-6 w-6 text-blue-600" />
+                <span className="text-lg font-bold text-gray-900">ETW Manager</span>
+              </Link>
+            </SheetTitle>
+          </SheetHeader>
           
           <div className="flex-1 overflow-auto">
             <nav className="p-4 space-y-2">
@@ -109,9 +111,9 @@ const MobileNavigation = () => {
             </nav>
           </div>
 
-          <div className="p-4 border-t mt-auto">
+          <div className="p-4 border-t mt-auto bg-gray-50">
             {profile && (
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <div className="mb-4 p-3 bg-white rounded-lg shadow-sm">
                 <div className="text-sm font-medium text-gray-900">
                   {profile.first_name || profile.email}
                 </div>
@@ -123,7 +125,7 @@ const MobileNavigation = () => {
             <Button 
               variant="outline" 
               onClick={handleSignOut}
-              className="w-full flex items-center justify-center space-x-2"
+              className="w-full flex items-center justify-center space-x-2 bg-white"
             >
               <LogOut className="h-4 w-4" />
               <span>Sign Out</span>
