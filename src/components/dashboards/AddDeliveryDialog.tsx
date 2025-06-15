@@ -7,7 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSecurity } from '@/contexts/SecurityContext';
+import { RateLimiter, sanitizeError } from '@/utils/security';
 import SecureLocationSearchInput from '@/components/transportation/SecureLocationSearchInput';
+import SecureInput from '@/components/forms/SecureInput';
+import SecurePhoneInput from '@/components/forms/SecurePhoneInput';
 
 interface AddDeliveryDialogProps {
   isOpen: boolean;
@@ -29,6 +33,9 @@ interface InventoryItem {
   current_stock: number;
 }
 
+// Rate limiter for form submissions
+const formRateLimiter = new RateLimiter(5, 300000); // 5 submissions per 5 minutes
+
 const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
   isOpen,
   onClose,
@@ -36,6 +43,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
   driverId
 }) => {
   const { toast } = useToast();
+  const { logSecurityEvent } = useSecurity();
   const [loading, setLoading] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -54,8 +62,9 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
     if (isOpen) {
       fetchVehicles();
       fetchInventory();
+      logSecurityEvent('delivery_dialog_opened', 'info');
     }
-  }, [isOpen]);
+  }, [isOpen, logSecurityEvent]);
 
   const fetchVehicles = async () => {
     try {
@@ -66,34 +75,15 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
         .order('vehicle_number');
 
       if (error) throw error;
-      console.log('Fetched vehicles:', data);
       setVehicles(data || []);
     } catch (error) {
       console.error('Error fetching vehicles:', error);
+      logSecurityEvent('vehicle_fetch_error', 'error', { error: sanitizeError(error) });
     }
   };
 
   const fetchInventory = async () => {
     try {
-      console.log('Starting to fetch inventory...');
-      console.log('Supabase client:', supabase);
-      
-      // First, let's test if we can connect to Supabase at all
-      const { data: testData, error: testError } = await supabase
-        .from('inventory')
-        .select('count(*)', { count: 'exact' });
-      
-      console.log('Test connection - count result:', testData, 'error:', testError);
-      
-      // Now try to fetch all inventory without any filters
-      const { data: allInventory, error: allError } = await supabase
-        .from('inventory')
-        .select('*');
-        
-      console.log('All inventory data (no filters):', allInventory);
-      console.log('All inventory error:', allError);
-      
-      // Now try with our specific query
       const { data, error } = await supabase
         .from('inventory')
         .select('id, product_name, current_stock')
@@ -101,27 +91,19 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
         .order('product_name');
 
       if (error) {
-        console.error('Supabase error fetching inventory:', error);
         throw error;
       }
       
-      console.log('Filtered inventory data (stock > 0):', data);
-      console.log('Number of inventory items with stock > 0:', data?.length || 0);
-      
       if (!data || data.length === 0) {
-        console.warn('No inventory items found with stock > 0');
-        
-        // If no items with stock > 0, let's show all items but indicate they're out of stock
+        // If no items with stock > 0, show all items but indicate they're out of stock
         const { data: allData, error: allError } = await supabase
           .from('inventory')
           .select('id, product_name, current_stock')
           .order('product_name');
           
-        console.log('All inventory items (including zero stock):', allData);
-        if (allError) console.error('Error fetching all inventory:', allError);
+        if (allError) throw allError;
         
         if (allData && allData.length > 0) {
-          // Show all items even if out of stock, but user will see the stock levels
           setInventory(allData);
           toast({
             title: "Warning",
@@ -141,9 +123,10 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
       }
     } catch (error) {
       console.error('Error fetching inventory:', error);
+      logSecurityEvent('inventory_fetch_error', 'error', { error: sanitizeError(error) });
       toast({
         title: "Error", 
-        description: "Failed to load inventory items. Please check your connection and try again.",
+        description: sanitizeError(error),
         variant: "destructive"
       });
     }
@@ -155,15 +138,22 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
     return `DEL-${timestamp}`;
   };
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-    if (value.length <= 10) {
-      setFormData(prev => ({ ...prev, customer_phone: value }));
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Rate limiting check
+    const rateLimitKey = `delivery_form_${driverId || 'anonymous'}`;
+    if (!formRateLimiter.isAllowed(rateLimitKey)) {
+      const remaining = formRateLimiter.getRemainingAttempts(rateLimitKey);
+      logSecurityEvent('delivery_form_rate_limited', 'warning', { remaining });
+      toast({
+        title: "Rate Limit Exceeded",
+        description: "Too many form submissions. Please wait before trying again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -237,14 +227,16 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
               .eq('id', item.inventory_id);
 
             if (stockError) {
-              console.error('Error updating stock for item:', item.inventory_id, stockError);
               throw stockError;
             }
-
-            console.log(`Updated stock for ${inventoryItem.product_name}: ${inventoryItem.current_stock} -> ${newStock}`);
           }
         }
       }
+
+      logSecurityEvent('delivery_created', 'info', { 
+        deliveryId: delivery.id,
+        itemCount: validItems.length 
+      });
 
       toast({
         title: "Success",
@@ -256,9 +248,10 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
       resetForm();
     } catch (error) {
       console.error('Error creating delivery:', error);
+      logSecurityEvent('delivery_creation_error', 'error', { error: sanitizeError(error) });
       toast({
         title: "Error",
-        description: "Failed to create delivery route",
+        description: sanitizeError(error),
         variant: "destructive"
       });
     } finally {
@@ -301,9 +294,6 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
     }));
   };
 
-  console.log('Current inventory state in dialog:', inventory);
-  console.log('Inventory loading state:', loading);
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -313,28 +303,21 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="customer_name">Customer Name</Label>
-              <Input
-                id="customer_name"
-                value={formData.customer_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
-                required
-                maxLength={100}
-              />
-            </div>
+            <SecureInput
+              value={formData.customer_name}
+              onChange={(value) => setFormData(prev => ({ ...prev, customer_name: value }))}
+              label="Customer Name"
+              required
+              maxLength={100}
+              id="customer_name"
+            />
 
-            <div>
-              <Label htmlFor="customer_phone">Customer Phone (10 digits)</Label>
-              <Input
-                id="customer_phone"
-                type="tel"
-                value={formData.customer_phone}
-                onChange={handlePhoneChange}
-                placeholder="1234567890"
-                maxLength={10}
-              />
-            </div>
+            <SecurePhoneInput
+              value={formData.customer_phone}
+              onChange={(value) => setFormData(prev => ({ ...prev, customer_phone: value }))}
+              label="Customer Phone"
+              id="customer_phone"
+            />
           </div>
 
           <div>
@@ -388,10 +371,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
                     <Label>Product</Label>
                     <Select
                       value={item.inventory_id}
-                      onValueChange={(value) => {
-                        console.log('Selected product ID:', value);
-                        updateItem(index, 'inventory_id', value);
-                      }}
+                      onValueChange={(value) => updateItem(index, 'inventory_id', value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select product" />
@@ -457,6 +437,7 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               placeholder="Any special delivery instructions..."
+              maxLength={500}
             />
           </div>
 
