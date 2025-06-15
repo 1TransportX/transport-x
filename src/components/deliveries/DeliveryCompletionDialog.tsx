@@ -53,7 +53,6 @@ const DeliveryCompletionDialog: React.FC<DeliveryCompletionDialogProps> = ({
 
   const handleCameraCapture = async () => {
     try {
-      // Check if camera is available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         toast({
           title: "Camera Not Available",
@@ -62,7 +61,6 @@ const DeliveryCompletionDialog: React.FC<DeliveryCompletionDialogProps> = ({
         });
         return;
       }
-
       setIsCameraOpen(true);
     } catch (error) {
       console.error('Camera access error:', error);
@@ -76,14 +74,11 @@ const DeliveryCompletionDialog: React.FC<DeliveryCompletionDialogProps> = ({
 
   const handleCameraPhoto = (file: File) => {
     handleReceiptUpload(file);
-    setIsCameraOpen(false); // Close camera after successful capture
+    setIsCameraOpen(false);
   };
 
-  // The cancel handler for camera ONLY closes the camera, not this dialog
   const handleCameraCancel = () => {
     setIsCameraOpen(false);
-    // Don't call onClose, just close camera overlay!
-    // The dialog stays open; this is correct as of your current flow.
   };
 
   const handleFileSelect = () => {
@@ -221,7 +216,7 @@ const DeliveryCompletionDialog: React.FC<DeliveryCompletionDialogProps> = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby="delivery-completion-desc">
           <DialogHeader>
             <DialogTitle>Complete Delivery</DialogTitle>
           </DialogHeader>
