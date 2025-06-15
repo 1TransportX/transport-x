@@ -123,6 +123,8 @@ export type Database = {
           delivery_number: string
           driver_id: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
           notes: string | null
           proof_of_delivery: Json | null
           scheduled_date: string | null
@@ -139,6 +141,8 @@ export type Database = {
           delivery_number: string
           driver_id?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           notes?: string | null
           proof_of_delivery?: Json | null
           scheduled_date?: string | null
@@ -155,6 +159,8 @@ export type Database = {
           delivery_number?: string
           driver_id?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           notes?: string | null
           proof_of_delivery?: Json | null
           scheduled_date?: string | null
@@ -494,6 +500,113 @@ export type Database = {
             columns: ["generated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      route_stops: {
+        Row: {
+          actual_arrival_time: string | null
+          created_at: string | null
+          delivery_id: string | null
+          distance_from_previous: number | null
+          duration_from_previous: number | null
+          estimated_arrival_time: string | null
+          id: string
+          route_id: string | null
+          status: string | null
+          stop_order: number
+        }
+        Insert: {
+          actual_arrival_time?: string | null
+          created_at?: string | null
+          delivery_id?: string | null
+          distance_from_previous?: number | null
+          duration_from_previous?: number | null
+          estimated_arrival_time?: string | null
+          id?: string
+          route_id?: string | null
+          status?: string | null
+          stop_order: number
+        }
+        Update: {
+          actual_arrival_time?: string | null
+          created_at?: string | null
+          delivery_id?: string | null
+          distance_from_previous?: number | null
+          duration_from_previous?: number | null
+          estimated_arrival_time?: string | null
+          id?: string
+          route_id?: string | null
+          status?: string | null
+          stop_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_stops_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "route_stops_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      routes: {
+        Row: {
+          created_at: string | null
+          driver_id: string | null
+          estimated_duration: number | null
+          id: string
+          route_name: string
+          start_latitude: number | null
+          start_location: string | null
+          start_longitude: number | null
+          status: string | null
+          total_distance: number | null
+          updated_at: string | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          driver_id?: string | null
+          estimated_duration?: number | null
+          id?: string
+          route_name: string
+          start_latitude?: number | null
+          start_location?: string | null
+          start_longitude?: number | null
+          status?: string | null
+          total_distance?: number | null
+          updated_at?: string | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          driver_id?: string | null
+          estimated_duration?: number | null
+          id?: string
+          route_name?: string
+          start_latitude?: number | null
+          start_location?: string | null
+          start_longitude?: number | null
+          status?: string | null
+          total_distance?: number | null
+          updated_at?: string | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routes_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
         ]

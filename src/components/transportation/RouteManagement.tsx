@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,9 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Calendar, MapPin, Package, User } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Calendar, MapPin, Package, User, Route } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddDeliveryDialog from '@/components/dashboards/AddDeliveryDialog';
+import RouteOptimizer from './RouteOptimizer';
 
 interface Delivery {
   id: string;
@@ -188,94 +191,113 @@ const RouteManagement = () => {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Delivery Routes ({filteredDeliveries.length})</CardTitle>
-            </div>
-            <Button 
-              className="flex items-center gap-2"
-              onClick={() => setShowAddDeliveryDialog(true)}
-            >
-              <Plus className="h-4 w-4" />
-              Add Route
-            </Button>
-          </div>
-          <Input
-            placeholder="Search routes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
-          />
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Route Number</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Address</TableHead>
-                <TableHead>Scheduled Date</TableHead>
-                <TableHead>Assigned Driver</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredDeliveries.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                    No delivery routes found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredDeliveries.map((delivery) => (
-                  <TableRow key={delivery.id}>
-                    <TableCell className="font-medium">{delivery.delivery_number}</TableCell>
-                    <TableCell>{delivery.customer_name}</TableCell>
-                    <TableCell className="max-w-xs truncate">{delivery.customer_address}</TableCell>
-                    <TableCell>
-                      {new Date(delivery.scheduled_date).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {delivery.profiles 
-                        ? `${delivery.profiles.first_name} ${delivery.profiles.last_name}`
-                        : 'Unassigned'
-                      }
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {delivery.delivery_items?.length > 0 ? (
-                          delivery.delivery_items.map((item, index) => (
-                            <div key={index}>
-                              {item.quantity}x {item.inventory?.product_name}
-                            </div>
-                          ))
-                        ) : (
-                          'No items'
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusBadgeColor(delivery.status)}>
-                        {delivery.status.replace('_', ' ').toUpperCase()}
-                      </Badge>
-                    </TableCell>
+      <Tabs defaultValue="deliveries" className="w-full">
+        <TabsList>
+          <TabsTrigger value="deliveries" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Deliveries
+          </TabsTrigger>
+          <TabsTrigger value="optimizer" className="flex items-center gap-2">
+            <Route className="h-4 w-4" />
+            Route Optimizer
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="deliveries">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Delivery Routes ({filteredDeliveries.length})</CardTitle>
+                </div>
+                <Button 
+                  className="flex items-center gap-2"
+                  onClick={() => setShowAddDeliveryDialog(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Route
+                </Button>
+              </div>
+              <Input
+                placeholder="Search routes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Route Number</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead>Scheduled Date</TableHead>
+                    <TableHead>Assigned Driver</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {filteredDeliveries.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                        No delivery routes found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredDeliveries.map((delivery) => (
+                      <TableRow key={delivery.id}>
+                        <TableCell className="font-medium">{delivery.delivery_number}</TableCell>
+                        <TableCell>{delivery.customer_name}</TableCell>
+                        <TableCell className="max-w-xs truncate">{delivery.customer_address}</TableCell>
+                        <TableCell>
+                          {new Date(delivery.scheduled_date).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {delivery.profiles 
+                            ? `${delivery.profiles.first_name} ${delivery.profiles.last_name}`
+                            : 'Unassigned'
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {delivery.delivery_items?.length > 0 ? (
+                              delivery.delivery_items.map((item, index) => (
+                                <div key={index}>
+                                  {item.quantity}x {item.inventory?.product_name}
+                                </div>
+                              ))
+                            ) : (
+                              'No items'
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusBadgeColor(delivery.status)}>
+                            {delivery.status.replace('_', ' ').toUpperCase()}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="optimizer">
+          <RouteOptimizer />
+        </TabsContent>
+      </Tabs>
 
       <AddDeliveryDialog 
         isOpen={showAddDeliveryDialog}
         onClose={() => setShowAddDeliveryDialog(false)}
         onSuccess={() => {
           setShowAddDeliveryDialog(false);
-          refetch(); // Refresh the deliveries list
+          refetch();
         }}
       />
     </div>
