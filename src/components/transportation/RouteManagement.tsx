@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -172,17 +173,21 @@ const RouteManagement = () => {
       return;
     }
 
-    // Filter only pending deliveries
-    const pendingDeliveries = deliveriesForDate.filter(d => d.status === 'pending');
+    // Filter only pending deliveries that have coordinates
+    const pendingDeliveries = deliveriesForDate.filter(d => 
+      d.status === 'pending' && d.latitude && d.longitude
+    );
     
     if (pendingDeliveries.length === 0) {
       toast({
-        title: "No Pending Deliveries",
-        description: "All deliveries for this date are already completed or in progress.",
+        title: "No Valid Deliveries",
+        description: "No pending deliveries with valid coordinates found for this date.",
         variant: "destructive"
       });
       return;
     }
+
+    console.log('Optimizing route for deliveries:', pendingDeliveries);
 
     const deliveryLocations = pendingDeliveries.map(d => ({
       id: d.id,
@@ -191,37 +196,85 @@ const RouteManagement = () => {
       longitude: d.longitude
     }));
 
-    await optimizeRoute(deliveryLocations, {
-      latitude: currentLocation.latitude,
-      longitude: currentLocation.longitude,
-      address: "Current Location"
-    });
+    try {
+      await optimizeRoute(deliveryLocations, {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        address: "Current Location"
+      });
 
-    toast({
-      title: "Route Optimized",
-      description: `Optimized route for ${pendingDeliveries.length} deliveries on ${new Date(date).toLocaleDateString()}`,
-    });
+      toast({
+        title: "Route Optimized",
+        description: `Optimized route for ${pendingDeliveries.length} deliveries on ${new Date(date).toLocaleDateString()}`,
+      });
+    } catch (error) {
+      console.error('Route optimization error:', error);
+      toast({
+        title: "Optimization Failed",
+        description: "Failed to optimize route. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const openInGoogleMaps = (deliveriesForDate: Delivery[]) => {
-    if (!currentLocation) return;
+    if (!currentLocation) {
+      toast({
+        title: "Location Required",
+        description: "Please allow location access to open in Google Maps.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    const validDeliveries = deliveriesForDate.filter(d => d.latitude && d.longitude);
+    // Filter deliveries that have valid coordinates
+    const validDeliveries = deliveriesForDate.filter(d => 
+      d.latitude && d.longitude && !isNaN(Number(d.latitude)) && !isNaN(Number(d.longitude))
+    );
     
     if (validDeliveries.length === 0) {
       toast({
-        title: "No Coordinates",
+        title: "No Valid Coordinates",
         description: "No deliveries have valid coordinates for mapping.",
         variant: "destructive"
       });
       return;
     }
 
-    const waypoints = validDeliveries
-      .map(d => `${d.latitude},${d.longitude}`)
-      .join('|');
+    console.log('Opening Google Maps for deliveries:', validDeliveries);
 
-    const url = `https://www.google.com/maps/dir/${currentLocation.latitude},${currentLocation.longitude}/${waypoints}`;
+    // If we have an optimized route, use that order
+    let orderedDeliveries = validDeliveries;
+    if (optimizedRoute && optimizedRoute.deliveries.length > 0) {
+      // Match deliveries with optimized route order
+      orderedDeliveries = optimizedRoute.optimizedOrder
+        .map(index => optimizedRoute.deliveries[index])
+        .map(routeDelivery => validDeliveries.find(d => d.id === routeDelivery.id))
+        .filter(d => d !== undefined) as Delivery[];
+      
+      // Add any remaining deliveries not in the optimized route
+      const optimizedIds = new Set(orderedDeliveries.map(d => d.id));
+      const remainingDeliveries = validDeliveries.filter(d => !optimizedIds.has(d.id));
+      orderedDeliveries = [...orderedDeliveries, ...remainingDeliveries];
+    }
+
+    // Create destination parameter for Google Maps
+    const destination = orderedDeliveries[orderedDeliveries.length - 1];
+    const waypoints = orderedDeliveries.slice(0, -1);
+
+    // Build Google Maps URL with proper waypoint format
+    let url = `https://www.google.com/maps/dir/${currentLocation.latitude},${currentLocation.longitude}`;
+    
+    if (waypoints.length > 0) {
+      const waypointParams = waypoints
+        .map(d => `${d.latitude},${d.longitude}`)
+        .join('/');
+      url += `/${waypointParams}`;
+    }
+    
+    url += `/${destination.latitude},${destination.longitude}`;
+
+    console.log('Opening Google Maps URL:', url);
     window.open(url, '_blank');
   };
 
@@ -381,6 +434,7 @@ const RouteManagement = () => {
               const pendingCount = deliveriesForDate.filter(d => d.status === 'pending').length;
               const completedCount = deliveriesForDate.filter(d => d.status === 'completed').length;
               const allCompleted = completedCount === deliveriesForDate.length;
+              const validCoordinatesCount = deliveriesForDate.filter(d => d.latitude && d.longitude).length;
               
               return (
                 <Card key={date}>
@@ -403,12 +457,17 @@ const RouteManagement = () => {
                         </CardTitle>
                         <p className="text-sm text-gray-600 mt-1">
                           {deliveriesForDate.length} total deliveries, {pendingCount} pending, {completedCount} completed
+                          {validCoordinatesCount < deliveriesForDate.length && (
+                            <span className="text-orange-600 ml-2">
+                              ({deliveriesForDate.length - validCoordinatesCount} missing coordinates)
+                            </span>
+                          )}
                         </p>
                       </div>
                       <div className="flex gap-2">
                         <Button
                           onClick={() => handleOptimizeRouteForDate(date, deliveriesForDate)}
-                          disabled={pendingCount === 0 || isOptimizing}
+                          disabled={pendingCount === 0 || isOptimizing || validCoordinatesCount === 0}
                           className="flex items-center gap-2"
                           size="sm"
                         >
@@ -418,6 +477,7 @@ const RouteManagement = () => {
                         <Button
                           variant="outline"
                           onClick={() => openInGoogleMaps(deliveriesForDate)}
+                          disabled={validCoordinatesCount === 0}
                           className="flex items-center gap-2"
                           size="sm"
                         >
@@ -437,6 +497,25 @@ const RouteManagement = () => {
                     </div>
                   </CardHeader>
                   <CardContent>
+                    {optimizedRoute && (
+                      <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-blue-600" />
+                            <span className="text-sm font-medium">
+                              Optimized Route: {optimizedRoute.totalDistance.toFixed(1)} km
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Route className="h-4 w-4 text-blue-600" />
+                            <span className="text-sm font-medium">
+                              Duration: {optimizedRoute.totalDuration} minutes
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -446,6 +525,7 @@ const RouteManagement = () => {
                           <TableHead>Driver</TableHead>
                           <TableHead>Items</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Coordinates</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -477,6 +557,17 @@ const RouteManagement = () => {
                               <Badge className={getStatusBadgeColor(delivery.status)}>
                                 {delivery.status.replace('_', ' ').toUpperCase()}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {delivery.latitude && delivery.longitude ? (
+                                <Badge className="bg-green-100 text-green-800">
+                                  Valid
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-red-100 text-red-800">
+                                  Missing
+                                </Badge>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
