@@ -37,23 +37,45 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       setIsLoading(true);
       setError(null);
 
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Stop any existing stream first
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+
+      const constraints = {
         video: { 
           facingMode: 'environment',
           width: { ideal: 1280 },
           height: { ideal: 720 }
-        }
-      });
+        },
+        audio: false
+      };
+
+      console.log('Requesting camera access with constraints:', constraints);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('Camera stream obtained:', stream);
 
       streamRef.current = stream;
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        
+        // Wait for the video to be ready
+        await new Promise((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              console.log('Video metadata loaded');
+              resolve(null);
+            };
+          }
+        });
+
+        await videoRef.current.play();
+        console.log('Video playing');
       }
     } catch (err) {
       console.error('Error accessing camera:', err);
-      setError('Unable to access camera. Please check permissions.');
+      setError('Unable to access camera. Please check permissions and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -61,8 +83,14 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
   const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log('Camera track stopped');
+      });
       streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
   };
 
@@ -86,14 +114,14 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           type: 'image/jpeg'
         });
         onCapture(file);
-        handleCancel();
+        // Don't call handleCancel here - let parent handle closing
       }
     }, 'image/jpeg', 0.8);
   };
 
   const handleCancel = () => {
     stopCamera();
-    onCancel();
+    onCancel(); // This should just close the camera, not the entire dialog
   };
 
   if (!isOpen) return null;

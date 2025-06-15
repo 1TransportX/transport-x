@@ -76,11 +76,11 @@ const DeliveryCompletionDialog: React.FC<DeliveryCompletionDialogProps> = ({
 
   const handleCameraPhoto = (file: File) => {
     handleReceiptUpload(file);
-    setIsCameraOpen(false);
+    setIsCameraOpen(false); // Close camera after successful capture
   };
 
   const handleCameraCancel = () => {
-    setIsCameraOpen(false);
+    setIsCameraOpen(false); // Just close camera, stay in dialog
   };
 
   const handleFileSelect = () => {
