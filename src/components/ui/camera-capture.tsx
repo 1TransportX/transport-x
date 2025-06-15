@@ -104,11 +104,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     setError(null);
   };
 
-  const handleCapturePhoto = (event: React.MouseEvent) => {
+  const handleCapturePhoto = (event: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('[CameraCapture] Capture button clicked - preventing default');
     event.preventDefault();
     event.stopPropagation();
-    
-    console.log('[CameraCapture] Capture button clicked');
     
     if (!videoRef.current || !canvasRef.current || !isVideoReady) {
       console.error('[CameraCapture] Cannot capture - video not ready');
@@ -144,18 +143,21 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     }, 'image/jpeg', 0.85);
   };
 
-  const handleCancel = (event: React.MouseEvent) => {
+  const handleCancel = (event: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('[CameraCapture] Cancel button clicked - preventing default');
     event.preventDefault();
     event.stopPropagation();
     
-    console.log('[CameraCapture] Cancel button clicked');
     onCancel();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
+    <div 
+      className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
+      onClick={(e) => e.stopPropagation()}
+    >
       <div className="relative w-full h-full flex flex-col">
         {/* Loading state */}
         {isLoading && (
@@ -173,6 +175,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               variant="outline"
               size="lg"
               className="bg-white/20 border-white/30 text-white hover:bg-white/30"
+              type="button"
             >
               Close
             </Button>
