@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, MapPin, Package, User, Route, Zap, Navigation } from 'lucide-react';
+import { Plus, Calendar, MapPin, Package, User, Route, Zap, Navigation, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddDeliveryDialog from '@/components/dashboards/AddDeliveryDialog';
 import RouteOptimizer from './RouteOptimizer';
@@ -226,6 +225,59 @@ const RouteManagement = () => {
     window.open(url, '_blank');
   };
 
+  const handleCompleteRoute = async (date: string, deliveriesForDate: Delivery[]) => {
+    try {
+      console.log('RouteManagement: Completing route for date:', date);
+      
+      // Get deliveries that are not already completed
+      const deliveriesToComplete = deliveriesForDate.filter(d => d.status !== 'completed');
+      
+      if (deliveriesToComplete.length === 0) {
+        toast({
+          title: "Route Already Completed",
+          description: "All deliveries for this date are already marked as completed.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const deliveryIds = deliveriesToComplete.map(d => d.id);
+      
+      const { error } = await supabase
+        .from('deliveries')
+        .update({ 
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        })
+        .in('id', deliveryIds);
+
+      if (error) {
+        console.error('RouteManagement: Error completing route:', error);
+        toast({
+          title: "Error",
+          description: "Failed to complete route. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Route Completed",
+        description: `Marked ${deliveriesToComplete.length} deliveries as completed for ${new Date(date).toLocaleDateString()}`,
+      });
+
+      // Refresh the data
+      refetch();
+    } catch (error) {
+      console.error('RouteManagement: Error in handleCompleteRoute:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while completing the route.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -327,6 +379,8 @@ const RouteManagement = () => {
           <div className="space-y-4">
             {Object.entries(groupedDeliveries).map(([date, deliveriesForDate]) => {
               const pendingCount = deliveriesForDate.filter(d => d.status === 'pending').length;
+              const completedCount = deliveriesForDate.filter(d => d.status === 'completed').length;
+              const allCompleted = completedCount === deliveriesForDate.length;
               
               return (
                 <Card key={date}>
@@ -341,9 +395,14 @@ const RouteManagement = () => {
                             month: 'long', 
                             day: 'numeric' 
                           })}
+                          {allCompleted && (
+                            <Badge className="bg-green-100 text-green-800 ml-2">
+                              Route Completed
+                            </Badge>
+                          )}
                         </CardTitle>
                         <p className="text-sm text-gray-600 mt-1">
-                          {deliveriesForDate.length} total deliveries, {pendingCount} pending
+                          {deliveriesForDate.length} total deliveries, {pendingCount} pending, {completedCount} completed
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -364,6 +423,15 @@ const RouteManagement = () => {
                         >
                           <Navigation className="h-4 w-4" />
                           View in Maps
+                        </Button>
+                        <Button
+                          onClick={() => handleCompleteRoute(date, deliveriesForDate)}
+                          disabled={allCompleted}
+                          className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                          size="sm"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Complete Route
                         </Button>
                       </div>
                     </div>
