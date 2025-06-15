@@ -51,8 +51,44 @@ const DeliveryCompletionDialog: React.FC<DeliveryCompletionDialogProps> = ({
     }
   };
 
-  const handleCameraCapture = () => {
-    cameraInputRef.current?.click();
+  const handleCameraCapture = async () => {
+    try {
+      // Check if camera is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast({
+          title: "Camera Not Available",
+          description: "Camera access is not available on this device. Please use the upload option instead.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Request camera permission first
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // Stop the stream immediately as we just wanted to check permission
+        stream.getTracks().forEach(track => track.stop());
+        
+        // Now trigger the file input with camera capture
+        if (cameraInputRef.current) {
+          cameraInputRef.current.click();
+        }
+      } catch (permissionError) {
+        console.error('Camera permission denied:', permissionError);
+        toast({
+          title: "Camera Permission Required",
+          description: "Please allow camera access to take photos, or use the upload option instead.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Camera access error:', error);
+      toast({
+        title: "Camera Error",
+        description: "Unable to access camera. Please try the upload option instead.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleFileSelect = () => {
