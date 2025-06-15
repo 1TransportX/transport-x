@@ -109,7 +109,12 @@ const TransportationPage = () => {
         subtitle="Manage fleet, routes, and driver assignments."
       />
 
-      <ResponsiveTabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <ResponsiveTabs 
+        defaultValue="routes"
+        value={activeTab} 
+        onValueChange={setActiveTab} 
+        className="space-y-4"
+      >
         <ResponsiveTabsList>
           <ResponsiveTabsTrigger value="routes">Route Management</ResponsiveTabsTrigger>
           <ResponsiveTabsTrigger value="fleet">Fleet Management</ResponsiveTabsTrigger>
