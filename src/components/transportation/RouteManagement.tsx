@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, MapPin, Package, User, Route, Zap, Navigation, CheckCircle, RefreshCw } from 'lucide-react';
+import { Plus, Calendar, MapPin, Package, User, Route, Zap, Navigation, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddDeliveryDialog from '@/components/dashboards/AddDeliveryDialog';
 import RouteOptimizer from './RouteOptimizer';
@@ -43,7 +43,6 @@ const RouteManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDeliveryDialog, setShowAddDeliveryDialog] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{latitude: number; longitude: number} | null>(null);
-  const [isGeocodingAddresses, setIsGeocodingAddresses] = useState(false);
   const { toast } = useToast();
   
   const {
@@ -397,14 +396,22 @@ const RouteManagement = () => {
 
     console.log('Opening Google Maps for deliveries:', validDeliveries);
 
-    // If we have an optimized route, use that order
+    // If we have an optimized route, use that order correctly
     let orderedDeliveries = validDeliveries;
     if (optimizedRoute && optimizedRoute.deliveries.length > 0) {
-      // Match deliveries with optimized route order
+      console.log('Using optimized route order:', optimizedRoute.optimizedOrder);
+      console.log('Optimized route deliveries:', optimizedRoute.deliveries);
+      
+      // Create ordered deliveries based on optimized order
       orderedDeliveries = optimizedRoute.optimizedOrder
-        .map(index => optimizedRoute.deliveries[index])
-        .map(routeDelivery => validDeliveries.find(d => d.id === routeDelivery.id))
+        .map(index => {
+          // Find the delivery in validDeliveries that matches the optimized route delivery at this index
+          const routeDelivery = optimizedRoute.deliveries[index];
+          return validDeliveries.find(d => d.id === routeDelivery.id);
+        })
         .filter(d => d !== undefined) as Delivery[];
+      
+      console.log('Ordered deliveries for Google Maps:', orderedDeliveries);
       
       // Add any remaining deliveries not in the optimized route
       const optimizedIds = new Set(orderedDeliveries.map(d => d.id));
@@ -412,18 +419,20 @@ const RouteManagement = () => {
       orderedDeliveries = [...orderedDeliveries, ...remainingDeliveries];
     }
 
-    // Create Google Maps URL with directions
-    let url = `https://www.google.com/maps/dir/${currentLocation.latitude},${currentLocation.longitude}`;
-    
-    // Add each delivery as a waypoint in the URL
-    orderedDeliveries.forEach((delivery) => {
-      url += `/${delivery.latitude},${delivery.longitude}`;
-    });
+    // Create Google Maps URL with waypoints in the correct order
+    const waypoints = orderedDeliveries
+      .map(delivery => `${delivery.latitude},${delivery.longitude}`)
+      .join('/');
 
-    // Add Google Maps specific parameters for better routing
-    url += `?travelmode=driving&avoid=tolls`;
+    const url = `https://www.google.com/maps/dir/${currentLocation.latitude},${currentLocation.longitude}/${waypoints}`;
 
     console.log('Opening Google Maps URL:', url);
+    console.log('Waypoints in order:', orderedDeliveries.map(d => ({ 
+      id: d.id, 
+      customer: d.customer_name, 
+      coords: `${d.latitude},${d.longitude}` 
+    })));
+    
     window.open(url, '_blank');
   };
 
@@ -793,13 +802,12 @@ const RouteManagement = () => {
                     <TableHead>Assigned Driver</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Coordinates</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredDeliveries.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                         No delivery routes found.
                       </TableCell>
                     </TableRow>
@@ -835,17 +843,6 @@ const RouteManagement = () => {
                           <Badge className={getStatusBadgeColor(delivery.status)}>
                             {delivery.status.replace('_', ' ').toUpperCase()}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {delivery.latitude && delivery.longitude ? (
-                            <Badge className="bg-green-100 text-green-800">
-                              Valid
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-red-100 text-red-800">
-                              Missing
-                            </Badge>
-                          )}
                         </TableCell>
                       </TableRow>
                     ))
