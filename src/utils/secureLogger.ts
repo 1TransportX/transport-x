@@ -44,26 +44,42 @@ class SecureLogger {
   }
 
   error(message: string, data?: any) {
-    const sanitizedData = data ? this.sanitizeLogData(data) : undefined;
-    console.error(`[SECURITY ERROR] ${message}`, sanitizedData);
+    try {
+      const sanitizedData = data ? this.sanitizeLogData(data) : undefined;
+      console.error(`[SECURITY ERROR] ${message}`, sanitizedData);
+    } catch (err) {
+      console.error(`[SECURITY ERROR] Failed to log error: ${message}`);
+    }
   }
 
   warn(message: string, data?: any) {
-    const sanitizedData = data ? this.sanitizeLogData(data) : undefined;
-    console.warn(`[SECURITY WARNING] ${message}`, sanitizedData);
+    try {
+      const sanitizedData = data ? this.sanitizeLogData(data) : undefined;
+      console.warn(`[SECURITY WARNING] ${message}`, sanitizedData);
+    } catch (err) {
+      console.warn(`[SECURITY WARNING] Failed to log warning: ${message}`);
+    }
   }
 
   info(message: string, data?: any) {
     if (!this.isProduction) {
-      const sanitizedData = data ? this.sanitizeLogData(data) : undefined;
-      console.info(`[SECURITY INFO] ${message}`, sanitizedData);
+      try {
+        const sanitizedData = data ? this.sanitizeLogData(data) : undefined;
+        console.info(`[SECURITY INFO] ${message}`, sanitizedData);
+      } catch (err) {
+        console.info(`[SECURITY INFO] Failed to log info: ${message}`);
+      }
     }
   }
 
   debug(message: string, data?: any) {
     if (!this.isProduction) {
-      const sanitizedData = data ? this.sanitizeLogData(data) : undefined;
-      console.debug(`[SECURITY DEBUG] ${message}`, sanitizedData);
+      try {
+        const sanitizedData = data ? this.sanitizeLogData(data) : undefined;
+        console.debug(`[SECURITY DEBUG] ${message}`, sanitizedData);
+      } catch (err) {
+        console.debug(`[SECURITY DEBUG] Failed to log debug: ${message}`);
+      }
     }
   }
 }

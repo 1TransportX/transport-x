@@ -13,12 +13,14 @@ const SecurityContext = createContext<SecurityContextType | undefined>(undefined
 export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { logSecurityEvent, handleSecureError, sessionWarningShown } = useEnhancedSecurity();
 
+  const value = React.useMemo(() => ({
+    logSecurityEvent,
+    handleSecureError,
+    sessionWarningShown
+  }), [logSecurityEvent, handleSecureError, sessionWarningShown]);
+
   return (
-    <SecurityContext.Provider value={{ 
-      logSecurityEvent, 
-      handleSecureError, 
-      sessionWarningShown 
-    }}>
+    <SecurityContext.Provider value={value}>
       {children}
     </SecurityContext.Provider>
   );

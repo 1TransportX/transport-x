@@ -17,6 +17,8 @@ export const useEnhancedSecurity = () => {
 
   // Enhanced session timeout with warning
   useEffect(() => {
+    if (!profile) return;
+
     const checkSession = () => {
       const lastActivity = getLastActivity();
       
@@ -30,9 +32,6 @@ export const useEnhancedSecurity = () => {
             userId: profile.id,
             timeUntilExpiry: Math.floor(timeUntilExpiry / 1000)
           });
-          
-          // You could show a toast notification here
-          console.warn('Your session will expire in 5 minutes. Please save your work.');
         }
         
         // Auto logout on expiry
@@ -49,11 +48,11 @@ export const useEnhancedSecurity = () => {
 
   // Activity tracking with enhanced events
   useEffect(() => {
+    if (!profile) return;
+
     const trackActivity = () => {
-      if (profile) {
-        updateLastActivity();
-        setSessionWarningShown(false); // Reset warning when user is active
-      }
+      updateLastActivity();
+      setSessionWarningShown(false); // Reset warning when user is active
     };
 
     const events = [
@@ -78,10 +77,12 @@ export const useEnhancedSecurity = () => {
     severity: 'info' | 'warning' | 'error' = 'info',
     details?: any
   ) => {
+    if (!profile?.id) return;
+
     const securityEvent = {
       action,
       severity,
-      userId: profile?.id,
+      userId: profile.id,
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
       ...details
