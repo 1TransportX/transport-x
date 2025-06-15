@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,9 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ResponsiveTabs, ResponsiveTabsList, ResponsiveTabsTrigger, ResponsiveTabsContent } from '@/components/ui/responsive-tabs';
 import { Settings, Users, Shield, Database, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface UserWithRole {
   id: string;
@@ -31,6 +31,7 @@ const SettingsPage = () => {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['all-users'],
@@ -117,27 +118,33 @@ const SettingsPage = () => {
         <p className="text-gray-600 mt-2">Configure system settings and user permissions.</p>
       </div>
 
-      <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="users" className="flex items-center gap-2">
+      <ResponsiveTabs defaultValue="users" className="w-full">
+        <ResponsiveTabsList className={isMobile ? "grid grid-cols-2 gap-1 h-auto p-1" : "grid w-full grid-cols-4"}>
+          <ResponsiveTabsTrigger value="users" className={isMobile ? "flex flex-col items-center gap-1 p-3 h-auto" : "flex items-center gap-2"}>
             <Users className="h-4 w-4" />
-            User Management
-          </TabsTrigger>
-          <TabsTrigger value="permissions" className="flex items-center gap-2">
+            <span className={isMobile ? "text-xs" : ""}>
+              {isMobile ? "Users" : "User Management"}
+            </span>
+          </ResponsiveTabsTrigger>
+          <ResponsiveTabsTrigger value="permissions" className={isMobile ? "flex flex-col items-center gap-1 p-3 h-auto" : "flex items-center gap-2"}>
             <Shield className="h-4 w-4" />
-            Permissions
-          </TabsTrigger>
-          <TabsTrigger value="system" className="flex items-center gap-2">
+            <span className={isMobile ? "text-xs" : ""}>
+              {isMobile ? "Roles" : "Permissions"}
+            </span>
+          </ResponsiveTabsTrigger>
+          <ResponsiveTabsTrigger value="system" className={isMobile ? "flex flex-col items-center gap-1 p-3 h-auto" : "flex items-center gap-2"}>
             <Database className="h-4 w-4" />
-            System
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
+            <span className={isMobile ? "text-xs" : ""}>System</span>
+          </ResponsiveTabsTrigger>
+          <ResponsiveTabsTrigger value="notifications" className={isMobile ? "flex flex-col items-center gap-1 p-3 h-auto" : "flex items-center gap-2"}>
             <Bell className="h-4 w-4" />
-            Notifications
-          </TabsTrigger>
-        </TabsList>
+            <span className={isMobile ? "text-xs" : ""}>
+              {isMobile ? "Alerts" : "Notifications"}
+            </span>
+          </ResponsiveTabsTrigger>
+        </ResponsiveTabsList>
 
-        <TabsContent value="users">
+        <ResponsiveTabsContent value="users">
           <Card>
             <CardHeader>
               <CardTitle>User Management</CardTitle>
@@ -201,9 +208,9 @@ const SettingsPage = () => {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </ResponsiveTabsContent>
 
-        <TabsContent value="permissions">
+        <ResponsiveTabsContent value="permissions">
           <Card>
             <CardHeader>
               <CardTitle>Role Permissions</CardTitle>
@@ -245,9 +252,9 @@ const SettingsPage = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </ResponsiveTabsContent>
 
-        <TabsContent value="system">
+        <ResponsiveTabsContent value="system">
           <Card>
             <CardHeader>
               <CardTitle>System Configuration</CardTitle>
@@ -280,9 +287,9 @@ const SettingsPage = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </ResponsiveTabsContent>
 
-        <TabsContent value="notifications">
+        <ResponsiveTabsContent value="notifications">
           <Card>
             <CardHeader>
               <CardTitle>Notification Settings</CardTitle>
@@ -347,8 +354,8 @@ const SettingsPage = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </ResponsiveTabsContent>
+      </ResponsiveTabs>
     </div>
   );
 };
