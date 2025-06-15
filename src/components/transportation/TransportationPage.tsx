@@ -14,7 +14,7 @@ const TransportationPage = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [showAssignRouteDialog, setShowAssignRouteDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState('fleet');
+  const [activeTab, setActiveTab] = useState('routes');
 
   console.log('TransportationPage: Component rendering for role:', profile?.role);
 
@@ -37,19 +37,19 @@ const TransportationPage = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="fleet">Fleet Management</TabsTrigger>
           <TabsTrigger value="routes">Route Management</TabsTrigger>
+          <TabsTrigger value="fleet">Fleet Management</TabsTrigger>
           {profile.role === 'admin' && (
             <TabsTrigger value="assignments">Driver Assignments</TabsTrigger>
           )}
         </TabsList>
 
-        <TabsContent value="fleet" className="space-y-4">
-          <FleetManagement />
-        </TabsContent>
-
         <TabsContent value="routes" className="space-y-4">
           <RouteManagement />
+        </TabsContent>
+
+        <TabsContent value="fleet" className="space-y-4">
+          <FleetManagement />
         </TabsContent>
 
         {profile.role === 'admin' && (
