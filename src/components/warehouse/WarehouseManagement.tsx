@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,11 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ResponsiveTabs, ResponsiveTabsList, ResponsiveTabsTrigger, ResponsiveTabsContent } from '@/components/ui/responsive-tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Plus, Edit, Package, AlertTriangle, TrendingUp, TrendingDown, History, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 import AddInventoryDialog from './AddInventoryDialog';
 import EditInventoryDialog from './EditInventoryDialog';
 import StockMovementDialog from './StockMovementDialog';
@@ -40,6 +40,7 @@ const WarehouseManagement = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   console.log('WarehouseManagement: Component rendering');
 
@@ -261,19 +262,21 @@ const WarehouseManagement = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="inventory" className="w-full">
-        <TabsList>
-          <TabsTrigger value="inventory" className="flex items-center gap-2">
+      <ResponsiveTabs defaultValue="inventory" className="w-full">
+        <ResponsiveTabsList className={isMobile ? "grid grid-cols-2 gap-1 h-auto p-1" : "inline-flex"}>
+          <ResponsiveTabsTrigger value="inventory" className={isMobile ? "flex flex-col items-center gap-1 p-3 h-auto" : "flex items-center gap-2"}>
             <Package className="h-4 w-4" />
-            Inventory
-          </TabsTrigger>
-          <TabsTrigger value="movements" className="flex items-center gap-2">
+            <span className={isMobile ? "text-xs" : ""}>Inventory</span>
+          </ResponsiveTabsTrigger>
+          <ResponsiveTabsTrigger value="movements" className={isMobile ? "flex flex-col items-center gap-1 p-3 h-auto" : "flex items-center gap-2"}>
             <History className="h-4 w-4" />
-            Movement History
-          </TabsTrigger>
-        </TabsList>
+            <span className={isMobile ? "text-xs" : ""}>
+              {isMobile ? "History" : "Movement History"}
+            </span>
+          </ResponsiveTabsTrigger>
+        </ResponsiveTabsList>
 
-        <TabsContent value="inventory">
+        <ResponsiveTabsContent value="inventory">
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -396,12 +399,12 @@ const WarehouseManagement = () => {
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>
+        </ResponsiveTabsContent>
 
-        <TabsContent value="movements">
+        <ResponsiveTabsContent value="movements">
           <StockMovementHistory />
-        </TabsContent>
-      </Tabs>
+        </ResponsiveTabsContent>
+      </ResponsiveTabs>
 
       <AddInventoryDialog 
         open={showAddDialog} 
