@@ -13,9 +13,11 @@ const RoleUpdater = () => {
     console.log('=== RoleUpdater: Updating role to:', role);
     await updateUserRole(role);
     
-    // Invalidate employees query to refresh the employee list
-    console.log('=== RoleUpdater: Invalidating employees query');
-    queryClient.invalidateQueries({ queryKey: ['employees'] });
+    // Add a small delay to ensure the database changes are committed
+    setTimeout(() => {
+      console.log('=== RoleUpdater: Invalidating employees query after delay');
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+    }, 500);
   };
 
   const canSetAdminRole = profile?.role === 'admin';

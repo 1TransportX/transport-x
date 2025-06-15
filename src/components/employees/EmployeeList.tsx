@@ -63,25 +63,47 @@ const EmployeeList = () => {
     queryKey: ['employees'],
     queryFn: async () => {
       console.log('Fetching employees with latest roles...');
-      const { data, error } = await supabase
+      
+      // First get all profiles
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          user_roles(role)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching employees:', error);
-        throw error;
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
       }
-      
-      console.log('Fetched employees data with roles:', data);
-      
-      return data.map(profile => ({
-        ...profile,
-        role: profile.user_roles?.[0]?.role || 'employee'
-      })) as Employee[];
+
+      console.log('Fetched profiles:', profilesData);
+
+      // Then get all user roles
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) {
+        console.error('Error fetching roles:', rolesError);
+        throw rolesError;
+      }
+
+      console.log('Fetched roles:', rolesData);
+
+      // Combine the data
+      const employeesWithRoles = profilesData.map(profile => {
+        const userRole = rolesData.find(role => role.user_id === profile.id);
+        const role = userRole?.role || 'employee';
+        
+        console.log(`Profile ${profile.email} has role:`, role);
+        
+        return {
+          ...profile,
+          role: role as 'admin' | 'employee' | 'driver'
+        };
+      });
+
+      console.log('Final employees with roles:', employeesWithRoles);
+      return employeesWithRoles as Employee[];
     }
   });
 
