@@ -66,18 +66,24 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         console.log('[CameraCapture] Setting video source...');
         videoRef.current.srcObject = stream;
         
-        // Force video to be muted and set playsinline for mobile
+        // Set video properties
         videoRef.current.muted = true;
         videoRef.current.playsInline = true;
-        videoRef.current.setAttribute('playsinline', '');
+        videoRef.current.autoplay = true;
         
-        // Wait for the video to load metadata
+        // Handle when video can play
+        const handleCanPlay = () => {
+          console.log('[CameraCapture] Video can play');
+          setIsVideoReady(true);
+          setIsLoading(false);
+        };
+
         const handleLoadedMetadata = () => {
           console.log('[CameraCapture] Video metadata loaded');
-          setIsVideoReady(true);
           if (videoRef.current) {
             videoRef.current.play().then(() => {
               console.log('[CameraCapture] Video playing successfully');
+              setIsVideoReady(true);
               setIsLoading(false);
             }).catch(err => {
               console.error('[CameraCapture] Video play failed:', err);
@@ -87,23 +93,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           }
         };
 
-        const handleCanPlay = () => {
-          console.log('[CameraCapture] Video can play');
-          setIsVideoReady(true);
-          setIsLoading(false);
-        };
-
-        videoRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
-        videoRef.current.addEventListener('canplay', handleCanPlay);
-
-        // Cleanup event listeners
-        const currentVideo = videoRef.current;
-        return () => {
-          if (currentVideo) {
-            currentVideo.removeEventListener('loadedmetadata', handleLoadedMetadata);
-            currentVideo.removeEventListener('canplay', handleCanPlay);
-          }
-        };
+        videoRef.current.addEventListener('canplay', handleCanPlay, { once: true });
+        videoRef.current.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
       }
     } catch (err) {
       console.error('[CameraCapture] Camera error:', err);
@@ -122,12 +113,11 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       videoRef.current.srcObject = null;
     }
     setIsVideoReady(false);
+    setIsLoading(false);
+    setError(null);
   };
 
-  const capturePhoto = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
+  const capturePhoto = () => {
     console.log('[CameraCapture] Capture button clicked');
     
     if (!videoRef.current || !canvasRef.current || !isVideoReady) {
@@ -164,27 +154,15 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     }, 'image/jpeg', 0.85);
   };
 
-  const handleCancel = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleCancel = () => {
     console.log('[CameraCapture] Cancel button clicked');
     onCancel();
-  };
-
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    // Only close if clicking the overlay background, not the content
-    if (e.target === e.currentTarget) {
-      handleCancel(e);
-    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
-      onClick={handleOverlayClick}
-    >
+    <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
       <div className="relative w-full h-full flex flex-col">
         {/* Loading state */}
         {isLoading && (
@@ -209,46 +187,44 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         )}
 
         {/* Camera preview */}
-        {!isLoading && !error && (
+        {!error && (
           <>
             <div className="flex-1 relative overflow-hidden">
               <video
                 ref={videoRef}
                 className="w-full h-full object-cover"
-                autoPlay
-                playsInline
-                muted
                 style={{ backgroundColor: '#000' }}
               />
             </div>
             
             <canvas ref={canvasRef} className="hidden" />
 
-            {/* Bottom controls */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6 pb-8 z-20">
-              <div className="flex justify-center items-center space-x-4">
-                <Button
-                  onClick={handleCancel}
-                  variant="outline"
-                  size="lg"
-                  className="bg-white/10 border-white/30 text-white hover:bg-white/20 h-14 px-6"
-                  type="button"
-                >
-                  <X className="h-6 w-6 mr-2" />
-                  Cancel
-                </Button>
-                
-                <Button
-                  onClick={capturePhoto}
-                  size="lg"
-                  disabled={!isVideoReady}
-                  className="bg-white hover:bg-gray-200 text-black h-16 w-16 rounded-full p-0 shadow-lg disabled:opacity-50"
-                  type="button"
-                >
-                  <Camera className="h-8 w-8" />
-                </Button>
+            {/* Bottom controls - only show when video is ready */}
+            {isVideoReady && (
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6 pb-8 z-20">
+                <div className="flex justify-center items-center space-x-4">
+                  <Button
+                    onClick={handleCancel}
+                    variant="outline"
+                    size="lg"
+                    className="bg-white/10 border-white/30 text-white hover:bg-white/20 h-14 px-6"
+                    type="button"
+                  >
+                    <X className="h-6 w-6 mr-2" />
+                    Cancel
+                  </Button>
+                  
+                  <Button
+                    onClick={capturePhoto}
+                    size="lg"
+                    className="bg-white hover:bg-gray-200 text-black h-16 w-16 rounded-full p-0 shadow-lg"
+                    type="button"
+                  >
+                    <Camera className="h-8 w-8" />
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>
