@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -183,50 +182,50 @@ const EmployeeDashboard = () => {
         </div>
       </div>
 
-      {/* Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Status Cards - Updated to 2x2 grid on mobile */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Today's Status</p>
-                <p className={`text-2xl font-bold ${isWorking ? 'text-green-600' : 'text-gray-600'}`}>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Today's Status</p>
+                <p className={`text-lg md:text-2xl font-bold ${isWorking ? 'text-green-600' : 'text-gray-600'}`}>
                   {isWorking ? 'Clocked In' : 'Not Working'}
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-xs md:text-sm text-gray-500">
                   {todayAttendance?.clock_in 
                     ? `Since ${new Date(todayAttendance.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
                     : 'Not clocked in today'
                   }
                 </p>
               </div>
-              <Clock className={`h-8 w-8 ${isWorking ? 'text-green-600' : 'text-gray-600'}`} />
+              <Clock className={`h-6 w-6 md:h-8 md:w-8 ${isWorking ? 'text-green-600' : 'text-gray-600'}`} />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Tasks Completed</p>
-                <p className="text-2xl font-bold text-blue-600">{completedCount} / {todayTasks.length}</p>
-                <p className="text-sm text-gray-500">{todayTasks.length - completedCount} remaining</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Tasks Completed</p>
+                <p className="text-lg md:text-2xl font-bold text-blue-600">{completedCount} / {todayTasks.length}</p>
+                <p className="text-xs md:text-sm text-gray-500">{todayTasks.length - completedCount} remaining</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-blue-600" />
+              <CheckCircle className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
+        <Card className="col-span-2 md:col-span-1">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Priority Alerts</p>
-                <p className="text-2xl font-bold text-orange-600">{priorityAlertsCount}</p>
-                <p className="text-sm text-gray-500">Require attention</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Priority Alerts</p>
+                <p className="text-lg md:text-2xl font-bold text-orange-600">{priorityAlertsCount}</p>
+                <p className="text-xs md:text-sm text-gray-500">Require attention</p>
               </div>
-              <AlertCircle className="h-8 w-8 text-orange-600" />
+              <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-orange-600" />
             </div>
           </CardContent>
         </Card>

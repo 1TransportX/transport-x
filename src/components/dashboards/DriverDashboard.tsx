@@ -284,52 +284,52 @@ const DriverDashboard = () => {
         </Button>
       </ResponsiveHeader>
 
-      {/* Status Overview - 2x2 grid on mobile */}
-      <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-1 md:grid-cols-4 gap-6'}`}>
+      {/* Status Overview - Updated to 2x2 grid on mobile */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
         <Card>
-          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600`}>Total Today</p>
-                <p className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-gray-900`}>{todaysDeliveries.length}</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Total Today</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900">{todaysDeliveries.length}</p>
               </div>
-              <MapPin className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-blue-600`} />
+              <MapPin className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600`}>Completed</p>
-                <p className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-green-600`}>{completedCount}</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Completed</p>
+                <p className="text-lg md:text-2xl font-bold text-green-600">{completedCount}</p>
               </div>
-              <CheckCircle className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-green-600`} />
+              <CheckCircle className="h-6 w-6 md:h-8 md:w-8 text-green-600" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600`}>In Progress</p>
-                <p className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-orange-600`}>{inProgressCount}</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">In Progress</p>
+                <p className="text-lg md:text-2xl font-bold text-orange-600">{inProgressCount}</p>
               </div>
-              <Clock className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-orange-600`} />
+              <Clock className="h-6 w-6 md:h-8 md:w-8 text-orange-600" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600`}>Vehicle</p>
-                <p className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-blue-600`}>{vehicle ? 'Assigned' : 'None'}</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Vehicle</p>
+                <p className="text-lg md:text-2xl font-bold text-blue-600">{vehicle ? 'Assigned' : 'None'}</p>
               </div>
-              <Truck className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-blue-600`} />
+              <Truck className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
@@ -385,7 +385,7 @@ const DriverDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Vehicle Information - 2x2 grid on mobile */}
+      {/* Vehicle Information - Updated to 2x2 grid on mobile */}
       {vehicle && (
         <Card>
           <CardHeader className={isMobile ? 'p-4 pb-2' : 'p-6'}>
@@ -395,22 +395,22 @@ const DriverDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className={isMobile ? 'p-4 pt-0' : 'p-6 pt-0'}>
-            <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4'}`}>
-              <div className={`text-center ${isMobile ? 'p-3' : 'p-4'} bg-gray-50 rounded-lg`}>
-                <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>Model</p>
-                <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>{vehicle.make} {vehicle.model}</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              <div className="text-center p-3 md:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs md:text-sm text-gray-600">Model</p>
+                <p className="font-medium text-sm md:text-base">{vehicle.make} {vehicle.model}</p>
               </div>
-              <div className={`text-center ${isMobile ? 'p-3' : 'p-4'} bg-gray-50 rounded-lg`}>
-                <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>Fuel Type</p>
-                <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>{vehicle.fuel_type}</p>
+              <div className="text-center p-3 md:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs md:text-sm text-gray-600">Fuel Type</p>
+                <p className="font-medium text-sm md:text-base">{vehicle.fuel_type}</p>
               </div>
-              <div className={`text-center ${isMobile ? 'p-3' : 'p-4'} bg-gray-50 rounded-lg`}>
-                <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>Mileage</p>
-                <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>{vehicle.current_mileage.toLocaleString()} km</p>
+              <div className="text-center p-3 md:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs md:text-sm text-gray-600">Mileage</p>
+                <p className="font-medium text-sm md:text-base">{vehicle.current_mileage.toLocaleString()} km</p>
               </div>
-              <div className={`text-center ${isMobile ? 'p-3' : 'p-4'} bg-gray-50 rounded-lg`}>
-                <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>Status</p>
-                <p className={`font-medium text-green-600 ${isMobile ? 'text-sm' : ''}`}>{vehicle.status}</p>
+              <div className="text-center p-3 md:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs md:text-sm text-gray-600">Status</p>
+                <p className="font-medium text-green-600 text-sm md:text-base">{vehicle.status}</p>
               </div>
             </div>
           </CardContent>
