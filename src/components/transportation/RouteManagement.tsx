@@ -133,9 +133,11 @@ const RouteManagement = () => {
       });
 
       if (error) {
-        console.error('Geocoding error:', error);
-        return null;
+        console.error('Geocoding function error:', error);
+        throw error;
       }
+
+      console.log('Geocoding response:', data);
 
       if (data?.status === 'OK' && data?.results && data.results.length > 0) {
         const location = data.results[0].geometry.location;
@@ -147,7 +149,7 @@ const RouteManagement = () => {
         };
       }
 
-      console.log('No geocoding results for address:', address);
+      console.log('No geocoding results for address:', address, 'Response:', data);
       return null;
     } catch (error) {
       console.error('Geocoding error for address', address, ':', error);
@@ -175,9 +177,13 @@ const RouteManagement = () => {
 
     try {
       for (const delivery of deliveriesWithoutCoordinates) {
+        console.log('Processing delivery:', delivery.delivery_number, 'Address:', delivery.customer_address);
+        
         const coordinates = await geocodeAddress(delivery.customer_address);
         
         if (coordinates) {
+          console.log('Updating delivery', delivery.id, 'with coordinates:', coordinates);
+          
           // Update the delivery with coordinates
           const { error } = await supabase
             .from('deliveries')
@@ -191,14 +197,16 @@ const RouteManagement = () => {
             console.error('Error updating coordinates for delivery', delivery.id, ':', error);
             failCount++;
           } else {
+            console.log('Successfully updated coordinates for delivery', delivery.id);
             successCount++;
           }
         } else {
+          console.log('Failed to geocode address for delivery', delivery.id);
           failCount++;
         }
 
         // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       toast({
@@ -208,7 +216,9 @@ const RouteManagement = () => {
       });
 
       // Refresh the data
-      refetch();
+      if (successCount > 0) {
+        refetch();
+      }
     } catch (error) {
       console.error('Error during batch geocoding:', error);
       toast({
@@ -277,37 +287,63 @@ const RouteManagement = () => {
       return;
     }
 
-    // First, check if we need to geocode any addresses
-    const deliveriesWithoutCoordinates = deliveriesForDate.filter(d => 
-      d.status === 'pending' && (!d.latitude || !d.longitude)
-    );
-
-    if (deliveriesWithoutCoordinates.length > 0) {
-      toast({
-        title: "Geocoding Required",
-        description: `${deliveriesWithoutCoordinates.length} deliveries need coordinates. Please click "Get Missing Coordinates" first.`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Filter only pending deliveries that have coordinates
-    const pendingDeliveries = deliveriesForDate.filter(d => 
-      d.status === 'pending' && d.latitude && d.longitude
-    );
+    // Filter only pending deliveries
+    const pendingDeliveries = deliveriesForDate.filter(d => d.status === 'pending');
     
     if (pendingDeliveries.length === 0) {
       toast({
-        title: "No Valid Deliveries",
-        description: "No pending deliveries with valid coordinates found for this date.",
+        title: "No Pending Deliveries",
+        description: "No pending deliveries found for this date.",
         variant: "destructive"
       });
       return;
     }
 
-    console.log('Optimizing route for deliveries:', pendingDeliveries);
+    // Check if we need to geocode any addresses first
+    const deliveriesWithoutCoordinates = pendingDeliveries.filter(d => !d.latitude || !d.longitude);
 
-    const deliveryLocations = pendingDeliveries.map(d => ({
+    if (deliveriesWithoutCoordinates.length > 0) {
+      toast({
+        title: "Geocoding Addresses",
+        description: `Geocoding ${deliveriesWithoutCoordinates.length} addresses first...`,
+      });
+
+      // Geocode missing addresses
+      for (const delivery of deliveriesWithoutCoordinates) {
+        const coordinates = await geocodeAddress(delivery.customer_address);
+        
+        if (coordinates) {
+          // Update the delivery object for immediate use
+          delivery.latitude = coordinates.latitude;
+          delivery.longitude = coordinates.longitude;
+          
+          // Update in database
+          await supabase
+            .from('deliveries')
+            .update({
+              latitude: coordinates.latitude,
+              longitude: coordinates.longitude
+            })
+            .eq('id', delivery.id);
+        }
+      }
+    }
+
+    // Now filter deliveries that have valid coordinates
+    const deliveriesWithCoords = pendingDeliveries.filter(d => d.latitude && d.longitude);
+    
+    if (deliveriesWithCoords.length === 0) {
+      toast({
+        title: "No Valid Coordinates",
+        description: "Could not geocode any delivery addresses.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('Optimizing route for deliveries:', deliveriesWithCoords);
+
+    const deliveryLocations = deliveriesWithCoords.map(d => ({
       id: d.id,
       address: d.customer_address,
       latitude: d.latitude,
@@ -323,7 +359,7 @@ const RouteManagement = () => {
 
       toast({
         title: "Route Optimized",
-        description: `Optimized route for ${pendingDeliveries.length} deliveries on ${new Date(date).toLocaleDateString()}`,
+        description: `Optimized route for ${deliveriesWithCoords.length} deliveries on ${new Date(date).toLocaleDateString()}`,
       });
     } catch (error) {
       console.error('Route optimization error:', error);
@@ -376,21 +412,16 @@ const RouteManagement = () => {
       orderedDeliveries = [...orderedDeliveries, ...remainingDeliveries];
     }
 
-    // Create destination parameter for Google Maps
-    const destination = orderedDeliveries[orderedDeliveries.length - 1];
-    const waypoints = orderedDeliveries.slice(0, -1);
-
-    // Build Google Maps URL with proper waypoint format
+    // Create Google Maps URL with directions
     let url = `https://www.google.com/maps/dir/${currentLocation.latitude},${currentLocation.longitude}`;
     
-    if (waypoints.length > 0) {
-      const waypointParams = waypoints
-        .map(d => `${d.latitude},${d.longitude}`)
-        .join('/');
-      url += `/${waypointParams}`;
-    }
-    
-    url += `/${destination.latitude},${destination.longitude}`;
+    // Add each delivery as a waypoint in the URL
+    orderedDeliveries.forEach((delivery) => {
+      url += `/${delivery.latitude},${delivery.longitude}`;
+    });
+
+    // Add Google Maps specific parameters for better routing
+    url += `?travelmode=driving&avoid=tolls`;
 
     console.log('Opening Google Maps URL:', url);
     window.open(url, '_blank');
@@ -544,7 +575,7 @@ const RouteManagement = () => {
                     {missingCoordinatesCount} deliveries missing coordinates
                   </p>
                   <p className="text-sm text-orange-600">
-                    Coordinates are required for route optimization and navigation.
+                    Coordinates will be automatically fetched when needed for route optimization.
                   </p>
                 </div>
               </div>
@@ -607,17 +638,12 @@ const RouteManagement = () => {
                         </CardTitle>
                         <p className="text-sm text-gray-600 mt-1">
                           {deliveriesForDate.length} total deliveries, {pendingCount} pending, {completedCount} completed
-                          {validCoordinatesCount < deliveriesForDate.length && (
-                            <span className="text-orange-600 ml-2">
-                              ({deliveriesForDate.length - validCoordinatesCount} missing coordinates)
-                            </span>
-                          )}
                         </p>
                       </div>
                       <div className="flex gap-2">
                         <Button
                           onClick={() => handleOptimizeRouteForDate(date, deliveriesForDate)}
-                          disabled={pendingCount === 0 || isOptimizing || validCoordinatesCount === 0}
+                          disabled={pendingCount === 0 || isOptimizing}
                           className="flex items-center gap-2"
                           size="sm"
                         >
@@ -675,7 +701,6 @@ const RouteManagement = () => {
                           <TableHead>Driver</TableHead>
                           <TableHead>Items</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Coordinates</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -707,17 +732,6 @@ const RouteManagement = () => {
                               <Badge className={getStatusBadgeColor(delivery.status)}>
                                 {delivery.status.replace('_', ' ').toUpperCase()}
                               </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {delivery.latitude && delivery.longitude ? (
-                                <Badge className="bg-green-100 text-green-800">
-                                  Valid
-                                </Badge>
-                              ) : (
-                                <Badge className="bg-red-100 text-red-800">
-                                  Missing
-                                </Badge>
-                              )}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -779,12 +793,13 @@ const RouteManagement = () => {
                     <TableHead>Assigned Driver</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Coordinates</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredDeliveries.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                         No delivery routes found.
                       </TableCell>
                     </TableRow>
@@ -820,6 +835,17 @@ const RouteManagement = () => {
                           <Badge className={getStatusBadgeColor(delivery.status)}>
                             {delivery.status.replace('_', ' ').toUpperCase()}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {delivery.latitude && delivery.longitude ? (
+                            <Badge className="bg-green-100 text-green-800">
+                              Valid
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-red-100 text-red-800">
+                              Missing
+                            </Badge>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))
