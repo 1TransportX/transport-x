@@ -66,18 +66,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         console.log('[CameraCapture] Setting video source...');
         videoRef.current.srcObject = stream;
         
-        // Set video properties
-        videoRef.current.muted = true;
-        videoRef.current.playsInline = true;
-        videoRef.current.autoplay = true;
-        
-        // Handle when video can play
-        const handleCanPlay = () => {
-          console.log('[CameraCapture] Video can play');
-          setIsVideoReady(true);
-          setIsLoading(false);
-        };
-
         const handleLoadedMetadata = () => {
           console.log('[CameraCapture] Video metadata loaded');
           if (videoRef.current) {
@@ -93,7 +81,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           }
         };
 
-        videoRef.current.addEventListener('canplay', handleCanPlay, { once: true });
         videoRef.current.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
       }
     } catch (err) {
@@ -117,7 +104,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     setError(null);
   };
 
-  const capturePhoto = () => {
+  const handleCapturePhoto = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
     console.log('[CameraCapture] Capture button clicked');
     
     if (!videoRef.current || !canvasRef.current || !isVideoReady) {
@@ -154,7 +144,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     }, 'image/jpeg', 0.85);
   };
 
-  const handleCancel = () => {
+  const handleCancel = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
     console.log('[CameraCapture] Cancel button clicked');
     onCancel();
   };
@@ -193,38 +186,41 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               <video
                 ref={videoRef}
                 className="w-full h-full object-cover"
+                muted
+                playsInline
+                autoPlay
                 style={{ backgroundColor: '#000' }}
               />
             </div>
             
             <canvas ref={canvasRef} className="hidden" />
 
-            {/* Bottom controls - only show when video is ready */}
-            {isVideoReady && (
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6 pb-8 z-20">
-                <div className="flex justify-center items-center space-x-4">
+            {/* Bottom controls */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6 pb-8 z-20">
+              <div className="flex justify-center items-center space-x-4">
+                <Button
+                  onClick={handleCancel}
+                  variant="outline"
+                  size="lg"
+                  className="bg-white/10 border-white/30 text-white hover:bg-white/20 h-14 px-6"
+                  type="button"
+                >
+                  <X className="h-6 w-6 mr-2" />
+                  Cancel
+                </Button>
+                
+                {isVideoReady && (
                   <Button
-                    onClick={handleCancel}
-                    variant="outline"
-                    size="lg"
-                    className="bg-white/10 border-white/30 text-white hover:bg-white/20 h-14 px-6"
-                    type="button"
-                  >
-                    <X className="h-6 w-6 mr-2" />
-                    Cancel
-                  </Button>
-                  
-                  <Button
-                    onClick={capturePhoto}
+                    onClick={handleCapturePhoto}
                     size="lg"
                     className="bg-white hover:bg-gray-200 text-black h-16 w-16 rounded-full p-0 shadow-lg"
                     type="button"
                   >
                     <Camera className="h-8 w-8" />
                   </Button>
-                </div>
+                )}
               </div>
-            )}
+            </div>
           </>
         )}
       </div>
