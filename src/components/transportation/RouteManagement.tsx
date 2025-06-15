@@ -612,18 +612,29 @@ const RouteManagement = () => {
             <Calendar className="h-4 w-4" />
             Daily Route Optimization
           </TabsTrigger>
-          <TabsTrigger value="deliveries" className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            All Deliveries
-          </TabsTrigger>
           <TabsTrigger value="optimizer" className="flex items-center gap-2">
             <Route className="h-4 w-4" />
             Manual Route Optimizer
+          </TabsTrigger>
+          <TabsTrigger value="deliveries" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            All Deliveries
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="daily-routes">
           <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Daily Route Planning</h3>
+              <Button 
+                className="flex items-center gap-2"
+                onClick={() => setShowAddDeliveryDialog(true)}
+              >
+                <Plus className="h-4 w-4" />
+                Add Route
+              </Button>
+            </div>
+            
             {Object.entries(groupedDeliveries).map(([date, deliveriesForDate]) => {
               const pendingCount = deliveriesForDate.filter(d => d.status === 'pending').length;
               const completedCount = deliveriesForDate.filter(d => d.status === 'completed').length;
@@ -773,6 +784,10 @@ const RouteManagement = () => {
           </div>
         </TabsContent>
 
+        <TabsContent value="optimizer">
+          <RouteOptimizer />
+        </TabsContent>
+
         <TabsContent value="deliveries">
           <Card>
             <CardHeader>
@@ -855,10 +870,6 @@ const RouteManagement = () => {
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="optimizer">
-          <RouteOptimizer />
         </TabsContent>
       </Tabs>
 
