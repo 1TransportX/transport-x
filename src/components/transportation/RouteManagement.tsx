@@ -8,10 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, MapPin, Package, User, Route } from 'lucide-react';
+import { Plus, Calendar, MapPin, Package, User, Route, Zap, Navigation } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddDeliveryDialog from '@/components/dashboards/AddDeliveryDialog';
 import RouteOptimizer from './RouteOptimizer';
+import { useRouteOptimization } from '@/hooks/useRouteOptimization';
 
 interface Delivery {
   id: string;
@@ -21,6 +22,8 @@ interface Delivery {
   scheduled_date: string;
   status: string;
   driver_id: string | null;
+  latitude?: number;
+  longitude?: number;
   profiles?: {
     first_name: string;
     last_name: string;
@@ -33,12 +36,47 @@ interface Delivery {
   }>;
 }
 
+interface GroupedDeliveries {
+  [date: string]: Delivery[];
+}
+
 const RouteManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDeliveryDialog, setShowAddDeliveryDialog] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{latitude: number; longitude: number} | null>(null);
   const { toast } = useToast();
+  
+  const {
+    optimizeRoute,
+    saveOptimizedRoute,
+    clearOptimizedRoute,
+    isOptimizing,
+    optimizedRoute
+  } = useRouteOptimization();
 
   console.log('RouteManagement: Component rendering');
+
+  // Get current location
+  React.useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          // Default to a location in India if geolocation fails
+          setCurrentLocation({
+            latitude: 28.6139, // New Delhi
+            longitude: 77.2090
+          });
+        }
+      );
+    }
+  }, []);
 
   const { data: deliveries = [], isLoading, error, refetch } = useQuery({
     queryKey: ['routes-deliveries'],
@@ -55,6 +93,8 @@ const RouteManagement = () => {
             scheduled_date,
             status,
             driver_id,
+            latitude,
+            longitude,
             profiles:driver_id(first_name, last_name),
             delivery_items(
               quantity,
@@ -76,6 +116,19 @@ const RouteManagement = () => {
       }
     }
   });
+
+  const groupedDeliveries = useMemo((): GroupedDeliveries => {
+    if (!deliveries) return {};
+    
+    return deliveries.reduce((groups: GroupedDeliveries, delivery) => {
+      const date = delivery.scheduled_date;
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(delivery);
+      return groups;
+    }, {});
+  }, [deliveries]);
 
   const stats = useMemo(() => {
     if (!deliveries || deliveries.length === 0) {
@@ -109,6 +162,69 @@ const RouteManagement = () => {
       delivery.customer_address.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [deliveries, searchTerm]);
+
+  const handleOptimizeRouteForDate = async (date: string, deliveriesForDate: Delivery[]) => {
+    if (!currentLocation) {
+      toast({
+        title: "Location Required",
+        description: "Please allow location access to optimize routes.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Filter only pending deliveries
+    const pendingDeliveries = deliveriesForDate.filter(d => d.status === 'pending');
+    
+    if (pendingDeliveries.length === 0) {
+      toast({
+        title: "No Pending Deliveries",
+        description: "All deliveries for this date are already completed or in progress.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const deliveryLocations = pendingDeliveries.map(d => ({
+      id: d.id,
+      address: d.customer_address,
+      latitude: d.latitude,
+      longitude: d.longitude
+    }));
+
+    await optimizeRoute(deliveryLocations, {
+      latitude: currentLocation.latitude,
+      longitude: currentLocation.longitude,
+      address: "Current Location"
+    });
+
+    toast({
+      title: "Route Optimized",
+      description: `Optimized route for ${pendingDeliveries.length} deliveries on ${new Date(date).toLocaleDateString()}`,
+    });
+  };
+
+  const openInGoogleMaps = (deliveriesForDate: Delivery[]) => {
+    if (!currentLocation) return;
+
+    const validDeliveries = deliveriesForDate.filter(d => d.latitude && d.longitude);
+    
+    if (validDeliveries.length === 0) {
+      toast({
+        title: "No Coordinates",
+        description: "No deliveries have valid coordinates for mapping.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const waypoints = validDeliveries
+      .map(d => `${d.latitude},${d.longitude}`)
+      .join('|');
+
+    const url = `https://www.google.com/maps/dir/${currentLocation.latitude},${currentLocation.longitude}/${waypoints}`;
+    window.open(url, '_blank');
+  };
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
@@ -191,24 +307,142 @@ const RouteManagement = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="deliveries" className="w-full">
+      <Tabs defaultValue="daily-routes" className="w-full">
         <TabsList>
+          <TabsTrigger value="daily-routes" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Daily Route Optimization
+          </TabsTrigger>
           <TabsTrigger value="deliveries" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
-            Deliveries
+            All Deliveries
           </TabsTrigger>
           <TabsTrigger value="optimizer" className="flex items-center gap-2">
             <Route className="h-4 w-4" />
-            Route Optimizer
+            Manual Route Optimizer
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="daily-routes">
+          <div className="space-y-4">
+            {Object.entries(groupedDeliveries).map(([date, deliveriesForDate]) => {
+              const pendingCount = deliveriesForDate.filter(d => d.status === 'pending').length;
+              
+              return (
+                <Card key={date}>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <Calendar className="h-5 w-5" />
+                          {new Date(date).toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </CardTitle>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {deliveriesForDate.length} total deliveries, {pendingCount} pending
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => handleOptimizeRouteForDate(date, deliveriesForDate)}
+                          disabled={pendingCount === 0 || isOptimizing}
+                          className="flex items-center gap-2"
+                          size="sm"
+                        >
+                          <Zap className="h-4 w-4" />
+                          {isOptimizing ? 'Optimizing...' : 'Optimize Route'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => openInGoogleMaps(deliveriesForDate)}
+                          className="flex items-center gap-2"
+                          size="sm"
+                        >
+                          <Navigation className="h-4 w-4" />
+                          View in Maps
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Delivery #</TableHead>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Address</TableHead>
+                          <TableHead>Driver</TableHead>
+                          <TableHead>Items</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {deliveriesForDate.map((delivery) => (
+                          <TableRow key={delivery.id}>
+                            <TableCell className="font-medium">{delivery.delivery_number}</TableCell>
+                            <TableCell>{delivery.customer_name}</TableCell>
+                            <TableCell className="max-w-xs truncate">{delivery.customer_address}</TableCell>
+                            <TableCell>
+                              {delivery.profiles 
+                                ? `${delivery.profiles.first_name} ${delivery.profiles.last_name}`
+                                : 'Unassigned'
+                              }
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {delivery.delivery_items?.length > 0 ? (
+                                  delivery.delivery_items.map((item, index) => (
+                                    <div key={index}>
+                                      {item.quantity}x {item.inventory?.product_name}
+                                    </div>
+                                  ))
+                                ) : (
+                                  'No items'
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getStatusBadgeColor(delivery.status)}>
+                                {delivery.status.replace('_', ' ').toUpperCase()}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            
+            {Object.keys(groupedDeliveries).length === 0 && (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Scheduled Deliveries</h3>
+                  <p className="text-gray-600 mb-4">
+                    Add some delivery routes to see daily optimization suggestions.
+                  </p>
+                  <Button onClick={() => setShowAddDeliveryDialog(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add First Delivery
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
 
         <TabsContent value="deliveries">
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>Delivery Routes ({filteredDeliveries.length})</CardTitle>
+                  <CardTitle>All Delivery Routes ({filteredDeliveries.length})</CardTitle>
                 </div>
                 <Button 
                   className="flex items-center gap-2"
