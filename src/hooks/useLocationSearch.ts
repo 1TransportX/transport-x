@@ -39,8 +39,9 @@ export const useLocationSearch = (): LocationSearchHook => {
           action: 'autocomplete',
           params: {
             input: input.trim(),
-            types: ['address'],
-            componentRestrictions: { country: 'in' }
+            types: ['establishment', 'geocode'], // More permissive types
+            componentRestrictions: { country: 'in' },
+            language: 'en'
           }
         }
       });

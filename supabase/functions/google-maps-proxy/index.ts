@@ -105,7 +105,7 @@ serve(async (req) => {
 
     switch (action) {
       case 'autocomplete':
-        const { input, types = ['address'], componentRestrictions } = params;
+        const { input, types = ['establishment', 'geocode'], componentRestrictions, language = 'en' } = params;
         
         // Enhanced input validation
         if (!input || typeof input !== 'string' || input.length < 2 || input.length > 200) {
@@ -128,6 +128,7 @@ serve(async (req) => {
         const autocompleteUrl = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
         autocompleteUrl.searchParams.set('input', sanitizedInput);
         autocompleteUrl.searchParams.set('key', googleMapsApiKey);
+        autocompleteUrl.searchParams.set('language', language);
         
         if (types && Array.isArray(types)) {
           autocompleteUrl.searchParams.set('types', types.join('|'));
