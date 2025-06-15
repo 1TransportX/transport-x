@@ -2,15 +2,27 @@
  * Security utilities for input validation and sanitization
  */
 
+import { secureLogger } from './secureLogger';
+
 // Input sanitization
 export const sanitizeInput = (input: string): string => {
-  return input
+  const original = input;
+  const sanitized = input
     .replace(/[<>\"'&]/g, '') // Remove potential XSS characters
     .replace(/javascript:/gi, '') // Remove javascript: protocol
     .replace(/data:/gi, '') // Remove data: protocol
     .replace(/vbscript:/gi, '') // Remove vbscript: protocol
     .trim()
     .slice(0, 500); // Limit length
+
+  if (original !== sanitized) {
+    secureLogger.warn('Input sanitized', { 
+      originalLength: original.length, 
+      sanitizedLength: sanitized.length 
+    });
+  }
+
+  return sanitized;
 };
 
 // Enhanced phone number validation
@@ -27,6 +39,7 @@ export const validatePhoneNumber = (phone: string): { isValid: boolean; error?: 
   
   // Check for obviously fake numbers
   if (/^(\d)\1{9}$/.test(sanitized)) {
+    secureLogger.warn('Suspicious phone number pattern detected', { pattern: 'repeated_digits' });
     return { isValid: false, error: 'Invalid phone number format' };
   }
   
@@ -89,6 +102,7 @@ export class RateLimiter {
     const recentAttempts = attempts.filter(time => now - time < this.windowMs);
     
     if (recentAttempts.length >= this.maxAttempts) {
+      secureLogger.warn('Rate limit exceeded', { key, attempts: recentAttempts.length });
       return false;
     }
     
@@ -123,7 +137,7 @@ export const getSecurityHeaders = () => ({
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
 });
 
-// Audit logger
+// Enhanced audit logger
 export class AuditLogger {
   private static instance: AuditLogger;
   private logs: Array<{
@@ -150,11 +164,16 @@ export class AuditLogger {
       severity
     });
 
-    // In production, send to monitoring service
-    if (severity === 'error') {
-      console.error('Security Event:', { action, userId, details });
-    } else if (severity === 'warning') {
-      console.warn('Security Warning:', { action, userId, details });
+    // Use secure logging
+    switch (severity) {
+      case 'error':
+        secureLogger.error(`Audit: ${action}`, { userId, details });
+        break;
+      case 'warning':
+        secureLogger.warn(`Audit: ${action}`, { userId, details });
+        break;
+      default:
+        secureLogger.info(`Audit: ${action}`, { userId, details });
     }
     
     // Keep only last 1000 logs in memory
@@ -189,10 +208,14 @@ export const getLastActivity = (): Date | null => {
   return stored ? new Date(stored) : null;
 };
 
-// Error sanitization for production
+// Enhanced error sanitization for production
 export const sanitizeError = (error: any): string => {
-  // In production, return generic error messages
-  if (process.env.NODE_ENV === 'production') {
+  // Use secure error handler
+  if (import.meta.env.PROD) {
+    secureLogger.error('Production error occurred', { 
+      message: error?.message,
+      stack: error?.stack?.substring(0, 200) // Log limited stack trace
+    });
     return 'An error occurred. Please try again.';
   }
   

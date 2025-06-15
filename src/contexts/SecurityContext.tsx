@@ -1,18 +1,24 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
-import { useSecurityMonitoring } from '@/hooks/useSecurityMonitoring';
+import { useEnhancedSecurity } from '@/hooks/useEnhancedSecurity';
 
 interface SecurityContextType {
   logSecurityEvent: (action: string, severity?: 'info' | 'warning' | 'error', details?: any) => void;
+  handleSecureError: (error: any, context: string) => string;
+  sessionWarningShown: boolean;
 }
 
 const SecurityContext = createContext<SecurityContextType | undefined>(undefined);
 
 export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { logSecurityEvent } = useSecurityMonitoring();
+  const { logSecurityEvent, handleSecureError, sessionWarningShown } = useEnhancedSecurity();
 
   return (
-    <SecurityContext.Provider value={{ logSecurityEvent }}>
+    <SecurityContext.Provider value={{ 
+      logSecurityEvent, 
+      handleSecureError, 
+      sessionWarningShown 
+    }}>
       {children}
     </SecurityContext.Provider>
   );
