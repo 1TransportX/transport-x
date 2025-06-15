@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import AddDeliveryDialog from './AddDeliveryDialog';
+import DeliveryCompletionDialog from '../deliveries/DeliveryCompletionDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ResponsiveHeader } from '@/components/ui/responsive-header';
 
@@ -46,6 +47,8 @@ const DriverDashboard = () => {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
+  const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
 
   useEffect(() => {
     if (profile?.id) {
@@ -124,10 +127,21 @@ const DriverDashboard = () => {
   };
 
   const handleStatusUpdate = async (deliveryId: string, newStatus: string) => {
+    if (newStatus === 'completed') {
+      // Find the delivery and open completion dialog
+      const delivery = todaysDeliveries.find(d => d.id === deliveryId) || 
+                      allDeliveries.find(d => d.id === deliveryId);
+      if (delivery) {
+        setSelectedDelivery(delivery);
+        setCompletionDialogOpen(true);
+      }
+      return;
+    }
+
     try {
       const updateData: any = { status: newStatus };
-      if (newStatus === 'completed') {
-        updateData.completed_at = new Date().toISOString();
+      if (newStatus === 'in_progress') {
+        updateData.started_at = new Date().toISOString();
       }
 
       const { error } = await supabase
@@ -140,7 +154,7 @@ const DriverDashboard = () => {
       await fetchDriverData();
       toast({
         title: "Success",
-        description: `Delivery ${newStatus === 'completed' ? 'completed' : 'started'}`,
+        description: `Delivery ${newStatus === 'in_progress' ? 'started' : 'updated'}`,
       });
     } catch (error) {
       console.error('Error updating delivery:', error);
@@ -150,6 +164,12 @@ const DriverDashboard = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const handleCompletionSuccess = async () => {
+    setCompletionDialogOpen(false);
+    setSelectedDelivery(null);
+    await fetchDriverData();
   };
 
   const handleNavigation = (address: string) => {
@@ -423,6 +443,21 @@ const DriverDashboard = () => {
         onSuccess={handleDeliveryAdded}
         driverId={profile?.id}
       />
+
+      {selectedDelivery && (
+        <DeliveryCompletionDialog
+          isOpen={completionDialogOpen}
+          onClose={() => {
+            setCompletionDialogOpen(false);
+            setSelectedDelivery(null);
+          }}
+          delivery={selectedDelivery}
+          vehicleId={vehicle?.id}
+          driverId={profile?.id || ''}
+          currentMileage={vehicle?.current_mileage || 0}
+          onComplete={handleCompletionSuccess}
+        />
+      )}
     </div>
   );
 };

@@ -6,12 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Clock, CheckCircle, AlertCircle, Package, Calendar, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 import AddTaskDialog from '../tasks/AddTaskDialog';
 
 const EmployeeDashboard = () => {
   const { profile, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [showAddTask, setShowAddTask] = useState(false);
 
   // Fetch tasks assigned to the current user
@@ -158,16 +160,16 @@ const EmployeeDashboard = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className={`flex ${isMobile ? 'flex-col space-y-4' : 'flex-row justify-between items-center'}`}>
         <div>
           <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
           <p className="text-gray-600">Track your tasks and attendance for today</p>
         </div>
-        <div className="flex space-x-3">
+        <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'flex-row space-x-3'}`}>
           <Button 
             onClick={() => clockMutation.mutate(isWorking ? 'clock_out' : 'clock_in')}
             disabled={clockMutation.isPending}
-            className={isWorking ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}
+            className={`${isMobile ? 'w-full' : ''} ${isWorking ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}`}
           >
             <Clock className="h-4 w-4 mr-2" />
             {isWorking ? 'Clock Out' : 'Clock In'}
@@ -175,6 +177,7 @@ const EmployeeDashboard = () => {
           <Button 
             variant="outline"
             onClick={() => setShowAddTask(true)}
+            className={isMobile ? 'w-full' : ''}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Task

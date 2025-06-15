@@ -116,12 +116,17 @@ export type Database = {
       deliveries: {
         Row: {
           completed_at: string | null
+          completion_mileage: number | null
+          completion_odometer: number | null
+          completion_recorded_at: string | null
           created_at: string | null
           customer_address: string
           customer_name: string
           customer_phone: string | null
           delivery_number: string
           driver_id: string | null
+          fuel_cost: number | null
+          fuel_receipt_url: string | null
           id: string
           latitude: number | null
           longitude: number | null
@@ -134,12 +139,17 @@ export type Database = {
         }
         Insert: {
           completed_at?: string | null
+          completion_mileage?: number | null
+          completion_odometer?: number | null
+          completion_recorded_at?: string | null
           created_at?: string | null
           customer_address: string
           customer_name: string
           customer_phone?: string | null
           delivery_number: string
           driver_id?: string | null
+          fuel_cost?: number | null
+          fuel_receipt_url?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -152,12 +162,17 @@ export type Database = {
         }
         Update: {
           completed_at?: string | null
+          completion_mileage?: number | null
+          completion_odometer?: number | null
+          completion_recorded_at?: string | null
           created_at?: string | null
           customer_address?: string
           customer_name?: string
           customer_phone?: string | null
           delivery_number?: string
           driver_id?: string | null
+          fuel_cost?: number | null
+          fuel_receipt_url?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -178,6 +193,63 @@ export type Database = {
           },
           {
             foreignKeyName: "deliveries_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_completions: {
+        Row: {
+          created_at: string | null
+          delivery_id: string | null
+          driver_id: string | null
+          fuel_cost: number | null
+          fuel_receipt_url: string | null
+          fuel_refilled: boolean | null
+          id: string
+          mileage_after: number
+          mileage_before: number | null
+          odometer_reading: number
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          delivery_id?: string | null
+          driver_id?: string | null
+          fuel_cost?: number | null
+          fuel_receipt_url?: string | null
+          fuel_refilled?: boolean | null
+          id?: string
+          mileage_after: number
+          mileage_before?: number | null
+          odometer_reading: number
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          delivery_id?: string | null
+          driver_id?: string | null
+          fuel_cost?: number | null
+          fuel_receipt_url?: string | null
+          fuel_refilled?: boolean | null
+          id?: string
+          mileage_after?: number
+          mileage_before?: number | null
+          odometer_reading?: number
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_completions_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_completions_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
