@@ -1,12 +1,14 @@
 
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import AdminDashboard from './dashboards/AdminDashboard';
 import EmployeeDashboard from './dashboards/EmployeeDashboard';
 import DriverDashboard from './dashboards/DriverDashboard';
 
 const Dashboard = () => {
   const { profile, isLoading } = useAuth();
+  const isMobile = useIsMobile();
 
   console.log('=== Dashboard rendering - profile:', profile, 'isLoading:', isLoading);
 
@@ -14,7 +16,7 @@ const Dashboard = () => {
     console.log('Dashboard - showing loading state');
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className={`animate-spin rounded-full ${isMobile ? 'h-8 w-8' : 'h-12 w-12'} border-b-2 border-blue-600`}></div>
       </div>
     );
   }
@@ -22,9 +24,9 @@ const Dashboard = () => {
   if (!profile) {
     console.log('Dashboard - no profile found');
     return (
-      <div className="p-6">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-gray-600 mt-2">Loading profile...</p>
+      <div className={isMobile ? 'p-4' : 'p-6'}>
+        <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold`}>Dashboard</h1>
+        <p className={`text-gray-600 mt-2 ${isMobile ? 'text-sm' : 'text-base'}`}>Loading profile...</p>
       </div>
     );
   }
@@ -32,7 +34,7 @@ const Dashboard = () => {
   console.log('=== Dashboard - rendering for role:', profile.role);
 
   return (
-    <div>
+    <div className="w-full">
       {(() => {
         switch (profile.role) {
           case 'admin':
@@ -44,9 +46,11 @@ const Dashboard = () => {
           default:
             console.log('Dashboard - unknown role:', profile.role);
             return (
-              <div className="p-6">
-                <h1 className="text-3xl font-bold">Dashboard</h1>
-                <p className="text-gray-600 mt-2">Role not recognized: {profile.role}</p>
+              <div className={isMobile ? 'p-4' : 'p-6'}>
+                <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold`}>Dashboard</h1>
+                <p className={`text-gray-600 mt-2 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                  Role not recognized: {profile.role}
+                </p>
               </div>
             );
         }

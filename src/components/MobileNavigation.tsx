@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { 
   BarChart3, 
   Users, 
@@ -10,13 +11,14 @@ import {
   Settings, 
   User,
   LogOut,
-  FileText
+  FileText,
+  Menu
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
-import MobileNavigation from './MobileNavigation';
 
-const Navigation = () => {
+const MobileNavigation = () => {
+  const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, signOut } = useAuth();
@@ -25,9 +27,14 @@ const Navigation = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
+    setIsOpen(false);
   };
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleNavClick = () => {
+    setIsOpen(false);
+  };
 
   const getNavigationItems = () => {
     if (!profile) return [];
@@ -61,68 +68,71 @@ const Navigation = () => {
 
   const navigationItems = getNavigationItems();
 
-  console.log('=== Navigation - profile role:', profile?.role);
-  console.log('=== Navigation - items:', navigationItems);
+  if (!isMobile) return null;
 
   return (
-    <nav className="bg-white shadow-sm border-b">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-14 sm:h-16">
-          <div className="flex items-center space-x-4 sm:space-x-8">
-            <Link to="/dashboard" className="flex items-center space-x-2">
-              <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
-              <span className="text-lg sm:text-xl font-bold text-gray-900">
-                {isMobile ? 'Ops' : 'OpsManager'}
-              </span>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="md:hidden">
+          <Menu className="h-6 w-6" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-80 p-0">
+        <div className="flex flex-col h-full">
+          <div className="p-6 border-b">
+            <Link to="/dashboard" className="flex items-center space-x-2" onClick={handleNavClick}>
+              <BarChart3 className="h-6 w-6 text-blue-600" />
+              <span className="text-lg font-bold text-gray-900">OpsManager</span>
             </Link>
-            
-            <div className="hidden md:flex space-x-4">
+          </div>
+          
+          <div className="flex-1 overflow-auto">
+            <nav className="p-4 space-y-2">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    onClick={handleNavClick}
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                       isActive(item.path)
                         ? 'bg-blue-100 text-blue-700'
                         : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
                     }`}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-5 w-5" />
                     <span>{item.label}</span>
                   </Link>
                 );
               })}
-            </div>
+            </nav>
           </div>
 
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <MobileNavigation />
-            
-            {profile && !isMobile && (
-              <div className="text-sm text-gray-600 hidden lg:block">
-                Welcome, {profile.first_name || profile.email}
-                <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded-full">
-                  {profile.role}
-                </span>
+          <div className="p-4 border-t mt-auto">
+            {profile && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <div className="text-sm font-medium text-gray-900">
+                  {profile.first_name || profile.email}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Role: {profile.role}
+                </div>
               </div>
             )}
-            
             <Button 
               variant="outline" 
-              size={isMobile ? "sm" : "sm"}
               onClick={handleSignOut}
-              className="hidden md:flex items-center space-x-1"
+              className="w-full flex items-center justify-center space-x-2"
             >
               <LogOut className="h-4 w-4" />
-              <span className="hidden lg:inline">Sign Out</span>
+              <span>Sign Out</span>
             </Button>
           </div>
         </div>
-      </div>
-    </nav>
+      </SheetContent>
+    </Sheet>
   );
 };
 
-export default Navigation;
+export default MobileNavigation;
