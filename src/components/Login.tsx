@@ -82,7 +82,7 @@ const Login = () => {
               <BarChart3 className="h-8 w-8" />
             </div>
           </div>
-          <h2 className="mt-4 text-3xl font-bold text-gray-900">OpsManager</h2>
+          <h2 className="mt-4 text-3xl font-bold text-gray-900">ETW Manager</h2>
           <p className="mt-2 text-sm text-gray-600">
             Enterprise Sales & Operations Management
           </p>

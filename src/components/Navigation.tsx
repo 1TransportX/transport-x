@@ -67,7 +67,7 @@ const Navigation = () => {
   return (
     <nav className="bg-white shadow-sm border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-14 sm:h-16">
+        <div className="flex justify-between items-center h-16 sm:h-18">
           <div className="flex items-center space-x-4 sm:space-x-8">
             <Link to="/dashboard" className="flex items-center space-x-2">
               <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
