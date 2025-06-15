@@ -72,7 +72,7 @@ const Navigation = () => {
             <Link to="/dashboard" className="flex items-center space-x-2">
               <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
               <span className="text-lg sm:text-xl font-bold text-gray-900">
-                {isMobile ? 'Ops' : 'OpsManager'}
+                {isMobile ? 'ETW' : 'ETW Manager'}
               </span>
             </Link>
             

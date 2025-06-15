@@ -82,7 +82,7 @@ const MobileNavigation = () => {
           <div className="p-6 border-b">
             <Link to="/dashboard" className="flex items-center space-x-2" onClick={handleNavClick}>
               <BarChart3 className="h-6 w-6 text-blue-600" />
-              <span className="text-lg font-bold text-gray-900">OpsManager</span>
+              <span className="text-lg font-bold text-gray-900">ETW Manager</span>
             </Link>
           </div>
           
