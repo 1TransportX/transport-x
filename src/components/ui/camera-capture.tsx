@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera, X } from 'lucide-react';
@@ -18,170 +19,186 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isVideoReady, setIsVideoReady] = useState(false);
 
-  // LOGGING UTILITY
-  const debug = (msg: string, ...args: any[]) =>
-    console.log('[CameraCapture]', msg, ...args);
-
-  // Use to force re-render video once stream is assigned
-  const [, forceRender] = useState<number>(0);
+  console.log('[CameraCapture] Component rendered, isOpen:', isOpen);
 
   useEffect(() => {
-    debug('EFFECT isOpen', isOpen);
-
     if (isOpen) {
+      console.log('[CameraCapture] Opening camera...');
       startCamera();
     } else {
+      console.log('[CameraCapture] Closing camera...');
       stopCamera();
     }
+
     return () => {
       stopCamera();
     };
-    // eslint-disable-next-line
   }, [isOpen]);
 
   const startCamera = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      debug('Start camera...');
+    setIsLoading(true);
+    setError(null);
+    setIsVideoReady(false);
 
+    try {
+      console.log('[CameraCapture] Requesting camera access...');
+      
+      // Stop any existing stream
       if (streamRef.current) {
-        debug('Stopping old stream before starting new.');
         streamRef.current.getTracks().forEach(track => track.stop());
       }
 
-      const constraints = {
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      };
-      debug('Requesting getUserMedia', constraints);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      debug('Got stream', stream);
-
+      console.log('[CameraCapture] Camera stream obtained:', stream);
       streamRef.current = stream;
 
       if (videoRef.current) {
+        console.log('[CameraCapture] Setting video source...');
         videoRef.current.srcObject = stream;
-        // Needed on iOS/Safari/Chrome for mobile.
-        videoRef.current.setAttribute('playsinline', 'true');
+        
+        // Force video to be muted and set playsinline for mobile
         videoRef.current.muted = true;
-
-        // Wait for metadata before playing (safe for cross-browser)
-        videoRef.current.onloadedmetadata = () => {
-          debug("Metadata loaded, video should play.");
-          try {
-            videoRef.current && videoRef.current.play();
-          } catch (err) {
-            debug('Play error:', err);
+        videoRef.current.playsInline = true;
+        videoRef.current.setAttribute('playsinline', '');
+        
+        // Wait for the video to load metadata
+        const handleLoadedMetadata = () => {
+          console.log('[CameraCapture] Video metadata loaded');
+          setIsVideoReady(true);
+          if (videoRef.current) {
+            videoRef.current.play().then(() => {
+              console.log('[CameraCapture] Video playing successfully');
+              setIsLoading(false);
+            }).catch(err => {
+              console.error('[CameraCapture] Video play failed:', err);
+              setError('Failed to start video preview');
+              setIsLoading(false);
+            });
           }
-          forceRender(n => n + 1); // trigger rerender
         };
 
-        // Fallback: If readyState is already enough, start playing now
-        if (videoRef.current.readyState >= 1) {
-          debug("ReadyState already sufficient, force play now");
-          videoRef.current.play();
-          forceRender(n => n + 1);
-        }
-      } else {
-        debug('No videoRef.current at camera start.');
+        const handleCanPlay = () => {
+          console.log('[CameraCapture] Video can play');
+          setIsVideoReady(true);
+          setIsLoading(false);
+        };
+
+        videoRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
+        videoRef.current.addEventListener('canplay', handleCanPlay);
+
+        // Cleanup event listeners
+        const currentVideo = videoRef.current;
+        return () => {
+          if (currentVideo) {
+            currentVideo.removeEventListener('loadedmetadata', handleLoadedMetadata);
+            currentVideo.removeEventListener('canplay', handleCanPlay);
+          }
+        };
       }
     } catch (err) {
-      debug('Error at camera access', err);
-      setError('Unable to access camera. Please check permissions and try again.');
-    } finally {
+      console.error('[CameraCapture] Camera error:', err);
+      setError('Unable to access camera. Please check permissions.');
       setIsLoading(false);
     }
   };
 
   const stopCamera = () => {
-    debug('Stopping camera/stream.');
+    console.log('[CameraCapture] Stopping camera...');
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        track.stop();
-        debug('Stopped camera track.');
-      });
+      streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    setIsVideoReady(false);
   };
 
-  // Prevent event bubbling to parent dialog, keep overlay alive
-  const handleOverlayClick = (e: React.MouseEvent) => {
+  const capturePhoto = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-  };
-
-  const capturePhoto = () => {
-    debug('Capture photo clicked');
-    if (!videoRef.current || !canvasRef.current) {
-      debug('Capture failed: missing refs.');
+    
+    console.log('[CameraCapture] Capture button clicked');
+    
+    if (!videoRef.current || !canvasRef.current || !isVideoReady) {
+      console.error('[CameraCapture] Cannot capture - video not ready');
       return;
     }
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
+
     if (!context) {
-      debug('No context.');
+      console.error('[CameraCapture] No canvas context');
       return;
     }
 
-    // use the current video dimensions
     canvas.width = video.videoWidth || 1280;
     canvas.height = video.videoHeight || 720;
 
-    debug('Drawing frame', { w: canvas.width, h: canvas.height });
+    console.log('[CameraCapture] Capturing image:', { width: canvas.width, height: canvas.height });
+    
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     canvas.toBlob((blob) => {
       if (blob) {
-        debug('Got image blob:', blob);
+        console.log('[CameraCapture] Image captured successfully');
         const file = new File([blob], `receipt_${Date.now()}.jpg`, {
           type: 'image/jpeg'
         });
-        stopCamera(); // stop camera once captured
         onCapture(file);
       } else {
-        debug('canvas.toBlob returned null');
+        console.error('[CameraCapture] Failed to create blob');
       }
     }, 'image/jpeg', 0.85);
   };
 
-  const handleCancel = (e?: React.MouseEvent) => {
-    debug('Cancel clicked');
-    if (e) e.stopPropagation();
-    stopCamera();
-    onCancel(); // ONLY close camera overlay, do not close parent dialog
+  const handleCancel = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[CameraCapture] Cancel button clicked');
+    onCancel();
+  };
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    // Only close if clicking the overlay background, not the content
+    if (e.target === e.currentTarget) {
+      handleCancel(e);
+    }
   };
 
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black flex items-center justify-center touch-none"
-      style={{
-        zIndex: 9999, // ensures above all dialogs
-      }}
-      onClick={handleCancel}
+      className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
+      onClick={handleOverlayClick}
     >
-      <div
-        className="relative w-full h-full max-h-screen max-w-full overflow-hidden"
-        onClick={handleOverlayClick}
-      >
+      <div className="relative w-full h-full flex flex-col">
+        {/* Loading state */}
         {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
             <div className="text-white text-lg">Starting camera...</div>
           </div>
         )}
 
+        {/* Error state */}
         {error && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white p-4 bg-black">
             <p className="mb-6 text-center text-lg">{error}</p>
             <Button 
-              onClick={handleCancel} 
+              onClick={handleCancel}
               variant="outline"
               size="lg"
               className="bg-white/20 border-white/30 text-white hover:bg-white/30"
@@ -191,52 +208,47 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           </div>
         )}
 
-        {/* Camera Preview */}
+        {/* Camera preview */}
         {!isLoading && !error && (
           <>
-            <video
-              ref={videoRef}
-              className="absolute inset-0 w-full h-full object-cover bg-black"
-              autoPlay
-              playsInline
-              muted
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                zIndex: 1,
-                background: '#000',
-              }}
-              aria-label="Camera feed"
-            />
+            <div className="flex-1 relative overflow-hidden">
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                autoPlay
+                playsInline
+                muted
+                style={{ backgroundColor: '#000' }}
+              />
+            </div>
+            
             <canvas ref={canvasRef} className="hidden" />
 
-            {/* Bottom Controls - mobile optimized */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6 pb-8 z-20 flex justify-center items-end">
-              <Button
-                onClick={handleCancel}
-                variant="outline"
-                size="lg"
-                className="bg-white/10 border-white/30 text-white hover:bg-white/20 h-14 px-6 mr-2"
-                aria-label="Cancel camera capture"
-                type="button"
-              >
-                <X className="h-6 w-6 mr-2" />
-                Cancel
-              </Button>
-              <Button
-                onClick={capturePhoto}
-                size="lg"
-                className="bg-white hover:bg-gray-200 text-black h-16 w-16 rounded-full p-0 shadow-lg flex items-center justify-center"
-                aria-label="Take photo"
-                style={{ minWidth: 64, minHeight: 64 }}
-                type="button"
-              >
-                <Camera className="h-8 w-8" />
-              </Button>
+            {/* Bottom controls */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6 pb-8 z-20">
+              <div className="flex justify-center items-center space-x-4">
+                <Button
+                  onClick={handleCancel}
+                  variant="outline"
+                  size="lg"
+                  className="bg-white/10 border-white/30 text-white hover:bg-white/20 h-14 px-6"
+                  type="button"
+                >
+                  <X className="h-6 w-6 mr-2" />
+                  Cancel
+                </Button>
+                
+                <Button
+                  onClick={capturePhoto}
+                  size="lg"
+                  disabled={!isVideoReady}
+                  className="bg-white hover:bg-gray-200 text-black h-16 w-16 rounded-full p-0 shadow-lg disabled:opacity-50"
+                  type="button"
+                >
+                  <Camera className="h-8 w-8" />
+                </Button>
+              </div>
             </div>
-            {/* Top harm-less bar for safe area indicator */}
-            <div className="absolute top-4 left-4 right-4 h-0.5 bg-white/30 rounded-full z-30" />
           </>
         )}
       </div>
