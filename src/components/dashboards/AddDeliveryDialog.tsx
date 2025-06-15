@@ -11,7 +11,7 @@ import { useSecurity } from '@/contexts/SecurityContext';
 import { RateLimiter, sanitizeError } from '@/utils/security';
 import SecureLocationSearchInput from '@/components/transportation/SecureLocationSearchInput';
 import SecureInput from '@/components/forms/SecureInput';
-import SecurePhoneInput from '@/components/forms/SecurePhoneInput';
+import { IndianPhoneInput } from '@/components/forms/IndianPhoneInput';
 
 interface AddDeliveryDialogProps {
   isOpen: boolean;
@@ -312,11 +312,11 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
               id="customer_name"
             />
 
-            <SecurePhoneInput
+            <IndianPhoneInput
               value={formData.customer_phone}
               onChange={(value) => setFormData(prev => ({ ...prev, customer_phone: value }))}
               label="Customer Phone"
-              id="customer_phone"
+              required
             />
           </div>
 
