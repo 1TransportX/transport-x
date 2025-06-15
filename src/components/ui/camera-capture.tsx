@@ -36,12 +36,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     try {
       setIsLoading(true);
       setError(null);
-
       // Stop any existing stream first
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
-
       const constraints = {
         video: { 
           facingMode: 'environment',
@@ -54,23 +52,23 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       console.log('Requesting camera access with constraints:', constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log('Camera stream obtained:', stream);
-
       streamRef.current = stream;
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        
-        // Wait for the video to be ready
-        await new Promise((resolve) => {
-          if (videoRef.current) {
-            videoRef.current.onloadedmetadata = () => {
-              console.log('Video metadata loaded');
-              resolve(null);
-            };
+        // Play the video and ensure it's visible as soon as the stream is ready
+        await new Promise<void>((resolve) => {
+          // In some browsers, `onloadedmetadata` fires before assignment. Defensive:
+          videoRef.current!.onloadedmetadata = () => {
+            videoRef.current!.play();
+            resolve();
+          };
+          // If already loaded:
+          if (videoRef.current!.readyState >= 1) {
+            videoRef.current!.play();
+            resolve();
           }
         });
-
-        await videoRef.current.play();
         console.log('Video playing');
       }
     } catch (err) {
@@ -96,13 +94,12 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return;
-
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
-
     if (!context) return;
 
+    // Use natural video dimensions for image capture
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
@@ -114,27 +111,28 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           type: 'image/jpeg'
         });
         onCapture(file);
-        // Don't call handleCancel here - let parent handle closing
+        // The parent will handle closing camera overlay
       }
     }, 'image/jpeg', 0.8);
   };
 
   const handleCancel = () => {
     stopCamera();
-    onCancel(); // This should just close the camera, not the entire dialog
+    onCancel(); // Just closes this overlay, parent dialog remains open
   };
 
   if (!isOpen) return null;
 
+  // Use full-screen fixed overlay. Use high z-index to overlay any other dialog (z-80 > z-50).
   return (
-    <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center">
-      <div className="relative w-full h-full">
+    <div className="fixed inset-0 z-[80] bg-black flex items-center justify-center touch-none">
+      <div className="relative w-full h-full max-h-screen max-w-full overflow-hidden">
         {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
             <div className="text-white text-lg">Starting camera...</div>
           </div>
         )}
-        
+
         {error && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white p-4 bg-black">
             <p className="mb-6 text-center text-lg">{error}</p>
@@ -149,20 +147,28 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           </div>
         )}
 
+        {/* MAIN CAMERA PREVIEW */}
         {!isLoading && !error && (
           <>
             <video
               ref={videoRef}
-              className="w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover bg-black"
               autoPlay
               playsInline
               muted
+              style={{
+                // ensure video covers popup, both orientation (mobile/desktop)
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                background: '#000',
+                zIndex: 1,
+              }}
             />
-            
             <canvas ref={canvasRef} className="hidden" />
-            
+
             {/* Mobile-optimized controls */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pb-8">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/85 to-transparent p-6 pb-8 z-20">
               <div className="flex justify-center items-center space-x-6">
                 <Button
                   onClick={handleCancel}
@@ -173,20 +179,18 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                   <X className="h-6 w-6 mr-2" />
                   Cancel
                 </Button>
-                
-                {/* Large circular capture button for mobile */}
                 <Button
                   onClick={capturePhoto}
                   size="lg"
-                  className="bg-white hover:bg-gray-200 text-black h-16 w-16 rounded-full p-0 shadow-lg"
+                  className="bg-white hover:bg-gray-200 text-black h-16 w-16 rounded-full p-0 shadow-lg flex items-center justify-center"
+                  style={{ minWidth: 64, minHeight: 64 }}
                 >
                   <Camera className="h-8 w-8" />
                 </Button>
               </div>
             </div>
-
             {/* Safe area indicator for mobile */}
-            <div className="absolute top-4 left-4 right-4 h-0.5 bg-white/30 rounded-full" />
+            <div className="absolute top-4 left-4 right-4 h-0.5 bg-white/30 rounded-full z-30" />
           </>
         )}
       </div>

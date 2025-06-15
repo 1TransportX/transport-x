@@ -79,8 +79,11 @@ const DeliveryCompletionDialog: React.FC<DeliveryCompletionDialogProps> = ({
     setIsCameraOpen(false); // Close camera after successful capture
   };
 
+  // The cancel handler for camera ONLY closes the camera, not this dialog
   const handleCameraCancel = () => {
-    setIsCameraOpen(false); // Just close camera, stay in dialog
+    setIsCameraOpen(false);
+    // Don't call onClose, just close camera overlay!
+    // The dialog stays open; this is correct as of your current flow.
   };
 
   const handleFileSelect = () => {
