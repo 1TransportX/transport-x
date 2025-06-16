@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera, X } from 'lucide-react';
 
@@ -20,6 +20,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   console.log('[CameraCapture] Component rendered, isOpen:', isOpen);
 
@@ -101,49 +102,72 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     setIsVideoReady(false);
     setIsLoading(false);
     setError(null);
+    setIsCapturing(false);
   };
 
-  const handleCapturePhoto = () => {
-    console.log('[CameraCapture] Capture button clicked');
+  const handleCapturePhoto = useCallback(async (event: React.MouseEvent) => {
+    console.log('[CameraCapture] Capture button clicked - preventing default and propagation');
+    event.preventDefault();
+    event.stopPropagation();
     
-    if (!videoRef.current || !canvasRef.current || !isVideoReady) {
-      console.error('[CameraCapture] Cannot capture - video not ready');
+    if (!videoRef.current || !canvasRef.current || !isVideoReady || isCapturing) {
+      console.error('[CameraCapture] Cannot capture - video not ready or already capturing');
       return;
     }
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
+    setIsCapturing(true);
+    console.log('[CameraCapture] Starting capture process...');
 
-    if (!context) {
-      console.error('[CameraCapture] No canvas context');
-      return;
-    }
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
 
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-
-    console.log('[CameraCapture] Capturing image:', { width: canvas.width, height: canvas.height });
-    
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    canvas.toBlob((blob) => {
-      if (blob) {
-        console.log('[CameraCapture] Image captured successfully');
-        const file = new File([blob], `receipt_${Date.now()}.jpg`, {
-          type: 'image/jpeg'
-        });
-        onCapture(file);
-      } else {
-        console.error('[CameraCapture] Failed to create blob');
+      if (!context) {
+        console.error('[CameraCapture] No canvas context');
+        setIsCapturing(false);
+        return;
       }
-    }, 'image/jpeg', 0.85);
-  };
 
-  const handleCancel = () => {
-    console.log('[CameraCapture] Cancel button clicked');
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+
+      console.log('[CameraCapture] Capturing image:', { width: canvas.width, height: canvas.height });
+      
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          console.log('[CameraCapture] Image captured successfully, creating file...');
+          const file = new File([blob], `receipt_${Date.now()}.jpg`, {
+            type: 'image/jpeg'
+          });
+          
+          console.log('[CameraCapture] File created, calling onCapture callback...');
+          onCapture(file);
+          
+          // Small delay to ensure state updates complete before closing
+          setTimeout(() => {
+            console.log('[CameraCapture] Capture complete, ready to close');
+            setIsCapturing(false);
+          }, 100);
+        } else {
+          console.error('[CameraCapture] Failed to create blob');
+          setIsCapturing(false);
+        }
+      }, 'image/jpeg', 0.85);
+    } catch (error) {
+      console.error('[CameraCapture] Error during capture:', error);
+      setIsCapturing(false);
+    }
+  }, [onCapture, isVideoReady, isCapturing]);
+
+  const handleCancel = useCallback((event: React.MouseEvent) => {
+    console.log('[CameraCapture] Cancel button clicked - preventing default and propagation');
+    event.preventDefault();
+    event.stopPropagation();
     onCancel();
-  };
+  }, [onCancel]);
 
   if (!isOpen) return null;
 
@@ -157,12 +181,20 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           </div>
         )}
 
+        {/* Capturing state */}
+        {isCapturing && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50">
+            <div className="text-white text-lg bg-black/80 px-6 py-3 rounded-lg">Capturing photo...</div>
+          </div>
+        )}
+
         {/* Error state */}
         {error && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white p-4 bg-black">
             <p className="mb-6 text-center text-lg">{error}</p>
             <button
               onClick={handleCancel}
+              type="button"
               className="bg-white/20 border border-white/30 text-white hover:bg-white/30 px-6 py-3 rounded-lg"
             >
               Close
@@ -191,7 +223,9 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               <div className="flex justify-center items-center space-x-4">
                 <button
                   onClick={handleCancel}
-                  className="bg-white/10 border border-white/30 text-white hover:bg-white/20 h-14 px-6 rounded-lg flex items-center"
+                  type="button"
+                  disabled={isCapturing}
+                  className="bg-white/10 border border-white/30 text-white hover:bg-white/20 h-14 px-6 rounded-lg flex items-center disabled:opacity-50"
                 >
                   <X className="h-6 w-6 mr-2" />
                   Cancel
@@ -200,7 +234,9 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                 {isVideoReady && (
                   <button
                     onClick={handleCapturePhoto}
-                    className="bg-white hover:bg-gray-200 text-black h-16 w-16 rounded-full flex items-center justify-center shadow-lg"
+                    type="button"
+                    disabled={isCapturing}
+                    className="bg-white hover:bg-gray-200 text-black h-16 w-16 rounded-full flex items-center justify-center shadow-lg disabled:opacity-50"
                   >
                     <Camera className="h-8 w-8" />
                   </button>
