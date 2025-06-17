@@ -53,20 +53,25 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
   });
   const [isCreatingDelivery, setIsCreatingDelivery] = useState(false);
 
-  // Reset form when dialog opens/closes or date changes
-  React.useEffect(() => {
+  // Only reset form when dialog is explicitly closed (not on every open/date change)
+  useEffect(() => {
     if (!open) {
-      setSelectedDriver('');
-      setSelectedDeliveries([]);
-      setNewDelivery({
-        customer_name: '',
-        customer_address: '',
-        customer_phone: '',
-        delivery_number: '',
-        notes: ''
-      });
+      // Small delay to ensure dialog is fully closed before resetting
+      const timeoutId = setTimeout(() => {
+        setSelectedDriver('');
+        setSelectedDeliveries([]);
+        setNewDelivery({
+          customer_name: '',
+          customer_address: '',
+          customer_phone: '',
+          delivery_number: '',
+          notes: ''
+        });
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [open, selectedDate]);
+  }, [open]);
 
   const handleCreateDelivery = async () => {
     if (!newDelivery.customer_name || !newDelivery.customer_address) {
@@ -103,7 +108,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
         description: `Delivery route for ${newDelivery.customer_name} has been created successfully.`,
       });
 
-      // Reset form
+      // Reset only the new delivery form
       setNewDelivery({
         customer_name: '',
         customer_address: '',
@@ -154,7 +159,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
       created_by: profile?.id || ''
     });
 
-    // Reset form
+    // Reset assignment form and close dialog
     setSelectedDriver('');
     setSelectedDeliveries([]);
     onOpenChange(false);
