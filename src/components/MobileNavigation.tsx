@@ -7,12 +7,12 @@ import {
   BarChart3, 
   Users, 
   Route, 
-  Package, 
   Settings, 
   User,
   LogOut,
   FileText,
-  Menu
+  Menu,
+  Truck
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -46,14 +46,15 @@ const MobileNavigation = () => {
     if (profile.role === 'admin') {
       items.push(
         { path: '/employees', label: 'Drivers', icon: Users, roles: ['admin'] },
-        { path: '/transportation', label: 'Transportation', icon: Route, roles: ['admin'] },
-        { path: '/warehouse', label: 'Warehouse', icon: Package, roles: ['admin'] },
+        { path: '/routes', label: 'Routes', icon: Route, roles: ['admin'] },
+        { path: '/fleet', label: 'Fleet', icon: Truck, roles: ['admin'] },
         { path: '/reports', label: 'Reports', icon: FileText, roles: ['admin'] },
         { path: '/settings', label: 'Settings', icon: Settings, roles: ['admin'] }
       );
     } else if (profile.role === 'driver') {
       items.push(
-        { path: '/transportation', label: 'Transportation', icon: Route, roles: ['driver'] },
+        { path: '/routes', label: 'Routes', icon: Route, roles: ['driver'] },
+        { path: '/fleet', label: 'Fleet', icon: Truck, roles: ['driver'] },
         { path: '/profile', label: 'Profile', icon: User, roles: ['driver'] }
       );
     }

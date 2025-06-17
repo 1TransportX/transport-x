@@ -12,8 +12,8 @@ import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import EmployeeList from "./components/employees/EmployeeList";
-import TransportationPage from "./components/transportation/TransportationPage";
-import WarehouseManagement from "./components/warehouse/WarehouseManagement";
+import RoutesPage from "./components/routes/RoutesPage";
+import FleetPage from "./components/fleet/FleetPage";
 import SettingsPage from "./components/settings/SettingsPage";
 import ReportsPage from "./components/reports/ReportsPage";
 import ProfilePage from "./components/profile/ProfilePage";
@@ -44,14 +44,14 @@ const App = () => {
                       <EmployeeList />
                     </ProtectedRoute>
                   } />
-                  <Route path="transportation" element={
+                  <Route path="routes" element={
                     <ProtectedRoute allowedRoles={['admin', 'driver']}>
-                      <TransportationPage />
+                      <RoutesPage />
                     </ProtectedRoute>
                   } />
-                  <Route path="warehouse" element={
-                    <ProtectedRoute allowedRoles={['admin', 'employee']}>
-                      <WarehouseManagement />
+                  <Route path="fleet" element={
+                    <ProtectedRoute allowedRoles={['admin', 'driver']}>
+                      <FleetPage />
                     </ProtectedRoute>
                   } />
                   <Route path="reports" element={
