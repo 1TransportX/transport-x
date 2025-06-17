@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, MapPin, Clock, Truck, Edit, Trash2, Route, Navigation } from 'lucide-react';
+import { ChevronDown, ChevronUp, Truck, Edit, Trash2, Route, Navigation } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useRouteCalculations } from '@/hooks/useRouteCalculations';
 
 interface DeliveryAssignmentCardProps {
   assignment: {
@@ -29,6 +30,7 @@ const DeliveryAssignmentCard: React.FC<DeliveryAssignmentCardProps> = ({
   onDelete
 }) => {
   const { profile } = useAuth();
+  const { generateOptimizedMapsUrl } = useRouteCalculations();
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Fetch delivery details
@@ -39,7 +41,7 @@ const DeliveryAssignmentCard: React.FC<DeliveryAssignmentCardProps> = ({
       
       const { data, error } = await supabase
         .from('deliveries')
-        .select('id, delivery_number, customer_name, customer_address, status')
+        .select('id, delivery_number, customer_name, customer_address, status, latitude, longitude')
         .in('id', assignment.delivery_ids);
 
       if (error) throw error;
@@ -57,33 +59,11 @@ const DeliveryAssignmentCard: React.FC<DeliveryAssignmentCardProps> = ({
     }
   };
 
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-  };
-
-  const openRouteInGoogleMaps = () => {
+  const openRouteInGoogleMaps = async () => {
     if (deliveries.length === 0) return;
 
-    const addresses = sortedDeliveries.map(delivery => delivery.customer_address);
-    
-    if (addresses.length === 1) {
-      // Single destination
-      const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addresses[0])}`;
-      window.open(mapsUrl, '_blank');
-    } else {
-      // Multiple destinations with waypoints
-      const origin = addresses[0];
-      const destination = addresses[addresses.length - 1];
-      const waypoints = addresses.slice(1, -1).join('|');
-      
-      let mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
-      
-      if (waypoints) {
-        mapsUrl += `&waypoints=${encodeURIComponent(waypoints)}`;
-      }
-      
+    const mapsUrl = await generateOptimizedMapsUrl(deliveries);
+    if (mapsUrl) {
       window.open(mapsUrl, '_blank');
     }
   };
@@ -115,17 +95,6 @@ const DeliveryAssignmentCard: React.FC<DeliveryAssignmentCardProps> = ({
               </div>
               
               <div className="flex items-center gap-2">
-                <div className="text-right text-sm">
-                  <div className="flex items-center gap-1 text-gray-600">
-                    <MapPin className="h-3 w-3" />
-                    {assignment.total_distance.toFixed(1)} km
-                  </div>
-                  <div className="flex items-center gap-1 text-gray-600">
-                    <Clock className="h-3 w-3" />
-                    {formatDuration(assignment.estimated_duration)}
-                  </div>
-                </div>
-                
                 <div className="flex items-center gap-1">
                   {assignment.status === 'planned' && deliveries.length > 0 && (
                     <Button 
@@ -137,7 +106,8 @@ const DeliveryAssignmentCard: React.FC<DeliveryAssignmentCardProps> = ({
                       }}
                       className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700"
                     >
-                      <Navigation className="h-4 w-4" />
+                      <Navigation className="h-4 w-4 mr-1" />
+                      Open in Maps
                     </Button>
                   )}
                   

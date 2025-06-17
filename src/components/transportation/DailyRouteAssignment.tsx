@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Clock, Users, Package, Route, Plus } from 'lucide-react';
 import { useDailyRouteAssignments } from '@/hooks/useDailyRouteAssignments';
@@ -78,7 +78,12 @@ const DailyRouteAssignment = React.memo(() => {
             <Route className="h-6 w-6" />
             Route Schedule Overview
           </h2>
-          <p className="text-gray-600 mt-1">View and manage all route assignments by date</p>
+          <p className="text-gray-600 mt-1">
+            {profile.role === 'admin' 
+              ? 'View and manage all route assignments by date' 
+              : 'View your assigned routes and scheduled deliveries'
+            }
+          </p>
         </div>
         {profile.role === 'admin' && (
           <Button
@@ -103,7 +108,7 @@ const DailyRouteAssignment = React.memo(() => {
       />
 
       {totalStats.totalAssignments > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
@@ -140,21 +145,10 @@ const DailyRouteAssignment = React.memo(() => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-orange-600" />
+                <Route className="h-5 w-5 text-orange-600" />
                 <div>
-                  <p className="text-sm text-gray-600">Distance</p>
-                  <p className="text-xl font-bold">{totalStats.totalDistance.toFixed(1)} km</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-purple-600" />
-                <div>
-                  <p className="text-sm text-gray-600">Duration</p>
-                  <p className="text-xl font-bold">{Math.round(totalStats.totalDuration / 60)}h</p>
+                  <p className="text-sm text-gray-600">Routes</p>
+                  <p className="text-xl font-bold">{totalStats.totalAssignments}</p>
                 </div>
               </div>
             </CardContent>
@@ -162,7 +156,7 @@ const DailyRouteAssignment = React.memo(() => {
         </div>
       )}
 
-      {totalStats.totalUnassigned > 0 && (
+      {totalStats.totalUnassigned > 0 && profile.role === 'admin' && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-orange-800">

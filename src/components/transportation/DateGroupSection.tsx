@@ -4,10 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, Calendar, MapPin, Clock, Truck, Users, Package, Zap, Navigation } from 'lucide-react';
+import { ChevronDown, ChevronUp, Calendar, Users, Package, Zap, Navigation, Truck } from 'lucide-react';
 import { format } from 'date-fns';
 import DeliveryAssignmentCard from './DeliveryAssignmentCard';
 import { useAuth } from '@/hooks/useAuth';
+import { useRouteCalculations } from '@/hooks/useRouteCalculations';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DateGroup {
   date: string;
@@ -37,47 +40,39 @@ const DateGroupSection: React.FC<DateGroupSectionProps> = ({
   isOptimizing
 }) => {
   const { profile } = useAuth();
+  const { generateOptimizedMapsUrl } = useRouteCalculations();
   const [isExpanded, setIsExpanded] = useState(true);
+
+  // Fetch all deliveries for this date to create optimized maps link
+  const { data: allDeliveries = [] } = useQuery({
+    queryKey: ['date-deliveries', dateGroup.date],
+    queryFn: async () => {
+      const allDeliveryIds = dateGroup.assignments.flatMap(a => a.delivery_ids);
+      if (allDeliveryIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('deliveries')
+        .select('id, customer_address, latitude, longitude')
+        .in('id', allDeliveryIds);
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: dateGroup.assignments.length > 0
+  });
 
   const getDriverName = (driverId: string) => {
     const driver = drivers.find(d => d.id === driverId);
     return driver ? `${driver.first_name} ${driver.last_name}` : 'Unknown Driver';
   };
 
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-  };
+  const openInGoogleMaps = async () => {
+    if (allDeliveries.length === 0) return;
 
-  const openInGoogleMaps = () => {
-    // Collect all delivery addresses for this date
-    const addresses: string[] = [];
-    
-    dateGroup.assignments.forEach(assignment => {
-      assignment.delivery_ids.forEach((deliveryId: string) => {
-        // This would need to be enhanced to get actual addresses
-        // For now, we'll use a placeholder
-        addresses.push(`Delivery ${deliveryId}`);
-      });
-    });
-
-    if (addresses.length === 0) {
-      return;
+    const mapsUrl = await generateOptimizedMapsUrl(allDeliveries);
+    if (mapsUrl) {
+      window.open(mapsUrl, '_blank');
     }
-
-    // Create Google Maps URL with multiple waypoints
-    const origin = addresses[0];
-    const destination = addresses[addresses.length - 1];
-    const waypoints = addresses.slice(1, -1).join('|');
-    
-    let mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
-    
-    if (waypoints) {
-      mapsUrl += `&waypoints=${encodeURIComponent(waypoints)}`;
-    }
-    
-    window.open(mapsUrl, '_blank');
   };
 
   const isToday = new Date().toISOString().split('T')[0] === dateGroup.date;
@@ -115,29 +110,14 @@ const DateGroupSection: React.FC<DateGroupSectionProps> = ({
               </div>
               
               <div className="flex items-center gap-2">
-                {dateGroup.totalDistance > 0 && (
-                  <div className="text-right text-sm">
-                    <div className="flex items-center gap-1 text-gray-600">
-                      <MapPin className="h-3 w-3" />
-                      {dateGroup.totalDistance.toFixed(1)} km
-                    </div>
-                    <div className="flex items-center gap-1 text-gray-600">
-                      <Clock className="h-3 w-3" />
-                      {formatDuration(dateGroup.totalDuration)}
-                    </div>
-                  </div>
-                )}
-                
                 <div className="flex items-center gap-1">
                   {profile?.role === 'admin' && (
                     <Button
-                      variant="outline"
-                      size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         onCreateAssignment(dateGroup.date);
                       }}
-                      className="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700"
+                      className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2"
                     >
                       Create Route
                     </Button>
@@ -146,30 +126,26 @@ const DateGroupSection: React.FC<DateGroupSectionProps> = ({
                   {dateGroup.assignments.length > 0 && (
                     <>
                       <Button
-                        variant="outline"
-                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           openInGoogleMaps();
                         }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 flex items-center gap-2"
                       >
-                        <Navigation className="h-4 w-4 mr-1" />
+                        <Navigation className="h-4 w-4" />
                         Open in Maps
                       </Button>
                       
                       {profile?.role === 'admin' && (
                         <Button
-                          variant="outline"
-                          size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             onOptimizeDate(dateGroup.date);
                           }}
                           disabled={isOptimizing}
-                          className="bg-orange-600 hover:bg-orange-700 text-white border-orange-600 hover:border-orange-700"
+                          className="bg-orange-600 hover:bg-orange-700 text-white font-medium px-4 py-2 flex items-center gap-2"
                         >
-                          <Zap className={`h-4 w-4 mr-1 ${isOptimizing ? 'animate-spin' : ''}`} />
+                          <Zap className={`h-4 w-4 ${isOptimizing ? 'animate-spin' : ''}`} />
                           Optimize Route
                         </Button>
                       )}

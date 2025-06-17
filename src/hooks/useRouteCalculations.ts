@@ -14,6 +14,7 @@ interface RouteCalculationResult {
   totalDuration: number;
   optimizedOrder: number[];
   mapsUrl: string;
+  optimizedDeliveries: DeliveryLocation[];
 }
 
 export const useRouteCalculations = () => {
@@ -55,6 +56,7 @@ export const useRouteCalculations = () => {
         totalDistance: data.totalDistance,
         totalDuration: data.totalDuration,
         optimizedOrder: data.optimizedOrder,
+        optimizedDeliveries: orderedDeliveries,
         mapsUrl
       };
     } catch (error) {
@@ -63,6 +65,46 @@ export const useRouteCalculations = () => {
     }
   }, []);
 
+  const generateOptimizedMapsUrl = useCallback(async (
+    deliveries: { id: string; customer_address: string; latitude?: number; longitude?: number }[],
+    startLocation?: { latitude: number; longitude: number }
+  ): Promise<string> => {
+    if (deliveries.length === 0) {
+      return '';
+    }
+
+    // If we have coordinates and more than one delivery, optimize the route
+    if (deliveries.length > 1 && deliveries.some(d => d.latitude && d.longitude)) {
+      const deliveryLocations = deliveries.map(d => ({
+        id: d.id,
+        address: d.customer_address,
+        latitude: d.latitude,
+        longitude: d.longitude
+      }));
+
+      const defaultStart = startLocation || {
+        latitude: 28.6139,
+        longitude: 77.2090,
+        address: "Company Location"
+      };
+
+      const optimizationResult = await calculateRouteMetrics(deliveryLocations, defaultStart);
+      
+      if (optimizationResult && optimizationResult.mapsUrl) {
+        return optimizationResult.mapsUrl;
+      }
+    }
+
+    // Fallback to address-based routing
+    if (startLocation) {
+      const addresses = deliveries.map(d => encodeURIComponent(d.customer_address)).join('/');
+      return `https://www.google.com/maps/dir/${startLocation.latitude},${startLocation.longitude}/${addresses}`;
+    } else {
+      const addresses = deliveries.map(d => encodeURIComponent(d.customer_address)).join('/');
+      return `https://www.google.com/maps/dir/${addresses}`;
+    }
+  }, [calculateRouteMetrics]);
+
   const generateMapsUrl = useCallback((
     deliveries: { address: string; latitude?: number; longitude?: number }[],
     startLocation?: { latitude: number; longitude: number }
@@ -70,7 +112,9 @@ export const useRouteCalculations = () => {
     const validDeliveries = deliveries.filter(d => d.latitude && d.longitude);
     
     if (validDeliveries.length === 0) {
-      return '';
+      // Use addresses if no coordinates available
+      const addresses = deliveries.map(d => encodeURIComponent(d.address)).join('/');
+      return `https://www.google.com/maps/dir/${addresses}`;
     }
 
     if (startLocation) {
@@ -79,7 +123,7 @@ export const useRouteCalculations = () => {
         .join('/');
       return `https://www.google.com/maps/dir/${startLocation.latitude},${startLocation.longitude}/${waypoints}`;
     } else {
-      // Use addresses if no coordinates available
+      // Use addresses if no start location
       const addresses = deliveries.map(d => encodeURIComponent(d.address)).join('/');
       return `https://www.google.com/maps/dir/${addresses}`;
     }
@@ -87,6 +131,7 @@ export const useRouteCalculations = () => {
 
   return {
     calculateRouteMetrics,
-    generateMapsUrl
+    generateMapsUrl,
+    generateOptimizedMapsUrl
   };
 };
