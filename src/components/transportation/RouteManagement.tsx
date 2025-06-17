@@ -2,16 +2,16 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Route, MapPin, Clock } from 'lucide-react';
+import { Route, MapPin } from 'lucide-react';
 import RouteOptimizer from './RouteOptimizer';
 import DailyRouteAssignment from './DailyRouteAssignment';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const RouteManagement = () => {
   const { profile } = useAuth();
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState('daily-assignment');
-
-  console.log('RouteManagement: Rendering for role:', profile?.role);
 
   if (!profile) {
     return (
@@ -23,20 +23,21 @@ const RouteManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Route Management</h1>
-        <p className="text-gray-600 mt-2">Manage delivery routes, optimize paths, and assign drivers.</p>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="daily-assignment" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Daily Assignment
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'h-12' : 'h-10'}`}>
+          <TabsTrigger 
+            value="daily-assignment" 
+            className={`flex items-center gap-2 ${isMobile ? 'text-sm px-3' : 'text-sm'}`}
+          >
+            <MapPin className="h-4 w-4" />
+            <span className={isMobile ? 'hidden sm:inline' : ''}>Daily Routes</span>
           </TabsTrigger>
-          <TabsTrigger value="route-optimizer" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="route-optimizer" 
+            className={`flex items-center gap-2 ${isMobile ? 'text-sm px-3' : 'text-sm'}`}
+          >
             <Route className="h-4 w-4" />
-            Route Optimizer
+            <span className={isMobile ? 'hidden sm:inline' : ''}>Optimizer</span>
           </TabsTrigger>
         </TabsList>
 

@@ -85,9 +85,18 @@ export const useDailyRouteAssignments = () => {
     }
   });
 
-  // Fetch available deliveries for the date
+  // Get already assigned delivery IDs for the selected date
+  const getAssignedDeliveryIds = useCallback(() => {
+    const assignedIds = new Set<string>();
+    assignments.forEach(assignment => {
+      assignment.delivery_ids.forEach(id => assignedIds.add(id));
+    });
+    return assignedIds;
+  }, [assignments]);
+
+  // Fetch available deliveries for the date (excluding already assigned ones)
   const { data: availableDeliveries = [], isLoading: deliveriesLoading } = useQuery({
-    queryKey: ['deliveries-for-assignment', selectedDate],
+    queryKey: ['deliveries-for-assignment', selectedDate, assignments],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('deliveries')
@@ -96,13 +105,24 @@ export const useDailyRouteAssignments = () => {
         .eq('status', 'pending');
 
       if (error) throw error;
-      return data as DeliveryForAssignment[];
+      
+      // Filter out already assigned deliveries
+      const assignedIds = getAssignedDeliveryIds();
+      return (data as DeliveryForAssignment[]).filter(delivery => !assignedIds.has(delivery.id));
     }
   });
 
   // Create or update assignment
   const createAssignmentMutation = useMutation({
     mutationFn: async (assignment: Omit<DailyRouteAssignment, 'id' | 'created_at' | 'updated_at'>) => {
+      // Double-check that deliveries are not already assigned
+      const assignedIds = getAssignedDeliveryIds();
+      const duplicateIds = assignment.delivery_ids.filter(id => assignedIds.has(id));
+      
+      if (duplicateIds.length > 0) {
+        throw new Error(`Some deliveries are already assigned: ${duplicateIds.join(', ')}`);
+      }
+
       const { data, error } = await supabase
         .from('daily_route_assignments')
         .insert(assignment)
@@ -114,6 +134,7 @@ export const useDailyRouteAssignments = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['daily-route-assignments'] });
+      queryClient.invalidateQueries({ queryKey: ['deliveries-for-assignment'] });
       toast({
         title: "Assignment Created",
         description: "Daily route assignment has been created successfully.",
@@ -122,7 +143,7 @@ export const useDailyRouteAssignments = () => {
     onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to create assignment.",
+        description: error.message || "Failed to create assignment.",
         variant: "destructive",
       });
     }
@@ -169,6 +190,7 @@ export const useDailyRouteAssignments = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['daily-route-assignments'] });
+      queryClient.invalidateQueries({ queryKey: ['deliveries-for-assignment'] });
       toast({
         title: "Assignment Deleted",
         description: "Daily route assignment has been deleted successfully.",
@@ -178,7 +200,7 @@ export const useDailyRouteAssignments = () => {
       toast({
         title: "Error",
         description: "Failed to delete assignment.",
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   });
@@ -262,6 +284,7 @@ export const useDailyRouteAssignments = () => {
     assignments,
     drivers,
     availableDeliveries,
+    getAssignedDeliveryIds,
     isLoading: assignmentsLoading || driversLoading || deliveriesLoading,
     isOptimizing,
     createAssignment: createAssignmentMutation.mutate,
