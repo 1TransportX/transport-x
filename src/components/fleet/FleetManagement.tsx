@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Truck, Fuel, Wrench, MapPin, UserCheck } from 'lucide-react';
+import { Plus, Edit, Truck, Wrench, MapPin, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddVehicleDialog from './AddVehicleDialog';
 import EditVehicleDialog from './EditVehicleDialog';
@@ -21,11 +21,7 @@ interface Vehicle {
   model: string | null;
   year: number | null;
   fuel_type: string | null;
-  current_mileage: number;
-  fuel_economy: number | null;
   status: 'active' | 'maintenance' | 'retired';
-  last_service_date: string | null;
-  next_service_due: number | null;
 }
 
 const FleetManagement = () => {
@@ -45,7 +41,7 @@ const FleetManagement = () => {
       try {
         const { data, error } = await supabase
           .from('vehicles')
-          .select('id, vehicle_number, make, model, year, fuel_type, current_mileage, fuel_economy, status, last_service_date, next_service_due, created_at, updated_at')
+          .select('id, vehicle_number, make, model, year, fuel_type, status, created_at, updated_at')
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -71,23 +67,18 @@ const FleetManagement = () => {
       return {
         total: 0,
         active: 0,
-        maintenance: 0,
-        avgKilometers: 0
+        maintenance: 0
       };
     }
 
     const totalVehicles = vehicles.length;
     const activeVehicles = vehicles.filter(v => v.status === 'active').length;
     const maintenanceVehicles = vehicles.filter(v => v.status === 'maintenance').length;
-    const avgKilometers = totalVehicles > 0 
-      ? Math.round(vehicles.reduce((sum, v) => sum + (v.current_mileage || 0), 0) / totalVehicles)
-      : 0;
 
     const result = {
       total: totalVehicles,
       active: activeVehicles,
-      maintenance: maintenanceVehicles,
-      avgKilometers
+      maintenance: maintenanceVehicles
     };
     
     console.log('FleetManagement: Computed stats:', result);
@@ -156,8 +147,8 @@ const FleetManagement = () => {
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Stats Cards - Removed Avg Kilometers card */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-2">
@@ -195,18 +186,6 @@ const FleetManagement = () => {
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <Fuel className="h-8 w-8 text-purple-600" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Avg Kilometers</p>
-                <p className="text-2xl font-bold">{stats.avgKilometers}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       <Card>
@@ -227,17 +206,14 @@ const FleetManagement = () => {
                 <TableHead>Make & Model</TableHead>
                 <TableHead>Year</TableHead>
                 <TableHead>Fuel Type</TableHead>
-                <TableHead>Kilometers</TableHead>
-                <TableHead>Fuel Economy</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Last Service</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredVehicles.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                     No vehicles found. Add a vehicle to get started.
                   </TableCell>
                 </TableRow>
@@ -253,20 +229,10 @@ const FleetManagement = () => {
                     </TableCell>
                     <TableCell>{vehicle.year || 'N/A'}</TableCell>
                     <TableCell>{vehicle.fuel_type || 'N/A'}</TableCell>
-                    <TableCell>{(vehicle.current_mileage || 0).toLocaleString()} km</TableCell>
-                    <TableCell>
-                      {vehicle.fuel_economy ? `${vehicle.fuel_economy} Km/L` : 'N/A'}
-                    </TableCell>
                     <TableCell>
                       <Badge className={getStatusBadgeColor(vehicle.status)}>
                         {vehicle.status}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {vehicle.last_service_date 
-                        ? new Date(vehicle.last_service_date).toLocaleDateString()
-                        : 'N/A'
-                      }
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
