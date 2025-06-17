@@ -10,7 +10,6 @@ import {
   Settings, 
   User,
   LogOut,
-  FileText,
   Menu,
   Truck
 } from 'lucide-react';
@@ -45,7 +44,7 @@ const MobileNavigation = () => {
 
     if (profile.role === 'admin') {
       items.push(
-        { path: '/employees', label: 'Drivers', icon: Users, roles: ['admin'] },
+        { path: '/drivers', label: 'Drivers', icon: Users, roles: ['admin'] },
         { path: '/routes', label: 'Routes', icon: Route, roles: ['admin'] },
         { path: '/fleet', label: 'Fleet', icon: Truck, roles: ['admin'] },
         { path: '/settings', label: 'Settings', icon: Settings, roles: ['admin'] }

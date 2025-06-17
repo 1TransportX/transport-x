@@ -37,7 +37,7 @@ const Navigation = () => {
 
     if (profile.role === 'admin') {
       items.push(
-        { path: '/employees', label: 'Drivers', icon: Users, roles: ['admin'] },
+        { path: '/drivers', label: 'Drivers', icon: Users, roles: ['admin'] },
         { path: '/routes', label: 'Routes', icon: Route, roles: ['admin'] },
         { path: '/fleet', label: 'Fleet', icon: Truck, roles: ['admin'] },
         { path: '/settings', label: 'Settings', icon: Settings, roles: ['admin'] }
@@ -66,7 +66,7 @@ const Navigation = () => {
             <Link to="/dashboard" className="flex items-center space-x-2">
               <Truck className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
               <span className="text-lg sm:text-xl font-bold text-gray-900">
-                {isMobile ? 'Transport X' : 'Transport X'}
+                Transport X
               </span>
             </Link>
             

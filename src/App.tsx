@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,6 +15,7 @@ import RoutesPage from "./components/routes/RoutesPage";
 import FleetPage from "./components/fleet/FleetPage";
 import SettingsPage from "./components/settings/SettingsPage";
 import ProfilePage from "./components/profile/ProfilePage";
+import DriversPage from "./components/drivers/DriversPage";
 
 const queryClient = new QueryClient();
 
@@ -38,9 +38,9 @@ const App = () => {
                   </ProtectedRoute>
                 }>
                   <Route path="dashboard" element={<Dashboard />} />
-                  <Route path="employees" element={
+                  <Route path="drivers" element={
                     <ProtectedRoute allowedRoles={['admin']}>
-                      <EmployeeList />
+                      <DriversPage />
                     </ProtectedRoute>
                   } />
                   <Route path="routes" element={
