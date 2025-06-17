@@ -19,10 +19,9 @@ interface Employee {
   last_name: string | null;
   phone: string | null;
   department: string | null;
-  employee_id: string | null;
   hire_date: string | null;
   is_active: boolean;
-  role: 'admin' | 'employee' | 'driver';
+  role: 'admin' | 'driver';
 }
 
 const EmployeeList = () => {
@@ -92,13 +91,13 @@ const EmployeeList = () => {
       // Combine the data
       const employeesWithRoles = profilesData.map(profile => {
         const userRole = rolesData.find(role => role.user_id === profile.id);
-        const role = userRole?.role || 'employee';
+        const role = userRole?.role || 'driver';
         
         console.log(`Profile ${profile.email} has role:`, role);
         
         return {
           ...profile,
-          role: role as 'admin' | 'employee' | 'driver'
+          role: role as 'admin' | 'driver'
         };
       });
 
@@ -231,7 +230,6 @@ const EmployeeList = () => {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>Employee ID</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Hire Date</TableHead>
@@ -249,7 +247,6 @@ const EmployeeList = () => {
                   </TableCell>
                   <TableCell>{employee.email}</TableCell>
                   <TableCell>{employee.department || 'N/A'}</TableCell>
-                  <TableCell>{employee.employee_id || 'N/A'}</TableCell>
                   <TableCell>
                     <Badge className={getRoleBadgeColor(employee.role)}>
                       {employee.role}

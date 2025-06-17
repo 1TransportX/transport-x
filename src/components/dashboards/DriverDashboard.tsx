@@ -19,13 +19,6 @@ interface Delivery {
   scheduled_date: string;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   notes: string;
-  delivery_items: Array<{
-    id: string;
-    quantity: number;
-    inventory: {
-      product_name: string;
-    };
-  }>;
 }
 
 interface Vehicle {
@@ -67,19 +60,12 @@ const DriverDashboard = () => {
       console.log('Fetching deliveries for date:', todayString);
       console.log('Driver ID:', profile?.id);
       
-      // Fetch all deliveries assigned to this driver
+      // Fetch all deliveries assigned to this driver (without delivery_items)
       const { data: deliveriesData, error: deliveriesError } = await supabase
         .from('deliveries')
-        .select(`
-          *,
-          delivery_items(
-            id,
-            quantity,
-            inventory(product_name)
-          )
-        `)
+        .select('*')
         .eq('driver_id', profile?.id)
-        .gte('scheduled_date', todayString) // Get today and future deliveries
+        .gte('scheduled_date', todayString)
         .order('scheduled_date', { ascending: true })
         .order('created_at', { ascending: true });
 
@@ -210,7 +196,7 @@ const DriverDashboard = () => {
           <p className="font-medium text-gray-900 text-sm sm:text-base">{delivery.customer_name}</p>
           <p className="text-xs sm:text-sm text-gray-600 break-words">{delivery.customer_address}</p>
           <p className="text-xs text-gray-500">
-            {delivery.delivery_items?.length || 0} items • #{delivery.delivery_number} • {delivery.scheduled_date}
+            #{delivery.delivery_number} • {delivery.scheduled_date}
           </p>
         </div>
       </div>

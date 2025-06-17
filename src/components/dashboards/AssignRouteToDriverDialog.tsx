@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -30,12 +29,6 @@ interface Delivery {
   scheduled_date: string;
   status: string;
   driver_id: string | null;
-  delivery_items: Array<{
-    quantity: number;
-    inventory: {
-      product_name: string;
-    };
-  }>;
 }
 
 const AssignRouteToDriverDialog: React.FC<AssignRouteToDriverDialogProps> = ({
@@ -91,19 +84,7 @@ const AssignRouteToDriverDialog: React.FC<AssignRouteToDriverDialogProps> = ({
     try {
       const { data, error } = await supabase
         .from('deliveries')
-        .select(`
-          id,
-          delivery_number,
-          customer_name,
-          customer_address,
-          scheduled_date,
-          status,
-          driver_id,
-          delivery_items(
-            quantity,
-            inventory(product_name)
-          )
-        `)
+        .select('*')
         .gte('scheduled_date', new Date().toISOString().split('T')[0])
         .order('scheduled_date', { ascending: true });
 
@@ -258,20 +239,6 @@ const AssignRouteToDriverDialog: React.FC<AssignRouteToDriverDialogProps> = ({
                             <p className="text-sm text-gray-600">{delivery.customer_address}</p>
                           </div>
                         </div>
-                        
-                        {delivery.delivery_items && delivery.delivery_items.length > 0 && (
-                          <div className="flex items-start space-x-2">
-                            <Package className="h-4 w-4 mt-0.5 text-gray-500" />
-                            <div className="text-sm text-gray-600">
-                              {delivery.delivery_items.map((item, index) => (
-                                <span key={index}>
-                                  {item.quantity}x {item.inventory?.product_name}
-                                  {index < delivery.delivery_items.length - 1 && ', '}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </CardContent>
                   </Card>

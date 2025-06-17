@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -483,8 +482,8 @@ const AdminDashboard = () => {
                 key={index} 
                 className={`p-3 rounded-lg border-l-4 ${
                   alert.type === 'warning' ? 'bg-yellow-50 border-yellow-400' :
-                  alert.type === 'error' ? 'bg-red-50 border-red-400' :
-                  'bg-blue-50 border-blue-400'
+                  alert.type === 'info' ? 'bg-blue-50 border-blue-400' :
+                  'bg-red-50 border-red-400'
                 }`}
               >
                 <p className="text-sm text-gray-700">{alert.message}</p>
