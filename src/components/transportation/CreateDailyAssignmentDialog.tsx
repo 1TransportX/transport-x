@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -34,6 +33,14 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
   const { createAssignment, isCreating, getAssignedDeliveryIds } = useDailyRouteAssignments();
   const [selectedDriver, setSelectedDriver] = useState<string>('');
   const [selectedDeliveries, setSelectedDeliveries] = useState<string[]>([]);
+
+  // Reset form when dialog opens/closes or date changes
+  React.useEffect(() => {
+    if (!open) {
+      setSelectedDriver('');
+      setSelectedDeliveries([]);
+    }
+  }, [open, selectedDate]);
 
   const handleSubmit = () => {
     if (!selectedDriver || selectedDeliveries.length === 0) {
@@ -105,7 +112,9 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
         <Sheet open={open} onOpenChange={onOpenChange}>
           <SheetContent side="bottom" className="h-[95vh] flex flex-col">
             <SheetHeader className="flex-shrink-0 pb-4 border-b">
-              <SheetTitle className="text-lg font-semibold">Create Route Assignment</SheetTitle>
+              <SheetTitle className="text-lg font-semibold">
+                Create Assignment for {new Date(selectedDate).toLocaleDateString()}
+              </SheetTitle>
             </SheetHeader>
             <div className="flex-1 overflow-hidden">
               {children}
@@ -119,7 +128,9 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Create Daily Route Assignment</DialogTitle>
+            <DialogTitle>
+              Create Assignment for {new Date(selectedDate).toLocaleDateString()}
+            </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">
             {children}
@@ -242,7 +253,13 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
                   Assignment Summary
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="text-blue-700 font-medium">Date:</span>
+                  <p className="font-semibold text-blue-900 mt-1">
+                    {new Date(selectedDate).toLocaleDateString()}
+                  </p>
+                </div>
                 <div>
                   <span className="text-blue-700 font-medium">Driver:</span>
                   <p className="font-semibold text-blue-900 mt-1">

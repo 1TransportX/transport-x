@@ -2,34 +2,36 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Clock, Truck, Users, Route, Zap } from 'lucide-react';
+import { Calendar, MapPin, Clock, Truck, Users, Package, Route } from 'lucide-react';
 import { useDailyRouteAssignments } from '@/hooks/useDailyRouteAssignments';
 import { useAuth } from '@/hooks/useAuth';
 import CreateDailyAssignmentDialog from './CreateDailyAssignmentDialog';
-import DeliveryAssignmentCard from './DeliveryAssignmentCard';
+import DateGroupSection from './DateGroupSection';
+import RouteFilterBar from './RouteFilterBar';
 
 const DailyRouteAssignment = () => {
   const { profile } = useAuth();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  
   const {
-    selectedDate,
-    setSelectedDate,
-    assignments,
+    dateRange,
+    setDateRange,
+    quickFilter,
+    setQuickFilter,
+    searchQuery,
+    setSearchQuery,
+    dateGroups,
     drivers,
-    availableDeliveries,
+    getAvailableDeliveriesForDate,
     isLoading,
     isOptimizing,
-    optimizeAllRoutes,
+    optimizeRoutesForDate,
     deleteAssignment
   } = useDailyRouteAssignments();
 
-  console.log('DailyRouteAssignment: Rendering with date:', selectedDate);
-  console.log('DailyRouteAssignment: Assignments:', assignments?.length);
-  console.log('DailyRouteAssignment: Available deliveries:', availableDeliveries?.length);
+  console.log('DailyRouteAssignment: Rendering with date groups:', dateGroups?.length);
 
   if (!profile || profile.role !== 'admin') {
     return (
@@ -39,17 +41,20 @@ const DailyRouteAssignment = () => {
     );
   }
 
-  const getDriverName = (driverId: string) => {
-    const driver = drivers.find(d => d.id === driverId);
-    return driver ? `${driver.first_name} ${driver.last_name}` : 'Unknown Driver';
+  const handleCreateAssignment = (date: string) => {
+    setSelectedDate(date);
+    setShowCreateDialog(true);
   };
 
   const getTotalStats = () => {
-    const totalDistance = assignments.reduce((sum, assignment) => sum + (assignment.total_distance || 0), 0);
-    const totalDuration = assignments.reduce((sum, assignment) => sum + (assignment.estimated_duration || 0), 0);
-    const totalDeliveries = assignments.reduce((sum, assignment) => sum + assignment.delivery_ids.length, 0);
+    const totalDrivers = dateGroups.reduce((sum, group) => sum + group.totalDrivers, 0);
+    const totalDeliveries = dateGroups.reduce((sum, group) => sum + group.totalDeliveries, 0);
+    const totalDistance = dateGroups.reduce((sum, group) => sum + group.totalDistance, 0);
+    const totalDuration = dateGroups.reduce((sum, group) => sum + group.totalDuration, 0);
+    const totalUnassigned = dateGroups.reduce((sum, group) => sum + group.unassignedDeliveries, 0);
+    const totalAssignments = dateGroups.reduce((sum, group) => sum + group.assignments.length, 0);
     
-    return { totalDistance, totalDuration, totalDeliveries };
+    return { totalDrivers, totalDeliveries, totalDistance, totalDuration, totalUnassigned, totalAssignments };
   };
 
   const stats = getTotalStats();
@@ -64,67 +69,45 @@ const DailyRouteAssignment = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-2xl font-bold">Daily Route Assignment</h2>
-          <p className="text-gray-600 mt-1">Assign and optimize routes for drivers by date</p>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Route className="h-6 w-6" />
+            Route Schedule Overview
+          </h2>
+          <p className="text-gray-600 mt-1">View and manage all route assignments by date</p>
         </div>
-        <div className="flex gap-3">
-          <Button
-            onClick={optimizeAllRoutes}
-            disabled={isOptimizing || assignments.length === 0}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Zap className={`h-4 w-4 ${isOptimizing ? 'animate-spin' : ''}`} />
-            {isOptimizing ? 'Optimizing...' : 'Optimize All Routes'}
-          </Button>
-          <Button
-            onClick={() => setShowCreateDialog(true)}
-            className="flex items-center gap-2"
-          >
-            <Route className="h-4 w-4" />
-            Create Assignment
-          </Button>
-        </div>
+        <Button
+          onClick={() => handleCreateAssignment(new Date().toISOString().split('T')[0])}
+          className="flex items-center gap-2"
+        >
+          <Route className="h-4 w-4" />
+          Create Assignment
+        </Button>
       </div>
 
-      {/* Date Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Select Date
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="flex-1 max-w-sm">
-              <Label htmlFor="assignment-date">Assignment Date</Label>
-              <Input
-                id="assignment-date"
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-              />
-            </div>
-            <div className="text-sm text-gray-600">
-              {availableDeliveries.length} unassigned deliveries available
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Filter Bar */}
+      <RouteFilterBar
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        quickFilter={quickFilter}
+        onQuickFilterChange={setQuickFilter}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        totalGroups={dateGroups.length}
+        totalAssignments={stats.totalAssignments}
+      />
 
       {/* Summary Stats */}
-      {assignments.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {stats.totalAssignments > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-blue-600" />
+                <Calendar className="h-5 w-5 text-purple-600" />
                 <div>
-                  <p className="text-sm text-gray-600">Drivers Assigned</p>
-                  <p className="text-xl font-bold">{assignments.length}</p>
+                  <p className="text-sm text-gray-600">Dates</p>
+                  <p className="text-xl font-bold">{dateGroups.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -132,9 +115,20 @@ const DailyRouteAssignment = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <Truck className="h-5 w-5 text-green-600" />
+                <Users className="h-5 w-5 text-blue-600" />
                 <div>
-                  <p className="text-sm text-gray-600">Total Deliveries</p>
+                  <p className="text-sm text-gray-600">Drivers</p>
+                  <p className="text-xl font-bold">{stats.totalDrivers}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-sm text-gray-600">Deliveries</p>
                   <p className="text-xl font-bold">{stats.totalDeliveries}</p>
                 </div>
               </div>
@@ -145,7 +139,7 @@ const DailyRouteAssignment = () => {
               <div className="flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-orange-600" />
                 <div>
-                  <p className="text-sm text-gray-600">Total Distance</p>
+                  <p className="text-sm text-gray-600">Distance</p>
                   <p className="text-xl font-bold">{stats.totalDistance.toFixed(1)} km</p>
                 </div>
               </div>
@@ -156,8 +150,8 @@ const DailyRouteAssignment = () => {
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-purple-600" />
                 <div>
-                  <p className="text-sm text-gray-600">Total Duration</p>
-                  <p className="text-xl font-bold">{Math.round(stats.totalDuration / 60)}h {stats.totalDuration % 60}m</p>
+                  <p className="text-sm text-gray-600">Duration</p>
+                  <p className="text-xl font-bold">{Math.round(stats.totalDuration / 60)}h</p>
                 </div>
               </div>
             </CardContent>
@@ -165,28 +159,45 @@ const DailyRouteAssignment = () => {
         </div>
       )}
 
-      {/* Route Assignments */}
+      {/* Unassigned Deliveries Alert */}
+      {stats.totalUnassigned > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-orange-800">
+              <Package className="h-5 w-5" />
+              <span className="font-medium">
+                {stats.totalUnassigned} unassigned deliveries available for assignment
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Date Groups */}
       <div className="space-y-4">
-        {assignments.length === 0 ? (
+        {dateGroups.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Route Assignments</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Route Assignments Found</h3>
               <p className="text-gray-600 mb-4">
-                No route assignments found for {new Date(selectedDate).toLocaleDateString()}
+                No route assignments found for the selected date range.
               </p>
-              <Button onClick={() => setShowCreateDialog(true)}>
+              <Button onClick={() => handleCreateAssignment(new Date().toISOString().split('T')[0])}>
                 Create First Assignment
               </Button>
             </CardContent>
           </Card>
         ) : (
-          assignments.map((assignment) => (
-            <DeliveryAssignmentCard
-              key={assignment.id}
-              assignment={assignment}
-              driverName={getDriverName(assignment.driver_id)}
-              onDelete={() => deleteAssignment(assignment.id)}
+          dateGroups.map((dateGroup) => (
+            <DateGroupSection
+              key={dateGroup.date}
+              dateGroup={dateGroup}
+              drivers={drivers}
+              onCreateAssignment={handleCreateAssignment}
+              onOptimizeDate={optimizeRoutesForDate}
+              onDeleteAssignment={deleteAssignment}
+              isOptimizing={isOptimizing}
             />
           ))
         )}
@@ -196,7 +207,7 @@ const DailyRouteAssignment = () => {
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         selectedDate={selectedDate}
-        availableDeliveries={availableDeliveries}
+        availableDeliveries={getAvailableDeliveriesForDate(selectedDate)}
         drivers={drivers}
       />
     </div>

@@ -1,8 +1,9 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { addDays, format, startOfDay, endOfDay } from 'date-fns';
 
 interface DailyRouteAssignment {
   id: string;
@@ -35,21 +36,55 @@ interface DriverForAssignment {
   email: string;
 }
 
+interface DateGroup {
+  date: string;
+  assignments: DailyRouteAssignment[];
+  totalDrivers: number;
+  totalDeliveries: number;
+  totalDistance: number;
+  totalDuration: number;
+  unassignedDeliveries: number;
+}
+
+type QuickFilter = 'all' | 'today' | 'week' | 'next7days';
+
 export const useDailyRouteAssignments = () => {
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: new Date(),
+    to: addDays(new Date(), 30)
+  });
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('next7days');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isOptimizing, setIsOptimizing] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch assignments for selected date
+  // Calculate effective date range based on quick filter
+  const effectiveDateRange = useMemo(() => {
+    const today = new Date();
+    switch (quickFilter) {
+      case 'today':
+        return { from: today, to: today };
+      case 'week':
+        return { from: today, to: addDays(today, 7) };
+      case 'next7days':
+        return { from: today, to: addDays(today, 7) };
+      case 'all':
+      default:
+        return dateRange;
+    }
+  }, [quickFilter, dateRange]);
+
+  // Fetch assignments for date range
   const { data: assignments = [], isLoading: assignmentsLoading } = useQuery({
-    queryKey: ['daily-route-assignments', selectedDate],
+    queryKey: ['daily-route-assignments-range', effectiveDateRange.from, effectiveDateRange.to],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('daily_route_assignments')
         .select('*')
-        .eq('assignment_date', selectedDate)
-        .order('created_at', { ascending: false });
+        .gte('assignment_date', format(effectiveDateRange.from, 'yyyy-MM-dd'))
+        .lte('assignment_date', format(effectiveDateRange.to, 'yyyy-MM-dd'))
+        .order('assignment_date', { ascending: true });
 
       if (error) throw error;
       return data as DailyRouteAssignment[];
@@ -60,7 +95,6 @@ export const useDailyRouteAssignments = () => {
   const { data: drivers = [], isLoading: driversLoading } = useQuery({
     queryKey: ['drivers-for-assignment'],
     queryFn: async () => {
-      // First get user IDs with driver or admin role
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -74,7 +108,6 @@ export const useDailyRouteAssignments = () => {
 
       const userIds = userRoles.map(role => role.user_id);
 
-      // Then get profiles for those users
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email')
@@ -85,7 +118,23 @@ export const useDailyRouteAssignments = () => {
     }
   });
 
-  // Get already assigned delivery IDs for the selected date
+  // Fetch deliveries for the date range
+  const { data: allDeliveries = [], isLoading: deliveriesLoading } = useQuery({
+    queryKey: ['deliveries-for-range', effectiveDateRange.from, effectiveDateRange.to],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('deliveries')
+        .select('id, customer_name, customer_address, delivery_number, status, latitude, longitude, scheduled_date')
+        .gte('scheduled_date', format(effectiveDateRange.from, 'yyyy-MM-dd'))
+        .lte('scheduled_date', format(effectiveDateRange.to, 'yyyy-MM-dd'))
+        .eq('status', 'pending');
+
+      if (error) throw error;
+      return data as (DeliveryForAssignment & { scheduled_date: string })[];
+    }
+  });
+
+  // Get assigned delivery IDs across all dates
   const getAssignedDeliveryIds = useCallback(() => {
     const assignedIds = new Set<string>();
     assignments.forEach(assignment => {
@@ -94,28 +143,73 @@ export const useDailyRouteAssignments = () => {
     return assignedIds;
   }, [assignments]);
 
-  // Fetch available deliveries for the date (excluding already assigned ones)
-  const { data: availableDeliveries = [], isLoading: deliveriesLoading } = useQuery({
-    queryKey: ['deliveries-for-assignment', selectedDate, assignments],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('deliveries')
-        .select('id, customer_name, customer_address, delivery_number, status, latitude, longitude')
-        .eq('scheduled_date', selectedDate)
-        .eq('status', 'pending');
+  // Group assignments by date with statistics
+  const dateGroups = useMemo((): DateGroup[] => {
+    const assignedIds = getAssignedDeliveryIds();
+    const groupMap = new Map<string, DateGroup>();
 
-      if (error) throw error;
-      
-      // Filter out already assigned deliveries
-      const assignedIds = getAssignedDeliveryIds();
-      return (data as DeliveryForAssignment[]).filter(delivery => !assignedIds.has(delivery.id));
+    // Initialize groups for all dates in range
+    const currentDate = new Date(effectiveDateRange.from);
+    const endDate = new Date(effectiveDateRange.to);
+    
+    while (currentDate <= endDate) {
+      const dateStr = format(currentDate, 'yyyy-MM-dd');
+      const unassignedForDate = allDeliveries.filter(
+        d => d.scheduled_date === dateStr && !assignedIds.has(d.id)
+      ).length;
+
+      groupMap.set(dateStr, {
+        date: dateStr,
+        assignments: [],
+        totalDrivers: 0,
+        totalDeliveries: 0,
+        totalDistance: 0,
+        totalDuration: 0,
+        unassignedDeliveries: unassignedForDate
+      });
+      currentDate.setDate(currentDate.getDate() + 1);
     }
-  });
 
-  // Create or update assignment
+    // Add assignments to their respective date groups
+    assignments.forEach(assignment => {
+      const group = groupMap.get(assignment.assignment_date);
+      if (group) {
+        group.assignments.push(assignment);
+        group.totalDrivers += 1;
+        group.totalDeliveries += assignment.delivery_ids.length;
+        group.totalDistance += assignment.total_distance || 0;
+        group.totalDuration += assignment.estimated_duration || 0;
+      }
+    });
+
+    // Filter by search query if provided
+    const filteredGroups = Array.from(groupMap.values());
+    if (searchQuery.trim()) {
+      return filteredGroups.filter(group => {
+        return group.assignments.some(assignment => {
+          const driverName = drivers.find(d => d.id === assignment.driver_id);
+          const fullName = `${driverName?.first_name} ${driverName?.last_name}`.toLowerCase();
+          return fullName.includes(searchQuery.toLowerCase());
+        });
+      });
+    }
+
+    return filteredGroups.filter(group => 
+      group.assignments.length > 0 || group.unassignedDeliveries > 0
+    );
+  }, [assignments, allDeliveries, drivers, searchQuery, effectiveDateRange, getAssignedDeliveryIds]);
+
+  // Get available deliveries for a specific date
+  const getAvailableDeliveriesForDate = useCallback((date: string) => {
+    const assignedIds = getAssignedDeliveryIds();
+    return allDeliveries.filter(
+      delivery => delivery.scheduled_date === date && !assignedIds.has(delivery.id)
+    );
+  }, [allDeliveries, getAssignedDeliveryIds]);
+
+  // Create assignment mutation
   const createAssignmentMutation = useMutation({
     mutationFn: async (assignment: Omit<DailyRouteAssignment, 'id' | 'created_at' | 'updated_at'>) => {
-      // Double-check that deliveries are not already assigned
       const assignedIds = getAssignedDeliveryIds();
       const duplicateIds = assignment.delivery_ids.filter(id => assignedIds.has(id));
       
@@ -133,8 +227,8 @@ export const useDailyRouteAssignments = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['daily-route-assignments'] });
-      queryClient.invalidateQueries({ queryKey: ['deliveries-for-assignment'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-route-assignments-range'] });
+      queryClient.invalidateQueries({ queryKey: ['deliveries-for-range'] });
       toast({
         title: "Assignment Created",
         description: "Daily route assignment has been created successfully.",
@@ -149,7 +243,7 @@ export const useDailyRouteAssignments = () => {
     }
   });
 
-  // Update assignment
+  // Update assignment mutation
   const updateAssignmentMutation = useMutation({
     mutationFn: async ({ id, ...assignment }: Partial<DailyRouteAssignment> & { id: string }) => {
       const { data, error } = await supabase
@@ -163,7 +257,7 @@ export const useDailyRouteAssignments = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['daily-route-assignments'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-route-assignments-range'] });
       toast({
         title: "Assignment Updated",
         description: "Daily route assignment has been updated successfully.",
@@ -178,7 +272,7 @@ export const useDailyRouteAssignments = () => {
     }
   });
 
-  // Delete assignment
+  // Delete assignment mutation
   const deleteAssignmentMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -189,8 +283,8 @@ export const useDailyRouteAssignments = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['daily-route-assignments'] });
-      queryClient.invalidateQueries({ queryKey: ['deliveries-for-assignment'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-route-assignments-range'] });
+      queryClient.invalidateQueries({ queryKey: ['deliveries-for-range'] });
       toast({
         title: "Assignment Deleted",
         description: "Daily route assignment has been deleted successfully.",
@@ -205,12 +299,14 @@ export const useDailyRouteAssignments = () => {
     }
   });
 
-  // Optimize routes for all drivers on selected date
-  const optimizeAllRoutes = useCallback(async () => {
-    if (assignments.length === 0) {
+  // Optimize routes for a specific date
+  const optimizeRoutesForDate = useCallback(async (date: string) => {
+    const dateAssignments = assignments.filter(a => a.assignment_date === date);
+    
+    if (dateAssignments.length === 0) {
       toast({
         title: "No assignments",
-        description: "Please create assignments first.",
+        description: `No assignments found for ${new Date(date).toLocaleDateString()}.`,
         variant: "destructive"
       });
       return;
@@ -219,15 +315,14 @@ export const useDailyRouteAssignments = () => {
     setIsOptimizing(true);
     try {
       const startLocation = {
-        latitude: 28.6139, // Default Delhi coordinates
+        latitude: 28.6139,
         longitude: 77.2090,
         address: "Company Location"
       };
 
-      for (const assignment of assignments) {
+      for (const assignment of dateAssignments) {
         if (assignment.delivery_ids.length === 0) continue;
 
-        // Get delivery details for optimization
         const { data: deliveries, error } = await supabase
           .from('deliveries')
           .select('id, customer_address, latitude, longitude')
@@ -235,7 +330,6 @@ export const useDailyRouteAssignments = () => {
 
         if (error || !deliveries) continue;
 
-        // Call route optimizer
         const { data: optimizationResult, error: optimizationError } = await supabase.functions.invoke('route-optimizer', {
           body: {
             deliveries: deliveries.map(d => ({
@@ -253,7 +347,6 @@ export const useDailyRouteAssignments = () => {
           continue;
         }
 
-        // Update assignment with optimized route
         await updateAssignmentMutation.mutateAsync({
           id: assignment.id,
           optimized_order: optimizationResult.optimizedOrder,
@@ -264,7 +357,7 @@ export const useDailyRouteAssignments = () => {
 
       toast({
         title: "Routes Optimized",
-        description: "All routes have been optimized successfully.",
+        description: `All routes for ${new Date(date).toLocaleDateString()} have been optimized.`,
       });
     } catch (error) {
       console.error('Route optimization error:', error);
@@ -279,18 +372,22 @@ export const useDailyRouteAssignments = () => {
   }, [assignments, updateAssignmentMutation, toast]);
 
   return {
-    selectedDate,
-    setSelectedDate,
-    assignments,
+    dateRange,
+    setDateRange,
+    quickFilter,
+    setQuickFilter,
+    searchQuery,
+    setSearchQuery,
+    dateGroups,
     drivers,
-    availableDeliveries,
+    getAvailableDeliveriesForDate,
     getAssignedDeliveryIds,
     isLoading: assignmentsLoading || driversLoading || deliveriesLoading,
     isOptimizing,
     createAssignment: createAssignmentMutation.mutate,
     updateAssignment: updateAssignmentMutation.mutate,
     deleteAssignment: deleteAssignmentMutation.mutate,
-    optimizeAllRoutes,
+    optimizeRoutesForDate,
     isCreating: createAssignmentMutation.isPending,
     isUpdating: updateAssignmentMutation.isPending,
     isDeleting: deleteAssignmentMutation.isPending
