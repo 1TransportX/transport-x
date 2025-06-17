@@ -69,51 +69,65 @@ const DeliveryAssignmentCard: React.FC<DeliveryAssignmentCardProps> = ({
   return (
     <Card>
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Truck className="h-5 w-5 text-blue-600" />
-              <div>
-                <CardTitle className="text-lg">{driverName}</CardTitle>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge className={getStatusColor(assignment.status)}>
-                    {assignment.status.replace('_', ' ')}
-                  </Badge>
-                  <span className="text-sm text-gray-600">
-                    {assignment.delivery_ids.length} deliveries
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <div className="text-right text-sm">
-                <div className="flex items-center gap-1 text-gray-600">
-                  <MapPin className="h-3 w-3" />
-                  {assignment.total_distance.toFixed(1)} km
-                </div>
-                <div className="flex items-center gap-1 text-gray-600">
-                  <Clock className="h-3 w-3" />
-                  {formatDuration(assignment.estimated_duration)}
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Truck className="h-5 w-5 text-blue-600" />
+                <div>
+                  <CardTitle className="text-lg">{driverName}</CardTitle>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge className={getStatusColor(assignment.status)}>
+                      {assignment.status.replace('_', ' ')}
+                    </Badge>
+                    <span className="text-sm text-gray-600">
+                      {assignment.delivery_ids.length} deliveries
+                    </span>
+                  </div>
                 </div>
               </div>
               
-              <div className="flex items-center gap-1">
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={onDelete}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-                <CollapsibleTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              <div className="flex items-center gap-2">
+                <div className="text-right text-sm">
+                  <div className="flex items-center gap-1 text-gray-600">
+                    <MapPin className="h-3 w-3" />
+                    {assignment.total_distance.toFixed(1)} km
+                  </div>
+                  <div className="flex items-center gap-1 text-gray-600">
+                    <Clock className="h-3 w-3" />
+                    {formatDuration(assignment.estimated_duration)}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Add edit functionality here
+                    }}
+                  >
+                    <Edit className="h-4 w-4" />
                   </Button>
-                </CollapsibleTrigger>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete();
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center justify-center w-10 h-8">
+                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </CardHeader>
+          </CardHeader>
+        </CollapsibleTrigger>
 
         <CollapsibleContent>
           <CardContent className="pt-0">
