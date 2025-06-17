@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -40,9 +41,10 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
   const queryClient = useQueryClient();
   const { createAssignment, isCreating, getAssignedDeliveryIds } = useDailyRouteAssignments();
   
-  // Assignment states - stabilized with refs to prevent re-renders
-  const [selectedDriver, setSelectedDriver] = useState<string>('');
-  const [selectedDeliveries, setSelectedDeliveries] = useState<string[]>([]);
+  // Assignment states - use refs to prevent re-renders
+  const selectedDriverRef = useRef<string>('');
+  const selectedDeliveriesRef = useRef<string[]>([]);
+  const [assignmentFormKey, setAssignmentFormKey] = useState(0);
   
   // New delivery states - use refs to prevent re-renders on every keystroke
   const deliveryFormRef = useRef({
@@ -127,8 +129,56 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
     }
   }, [selectedDate, toast, queryClient]);
 
-  // Assignment handlers
+  // Stable assignment handlers using refs
+  const handleDriverChange = useCallback((driverId: string) => {
+    selectedDriverRef.current = driverId;
+    setAssignmentFormKey(prev => prev + 1); // Force re-render only when needed
+  }, []);
+
+  const handleDeliveryToggle = useCallback((deliveryId: string) => {
+    const currentSelected = selectedDeliveriesRef.current;
+    selectedDeliveriesRef.current = currentSelected.includes(deliveryId)
+      ? currentSelected.filter(id => id !== deliveryId)
+      : [...currentSelected, deliveryId];
+    setAssignmentFormKey(prev => prev + 1); // Force re-render only when needed
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    const currentSelected = selectedDeliveriesRef.current;
+    selectedDeliveriesRef.current = currentSelected.length === availableDeliveries.length
+      ? []
+      : availableDeliveries.map(d => d.id);
+    setAssignmentFormKey(prev => prev + 1);
+  }, [availableDeliveries]);
+
+  const smartAssignByLocation = useCallback(() => {
+    if (availableDeliveries.length === 0 || drivers.length === 0) {
+      return;
+    }
+
+    const assignedIds = getAssignedDeliveryIds();
+    const unassignedDeliveries = availableDeliveries.filter(d => !assignedIds.has(d.id));
+    
+    if (unassignedDeliveries.length === 0) {
+      selectedDeliveriesRef.current = [];
+      setAssignmentFormKey(prev => prev + 1);
+      return;
+    }
+
+    const deliveriesPerDriver = Math.ceil(unassignedDeliveries.length / drivers.length);
+    const driverIndex = drivers.findIndex(d => d.id === selectedDriverRef.current);
+    const startIndex = driverIndex >= 0 ? driverIndex * deliveriesPerDriver : 0;
+    const endIndex = Math.min(startIndex + deliveriesPerDriver, unassignedDeliveries.length);
+    
+    const assignedDeliveries = unassignedDeliveries.slice(startIndex, endIndex);
+    selectedDeliveriesRef.current = assignedDeliveries.map(d => d.id);
+    setAssignmentFormKey(prev => prev + 1);
+  }, [availableDeliveries, drivers, getAssignedDeliveryIds]);
+
   const handleAssignDeliveries = useCallback(() => {
+    const selectedDriver = selectedDriverRef.current;
+    const selectedDeliveries = selectedDeliveriesRef.current;
+
     if (!selectedDriver || selectedDeliveries.length === 0) {
       toast({
         title: "Error",
@@ -150,55 +200,23 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
     });
 
     // Reset assignment form and close dialog
-    setSelectedDriver('');
-    setSelectedDeliveries([]);
+    selectedDriverRef.current = '';
+    selectedDeliveriesRef.current = [];
+    setAssignmentFormKey(prev => prev + 1);
     onOpenChange(false);
-  }, [selectedDriver, selectedDeliveries, selectedDate, profile?.id, createAssignment, onOpenChange, toast]);
+  }, [selectedDate, profile?.id, createAssignment, onOpenChange, toast]);
 
-  const handleDeliveryToggle = useCallback((deliveryId: string) => {
-    setSelectedDeliveries(prev =>
-      prev.includes(deliveryId)
-        ? prev.filter(id => id !== deliveryId)
-        : [...prev, deliveryId]
-    );
-  }, []);
-
-  const handleSelectAll = useCallback(() => {
-    if (selectedDeliveries.length === availableDeliveries.length) {
-      setSelectedDeliveries([]);
-    } else {
-      setSelectedDeliveries(availableDeliveries.map(d => d.id));
-    }
-  }, [selectedDeliveries.length, availableDeliveries]);
-
-  const smartAssignByLocation = useCallback(() => {
-    if (availableDeliveries.length === 0 || drivers.length === 0) {
-      return;
-    }
-
-    const assignedIds = getAssignedDeliveryIds();
-    const unassignedDeliveries = availableDeliveries.filter(d => !assignedIds.has(d.id));
-    
-    if (unassignedDeliveries.length === 0) {
-      setSelectedDeliveries([]);
-      return;
-    }
-
-    const deliveriesPerDriver = Math.ceil(unassignedDeliveries.length / drivers.length);
-    const driverIndex = drivers.findIndex(d => d.id === selectedDriver);
-    const startIndex = driverIndex >= 0 ? driverIndex * deliveriesPerDriver : 0;
-    const endIndex = Math.min(startIndex + deliveriesPerDriver, unassignedDeliveries.length);
-    
-    const assignedDeliveries = unassignedDeliveries.slice(startIndex, endIndex);
-    setSelectedDeliveries(assignedDeliveries.map(d => d.id));
-  }, [availableDeliveries, drivers, selectedDriver, getAssignedDeliveryIds]);
+  // Memoize the selected driver info
+  const selectedDriverInfo = useMemo(() => {
+    return drivers.find(d => d.id === selectedDriverRef.current);
+  }, [drivers, assignmentFormKey]);
 
   // Reset form when dialog closes
   useEffect(() => {
     if (!open) {
       const timeoutId = setTimeout(() => {
-        setSelectedDriver('');
-        setSelectedDeliveries([]);
+        selectedDriverRef.current = '';
+        selectedDeliveriesRef.current = [];
         deliveryFormRef.current = {
           customer_name: '',
           customer_address: '',
@@ -207,16 +225,12 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
           notes: ''
         };
         setFormKey(prev => prev + 1);
+        setAssignmentFormKey(prev => prev + 1);
       }, 100);
       
       return () => clearTimeout(timeoutId);
     }
   }, [open]);
-
-  // Memoize the selected driver info
-  const selectedDriverInfo = useMemo(() => {
-    return drivers.find(d => d.id === selectedDriver);
-  }, [drivers, selectedDriver]);
 
   const DialogWrapper = ({ children }: { children: React.ReactNode }) => {
     if (isMobile) {
@@ -351,11 +365,11 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
 
           <TabsContent value="assign-driver" className="h-full">
             <ScrollArea className="h-full">
-              <div className="space-y-6 p-1">
+              <div className="space-y-6 p-1" key={assignmentFormKey}>
                 {/* Driver Selection */}
                 <div className="space-y-3">
                   <Label htmlFor="driver" className="text-base font-semibold">Select Driver</Label>
-                  <Select value={selectedDriver} onValueChange={setSelectedDriver}>
+                  <Select value={selectedDriverRef.current} onValueChange={handleDriverChange}>
                     <SelectTrigger className={`${isMobile ? 'h-12 text-base' : 'h-11'}`}>
                       <SelectValue placeholder="Choose a driver" />
                     </SelectTrigger>
@@ -378,7 +392,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                 <div className="space-y-4">
                   <div className="flex flex-col space-y-3">
                     <Label className="text-base font-semibold">
-                      Select Deliveries ({selectedDeliveries.length} selected)
+                      Select Deliveries ({selectedDeliveriesRef.current.length} selected)
                     </Label>
                     <div className="flex flex-wrap gap-2">
                       <Button
@@ -386,7 +400,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                         variant="outline"
                         size={isMobile ? "default" : "sm"}
                         onClick={smartAssignByLocation}
-                        disabled={!selectedDriver || availableDeliveries.length === 0}
+                        disabled={!selectedDriverRef.current || availableDeliveries.length === 0}
                         className="flex items-center gap-2"
                       >
                         <Zap className="h-4 w-4" />
@@ -401,7 +415,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                         className="flex items-center gap-2"
                       >
                         <Package className="h-4 w-4" />
-                        {selectedDeliveries.length === availableDeliveries.length ? 'Deselect All' : 'Select All'}
+                        {selectedDeliveriesRef.current.length === availableDeliveries.length ? 'Deselect All' : 'Select All'}
                       </Button>
                     </div>
                   </div>
@@ -422,7 +436,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                         <Card
                           key={delivery.id}
                           className={`cursor-pointer transition-all hover:shadow-md ${
-                            selectedDeliveries.includes(delivery.id)
+                            selectedDeliveriesRef.current.includes(delivery.id)
                               ? 'ring-2 ring-blue-500 bg-blue-50'
                               : 'hover:bg-gray-50'
                           }`}
@@ -430,7 +444,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                         >
                           <CardContent className={`${isMobile ? 'p-4' : 'p-3'} flex items-start space-x-3`}>
                             <Checkbox
-                              checked={selectedDeliveries.includes(delivery.id)}
+                              checked={selectedDeliveriesRef.current.includes(delivery.id)}
                               className="mt-1"
                             />
                             <div className="flex-1 min-w-0">
@@ -453,7 +467,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                 </div>
 
                 {/* Assignment Summary */}
-                {selectedDeliveries.length > 0 && selectedDriver && (
+                {selectedDeliveriesRef.current.length > 0 && selectedDriverRef.current && (
                   <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm text-blue-900 flex items-center gap-2">
@@ -476,7 +490,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                       </div>
                       <div>
                         <span className="text-blue-700 font-medium">Deliveries:</span>
-                        <p className="font-semibold text-blue-900 mt-1">{selectedDeliveries.length} items</p>
+                        <p className="font-semibold text-blue-900 mt-1">{selectedDeliveriesRef.current.length} items</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -494,10 +508,10 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                   </Button>
                   <Button
                     onClick={handleAssignDeliveries}
-                    disabled={!selectedDriver || selectedDeliveries.length === 0 || isCreating}
+                    disabled={!selectedDriverRef.current || selectedDeliveriesRef.current.length === 0 || isCreating}
                     className={`order-1 sm:order-2 ${isMobile ? 'h-12' : ''}`}
                   >
-                    {isCreating ? 'Assigning...' : `Assign to Driver (${selectedDeliveries.length})`}
+                    {isCreating ? 'Assigning...' : `Assign to Driver (${selectedDeliveriesRef.current.length})`}
                   </Button>
                 </div>
               </div>
