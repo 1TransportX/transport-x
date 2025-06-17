@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,7 +23,6 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [department, setDepartment] = useState('');
-  const [employeeId, setEmployeeId] = useState('');
   const [role, setRole] = useState<'admin' | 'driver'>('driver');
   const [isActive, setIsActive] = useState(true);
   
@@ -36,7 +36,6 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
       setLastName(employee.last_name || '');
       setPhone(employee.phone || '');
       setDepartment(employee.department || '');
-      setEmployeeId(employee.employee_id || '');
       setRole(employee.role);
       setIsActive(employee.is_active);
     }
@@ -56,13 +55,6 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
         department: employeeData.department,
         is_active: employeeData.isActive
       };
-
-      // Only include employee_id if it's not empty, otherwise set to null
-      if (employeeData.employeeId && employeeData.employeeId.trim() !== '') {
-        profileUpdateData.employee_id = employeeData.employeeId.trim();
-      } else {
-        profileUpdateData.employee_id = null;
-      }
 
       console.log('=== Updating profile with data:', profileUpdateData);
 
@@ -166,7 +158,6 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
       lastName,
       phone,
       department,
-      employeeId,
       role,
       isActive
     });
@@ -209,23 +200,13 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="department">Department</Label>
-              <Input
-                id="department"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="employeeId">Employee ID</Label>
-              <Input
-                id="employeeId"
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-              />
-            </div>
+          <div>
+            <Label htmlFor="department">Department</Label>
+            <Input
+              id="department"
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+            />
           </div>
 
           <div>
