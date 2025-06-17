@@ -73,20 +73,21 @@ export const useRouteCalculations = () => {
       return '';
     }
 
+    // Use a more accurate default start location or get current location
+    const defaultStart = {
+      latitude: startLocation?.latitude || 28.6139, // New Delhi coordinates as fallback
+      longitude: startLocation?.longitude || 77.2090,
+      address: "Start Location"
+    };
+
     // If we have coordinates and more than one delivery, optimize the route
-    if (deliveries.length > 1 && deliveries.some(d => d.latitude && d.longitude)) {
+    if (deliveries.length > 0 && deliveries.some(d => d.latitude && d.longitude)) {
       const deliveryLocations = deliveries.map(d => ({
         id: d.id,
         address: d.customer_address,
         latitude: d.latitude,
         longitude: d.longitude
       }));
-
-      const defaultStart = {
-        latitude: startLocation?.latitude || 28.6139,
-        longitude: startLocation?.longitude || 77.2090,
-        address: "Company Location"
-      };
 
       const optimizationResult = await calculateRouteMetrics(deliveryLocations, defaultStart);
       
@@ -95,14 +96,9 @@ export const useRouteCalculations = () => {
       }
     }
 
-    // Fallback to address-based routing
-    if (startLocation) {
-      const addresses = deliveries.map(d => encodeURIComponent(d.customer_address)).join('/');
-      return `https://www.google.com/maps/dir/${startLocation.latitude},${startLocation.longitude}/${addresses}`;
-    } else {
-      const addresses = deliveries.map(d => encodeURIComponent(d.customer_address)).join('/');
-      return `https://www.google.com/maps/dir/${addresses}`;
-    }
+    // Fallback to address-based routing with proper start location
+    const addresses = deliveries.map(d => encodeURIComponent(d.customer_address)).join('/');
+    return `https://www.google.com/maps/dir/${defaultStart.latitude},${defaultStart.longitude}/${addresses}`;
   }, [calculateRouteMetrics]);
 
   const generateMapsUrl = useCallback((
@@ -111,22 +107,22 @@ export const useRouteCalculations = () => {
   ): string => {
     const validDeliveries = deliveries.filter(d => d.latitude && d.longitude);
     
+    // Use more accurate start location
+    const defaultStart = {
+      latitude: startLocation?.latitude || 28.6139,
+      longitude: startLocation?.longitude || 77.2090
+    };
+
     if (validDeliveries.length === 0) {
       // Use addresses if no coordinates available
       const addresses = deliveries.map(d => encodeURIComponent(d.address)).join('/');
-      return `https://www.google.com/maps/dir/${addresses}`;
+      return `https://www.google.com/maps/dir/${defaultStart.latitude},${defaultStart.longitude}/${addresses}`;
     }
 
-    if (startLocation) {
-      const waypoints = validDeliveries
-        .map(d => `${d.latitude},${d.longitude}`)
-        .join('/');
-      return `https://www.google.com/maps/dir/${startLocation.latitude},${startLocation.longitude}/${waypoints}`;
-    } else {
-      // Use addresses if no start location
-      const addresses = deliveries.map(d => encodeURIComponent(d.address)).join('/');
-      return `https://www.google.com/maps/dir/${addresses}`;
-    }
+    const waypoints = validDeliveries
+      .map(d => `${d.latitude},${d.longitude}`)
+      .join('/');
+    return `https://www.google.com/maps/dir/${defaultStart.latitude},${defaultStart.longitude}/${waypoints}`;
   }, []);
 
   return {

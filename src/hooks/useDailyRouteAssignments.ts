@@ -1,9 +1,9 @@
-
 import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { addDays, format, startOfDay, endOfDay } from 'date-fns';
+import { useAuth } from '@/hooks/useAuth';
 
 interface DailyRouteAssignment {
   id: string;
@@ -49,6 +49,7 @@ interface DateGroup {
 type QuickFilter = 'all' | 'today' | 'week' | 'next7days';
 
 export const useDailyRouteAssignments = () => {
+  const { profile } = useAuth();
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: new Date(),
     to: addDays(new Date(), 30)
@@ -75,20 +76,27 @@ export const useDailyRouteAssignments = () => {
     }
   }, [quickFilter, dateRange]);
 
-  // Fetch assignments for date range
+  // Fetch assignments for date range - filter by driver for non-admin users
   const { data: assignments = [], isLoading: assignmentsLoading } = useQuery({
-    queryKey: ['daily-route-assignments-range', effectiveDateRange.from, effectiveDateRange.to],
+    queryKey: ['daily-route-assignments-range', effectiveDateRange.from, effectiveDateRange.to, profile?.role, profile?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('daily_route_assignments')
         .select('*')
         .gte('assignment_date', format(effectiveDateRange.from, 'yyyy-MM-dd'))
         .lte('assignment_date', format(effectiveDateRange.to, 'yyyy-MM-dd'))
         .order('assignment_date', { ascending: true });
 
+      // Filter by driver for non-admin users
+      if (profile?.role !== 'admin' && profile?.id) {
+        query = query.eq('driver_id', profile.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as DailyRouteAssignment[];
-    }
+    },
+    enabled: !!profile
   });
 
   // Fetch available drivers
@@ -118,20 +126,27 @@ export const useDailyRouteAssignments = () => {
     }
   });
 
-  // Fetch deliveries for the date range
+  // Fetch deliveries for the date range - filter by driver for non-admin users
   const { data: allDeliveries = [], isLoading: deliveriesLoading } = useQuery({
-    queryKey: ['deliveries-for-range', effectiveDateRange.from, effectiveDateRange.to],
+    queryKey: ['deliveries-for-range', effectiveDateRange.from, effectiveDateRange.to, profile?.role, profile?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('deliveries')
-        .select('id, customer_name, customer_address, delivery_number, status, latitude, longitude, scheduled_date')
+        .select('id, customer_name, customer_address, delivery_number, status, latitude, longitude, scheduled_date, driver_id')
         .gte('scheduled_date', format(effectiveDateRange.from, 'yyyy-MM-dd'))
         .lte('scheduled_date', format(effectiveDateRange.to, 'yyyy-MM-dd'))
         .eq('status', 'pending');
 
+      // Filter by driver for non-admin users
+      if (profile?.role !== 'admin' && profile?.id) {
+        query = query.eq('driver_id', profile.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
-      return data as (DeliveryForAssignment & { scheduled_date: string })[];
-    }
+      return data as (DeliveryForAssignment & { scheduled_date: string; driver_id?: string })[];
+    },
+    enabled: !!profile
   });
 
   // Memoize assigned delivery IDs to prevent circular dependencies

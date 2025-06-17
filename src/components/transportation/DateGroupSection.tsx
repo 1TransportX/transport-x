@@ -25,7 +25,6 @@ interface DateGroup {
 interface DateGroupSectionProps {
   dateGroup: DateGroup;
   drivers: any[];
-  onCreateAssignment: (date: string) => void;
   onOptimizeDate: (date: string) => void;
   onDeleteAssignment: (id: string) => void;
   isOptimizing: boolean;
@@ -34,7 +33,6 @@ interface DateGroupSectionProps {
 const DateGroupSection: React.FC<DateGroupSectionProps> = ({
   dateGroup,
   drivers,
-  onCreateAssignment,
   onOptimizeDate,
   onDeleteAssignment,
   isOptimizing
@@ -111,18 +109,6 @@ const DateGroupSection: React.FC<DateGroupSectionProps> = ({
               
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
-                  {profile?.role === 'admin' && (
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCreateAssignment(dateGroup.date);
-                      }}
-                      className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2"
-                    >
-                      Create Route
-                    </Button>
-                  )}
-                  
                   {dateGroup.assignments.length > 0 && (
                     <>
                       <Button
