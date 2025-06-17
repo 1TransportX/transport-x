@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +23,8 @@ interface Employee {
   hire_date: string | null;
   is_active: boolean;
   role: 'admin' | 'driver';
+  created_at?: string;
+  updated_at?: string;
 }
 
 const EmployeeList = () => {
@@ -60,7 +63,7 @@ const EmployeeList = () => {
 
   const { data: employees = [], isLoading, error } = useQuery({
     queryKey: ['employees'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Employee[]> => {
       console.log('Fetching employees with latest roles...');
       
       // First get all profiles
@@ -89,20 +92,29 @@ const EmployeeList = () => {
       console.log('Fetched roles:', rolesData);
 
       // Combine the data
-      const employeesWithRoles = profilesData.map(profile => {
+      const employeesWithRoles: Employee[] = profilesData.map(profile => {
         const userRole = rolesData.find(role => role.user_id === profile.id);
         const role = userRole?.role || 'driver';
         
         console.log(`Profile ${profile.email} has role:`, role);
         
         return {
-          ...profile,
-          role: role as 'admin' | 'driver'
+          id: profile.id,
+          email: profile.email,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          phone: profile.phone,
+          department: profile.department,
+          hire_date: profile.hire_date,
+          is_active: profile.is_active,
+          role: role as 'admin' | 'driver',
+          created_at: profile.created_at,
+          updated_at: profile.updated_at
         };
       });
 
       console.log('Final employees with roles:', employeesWithRoles);
-      return employeesWithRoles as Employee[];
+      return employeesWithRoles;
     }
   });
 
