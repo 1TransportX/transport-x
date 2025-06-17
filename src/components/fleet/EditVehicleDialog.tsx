@@ -17,11 +17,7 @@ interface Vehicle {
   model: string | null;
   year: number | null;
   fuel_type: string | null;
-  current_mileage: number;
-  fuel_economy: number | null;
   status: 'active' | 'maintenance' | 'retired';
-  last_service_date: string | null;
-  next_service_due: number | null;
 }
 
 interface EditVehicleDialogProps {
@@ -36,11 +32,7 @@ interface VehicleFormData {
   model: string;
   year: number;
   fuel_type: string;
-  current_mileage: number;
-  fuel_economy: number;
   status: 'active' | 'maintenance' | 'retired';
-  last_service_date?: string;
-  next_service_due?: number;
 }
 
 const EditVehicleDialog: React.FC<EditVehicleDialogProps> = ({ vehicle, open, onOpenChange }) => {
@@ -57,11 +49,7 @@ const EditVehicleDialog: React.FC<EditVehicleDialogProps> = ({ vehicle, open, on
         model: vehicle.model || '',
         year: vehicle.year || new Date().getFullYear(),
         fuel_type: fuelType,
-        current_mileage: vehicle.current_mileage,
-        fuel_economy: vehicle.fuel_economy || 0,
-        status: vehicle.status,
-        last_service_date: vehicle.last_service_date || '',
-        next_service_due: vehicle.next_service_due || undefined
+        status: vehicle.status
       });
     }
   }, [vehicle, reset]);
@@ -154,58 +142,18 @@ const EditVehicleDialog: React.FC<EditVehicleDialogProps> = ({ vehicle, open, on
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="current_mileage">Current Kilometers</Label>
-              <Input
-                id="current_mileage"
-                type="number"
-                {...register('current_mileage', { required: true, valueAsNumber: true })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="fuel_economy">Fuel Economy (Km/L)</Label>
-              <Input
-                id="fuel_economy"
-                type="number"
-                step="0.1"
-                {...register('fuel_economy', { valueAsNumber: true })}
-                placeholder="12.5"
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select value={watch('status')} onValueChange={(value) => setValue('status', value as any)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                  <SelectItem value="retired">Retired</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="last_service_date">Last Service Date</Label>
-              <Input
-                id="last_service_date"
-                type="date"
-                {...register('last_service_date')}
-              />
-            </div>
-          </div>
-          
           <div>
-            <Label htmlFor="next_service_due">Next Service Due (km)</Label>
-            <Input
-              id="next_service_due"
-              type="number"
-              {...register('next_service_due', { valueAsNumber: true })}
-            />
+            <Label htmlFor="status">Status</Label>
+            <Select value={watch('status')} onValueChange={(value) => setValue('status', value as any)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="maintenance">Maintenance</SelectItem>
+                <SelectItem value="retired">Retired</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="flex justify-end gap-2">
