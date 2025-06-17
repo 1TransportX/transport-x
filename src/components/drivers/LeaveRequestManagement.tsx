@@ -42,7 +42,7 @@ const LeaveRequestManagement = () => {
         .from('leave_requests')
         .select(`
           *,
-          profiles:user_id (
+          profiles!user_id (
             first_name,
             last_name,
             email
