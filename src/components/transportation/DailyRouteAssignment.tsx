@@ -191,7 +191,6 @@ const DailyRouteAssignment = React.memo(() => {
               key={dateGroup.date}
               dateGroup={dateGroup}
               drivers={drivers}
-              onCreateAssignment={handleCreateRoute}
               onOptimizeDate={optimizeRoutesForDate}
               onDeleteAssignment={deleteAssignment}
               isOptimizing={isOptimizing}
