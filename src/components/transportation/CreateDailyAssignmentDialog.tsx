@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface CreateRouteDialogProps {
   open: boolean;
@@ -27,7 +28,7 @@ interface CreateRouteDialogProps {
   drivers: any[];
 }
 
-const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
+const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
   open,
   onOpenChange,
   selectedDate,
@@ -37,13 +38,14 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
   const isMobile = useIsMobile();
   const { profile } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { createAssignment, isCreating, getAssignedDeliveryIds } = useDailyRouteAssignments();
   
-  // Assignment states
+  // Assignment states - stabilized with refs to prevent re-renders
   const [selectedDriver, setSelectedDriver] = useState<string>('');
   const [selectedDeliveries, setSelectedDeliveries] = useState<string[]>([]);
   
-  // New delivery states
+  // New delivery states - isolated to prevent parent re-renders
   const [newDelivery, setNewDelivery] = useState({
     customer_name: '',
     customer_address: '',
@@ -53,27 +55,12 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
   });
   const [isCreatingDelivery, setIsCreatingDelivery] = useState(false);
 
-  // Only reset form when dialog is explicitly closed (not on every open/date change)
-  useEffect(() => {
-    if (!open) {
-      // Small delay to ensure dialog is fully closed before resetting
-      const timeoutId = setTimeout(() => {
-        setSelectedDriver('');
-        setSelectedDeliveries([]);
-        setNewDelivery({
-          customer_name: '',
-          customer_address: '',
-          customer_phone: '',
-          delivery_number: '',
-          notes: ''
-        });
-      }, 100);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [open]);
+  // Memoize handlers to prevent recreation on every render
+  const handleNewDeliveryChange = useCallback((field: string, value: string) => {
+    setNewDelivery(prev => ({ ...prev, [field]: value }));
+  }, []);
 
-  const handleCreateDelivery = async () => {
+  const handleCreateDelivery = useCallback(async () => {
     if (!newDelivery.customer_name || !newDelivery.customer_address) {
       toast({
         title: "Error",
@@ -117,8 +104,10 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
         notes: ''
       });
 
-      // Refresh the page data - this could be improved with better state management
-      window.location.reload();
+      // Use proper query invalidation instead of window.location.reload()
+      await queryClient.invalidateQueries({ queryKey: ['deliveries-for-range'] });
+      await queryClient.invalidateQueries({ queryKey: ['daily-route-assignments-range'] });
+      
     } catch (error) {
       console.error('Error creating delivery:', error);
       toast({
@@ -129,9 +118,9 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
     } finally {
       setIsCreatingDelivery(false);
     }
-  };
+  }, [newDelivery, selectedDate, toast, queryClient]);
 
-  const handleAssignDeliveries = () => {
+  const handleAssignDeliveries = useCallback(() => {
     if (!selectedDriver || selectedDeliveries.length === 0) {
       toast({
         title: "Error",
@@ -140,13 +129,6 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
       });
       return;
     }
-
-    console.log('Creating assignment with:', {
-      assignment_date: selectedDate,
-      driver_id: selectedDriver,
-      delivery_ids: selectedDeliveries,
-      profile_id: profile?.id
-    });
 
     createAssignment({
       assignment_date: selectedDate,
@@ -163,25 +145,25 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
     setSelectedDriver('');
     setSelectedDeliveries([]);
     onOpenChange(false);
-  };
+  }, [selectedDriver, selectedDeliveries, selectedDate, profile?.id, createAssignment, onOpenChange, toast]);
 
-  const handleDeliveryToggle = (deliveryId: string) => {
+  const handleDeliveryToggle = useCallback((deliveryId: string) => {
     setSelectedDeliveries(prev =>
       prev.includes(deliveryId)
         ? prev.filter(id => id !== deliveryId)
         : [...prev, deliveryId]
     );
-  };
+  }, []);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (selectedDeliveries.length === availableDeliveries.length) {
       setSelectedDeliveries([]);
     } else {
       setSelectedDeliveries(availableDeliveries.map(d => d.id));
     }
-  };
+  }, [selectedDeliveries.length, availableDeliveries]);
 
-  const smartAssignByLocation = () => {
+  const smartAssignByLocation = useCallback(() => {
     if (availableDeliveries.length === 0 || drivers.length === 0) {
       return;
     }
@@ -201,7 +183,32 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
     
     const assignedDeliveries = unassignedDeliveries.slice(startIndex, endIndex);
     setSelectedDeliveries(assignedDeliveries.map(d => d.id));
-  };
+  }, [availableDeliveries, drivers, selectedDriver, getAssignedDeliveryIds]);
+
+  // Only reset form when dialog is explicitly closed (not on every open/date change)
+  useEffect(() => {
+    if (!open) {
+      // Small delay to ensure dialog is fully closed before resetting
+      const timeoutId = setTimeout(() => {
+        setSelectedDriver('');
+        setSelectedDeliveries([]);
+        setNewDelivery({
+          customer_name: '',
+          customer_address: '',
+          customer_phone: '',
+          delivery_number: '',
+          notes: ''
+        });
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [open]);
+
+  // Memoize the selected driver info to prevent lookups on every render
+  const selectedDriverInfo = useMemo(() => {
+    return drivers.find(d => d.id === selectedDriver);
+  }, [drivers, selectedDriver]);
 
   const DialogWrapper = ({ children }: { children: React.ReactNode }) => {
     if (isMobile) {
@@ -276,7 +283,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
                           id="delivery_number"
                           placeholder="Auto-generated if empty"
                           value={newDelivery.delivery_number}
-                          onChange={(e) => setNewDelivery(prev => ({ ...prev, delivery_number: e.target.value }))}
+                          onChange={(e) => handleNewDeliveryChange('delivery_number', e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
@@ -285,7 +292,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
                           id="customer_name"
                           placeholder="Enter customer name"
                           value={newDelivery.customer_name}
-                          onChange={(e) => setNewDelivery(prev => ({ ...prev, customer_name: e.target.value }))}
+                          onChange={(e) => handleNewDeliveryChange('customer_name', e.target.value)}
                         />
                       </div>
                     </div>
@@ -296,7 +303,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
                         id="customer_address"
                         placeholder="Enter full delivery address"
                         value={newDelivery.customer_address}
-                        onChange={(e) => setNewDelivery(prev => ({ ...prev, customer_address: e.target.value }))}
+                        onChange={(e) => handleNewDeliveryChange('customer_address', e.target.value)}
                       />
                     </div>
 
@@ -306,7 +313,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
                         id="customer_phone"
                         placeholder="Enter customer phone number"
                         value={newDelivery.customer_phone}
-                        onChange={(e) => setNewDelivery(prev => ({ ...prev, customer_phone: e.target.value }))}
+                        onChange={(e) => handleNewDeliveryChange('customer_phone', e.target.value)}
                       />
                     </div>
 
@@ -316,7 +323,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
                         id="notes"
                         placeholder="Any special delivery instructions or notes"
                         value={newDelivery.notes}
-                        onChange={(e) => setNewDelivery(prev => ({ ...prev, notes: e.target.value }))}
+                        onChange={(e) => handleNewDeliveryChange('notes', e.target.value)}
                         rows={3}
                       />
                     </div>
@@ -456,7 +463,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
                       <div>
                         <span className="text-blue-700 font-medium">Driver:</span>
                         <p className="font-semibold text-blue-900 mt-1">
-                          {drivers.find(d => d.id === selectedDriver)?.first_name} {drivers.find(d => d.id === selectedDriver)?.last_name}
+                          {selectedDriverInfo?.first_name} {selectedDriverInfo?.last_name}
                         </p>
                       </div>
                       <div>
@@ -492,6 +499,8 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
       </Tabs>
     </DialogWrapper>
   );
-};
+});
+
+CreateRouteDialog.displayName = 'CreateRouteDialog';
 
 export default CreateRouteDialog;
