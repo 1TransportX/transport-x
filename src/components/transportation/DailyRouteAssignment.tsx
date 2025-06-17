@@ -2,8 +2,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Clock, Truck, Users, Package, Route, Plus } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Package, Route, Plus } from 'lucide-react';
 import { useDailyRouteAssignments } from '@/hooks/useDailyRouteAssignments';
 import { useAuth } from '@/hooks/useAuth';
 import CreateRouteDialog from './CreateDailyAssignmentDialog';
@@ -31,20 +30,15 @@ const DailyRouteAssignment = React.memo(() => {
     deleteAssignment
   } = useDailyRouteAssignments();
 
-  console.log('DailyRouteAssignment: Rendering with date groups:', dateGroups?.length);
-
-  // Memoize the create route handler to prevent recreation on every render
   const handleCreateRoute = useCallback((date: string) => {
     setSelectedDate(date);
     setShowCreateDialog(true);
   }, []);
 
-  // Memoize available deliveries for the selected date
   const availableDeliveries = useMemo(() => {
     return selectedDate ? getAvailableDeliveriesForDate(selectedDate) : [];
   }, [selectedDate, getAvailableDeliveriesForDate]);
 
-  // Memoize total stats calculation to prevent expensive recalculations
   const totalStats = useMemo(() => {
     const totalDrivers = dateGroups.reduce((sum, group) => sum + group.totalDrivers, 0);
     const totalDeliveries = dateGroups.reduce((sum, group) => sum + group.totalDeliveries, 0);
@@ -56,7 +50,6 @@ const DailyRouteAssignment = React.memo(() => {
     return { totalDrivers, totalDeliveries, totalDistance, totalDuration, totalUnassigned, totalAssignments };
   }, [dateGroups]);
 
-  // Memoize dialog close handler
   const handleDialogClose = useCallback((open: boolean) => {
     setShowCreateDialog(open);
   }, []);
@@ -98,7 +91,6 @@ const DailyRouteAssignment = React.memo(() => {
         )}
       </div>
 
-      {/* Filter Bar */}
       <RouteFilterBar
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
@@ -110,7 +102,6 @@ const DailyRouteAssignment = React.memo(() => {
         totalAssignments={totalStats.totalAssignments}
       />
 
-      {/* Summary Stats */}
       {totalStats.totalAssignments > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card>
@@ -171,7 +162,6 @@ const DailyRouteAssignment = React.memo(() => {
         </div>
       )}
 
-      {/* Unassigned Deliveries Alert */}
       {totalStats.totalUnassigned > 0 && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="p-4">
@@ -185,7 +175,6 @@ const DailyRouteAssignment = React.memo(() => {
         </Card>
       )}
 
-      {/* Date Groups */}
       <div className="space-y-4">
         {dateGroups.length === 0 ? (
           <Card>
