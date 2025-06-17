@@ -29,12 +29,6 @@ interface Delivery {
     first_name: string;
     last_name: string;
   };
-  delivery_items: Array<{
-    quantity: number;
-    inventory: {
-      product_name: string;
-    };
-  }>;
 }
 
 interface GroupedDeliveries {
@@ -98,11 +92,7 @@ const RouteManagement = () => {
             driver_id,
             latitude,
             longitude,
-            profiles:driver_id(first_name, last_name),
-            delivery_items(
-              quantity,
-              inventory(product_name)
-            )
+            profiles:driver_id(first_name, last_name)
           `)
           .order('scheduled_date', { ascending: true });
 
@@ -528,16 +518,6 @@ const RouteManagement = () => {
             ? `${delivery.profiles.first_name} ${delivery.profiles.last_name}`
             : 'Unassigned'
           }</p>
-          {delivery.delivery_items?.length > 0 && (
-            <div>
-              <p>Items:</p>
-              <div className="ml-2">
-                {delivery.delivery_items.map((item, index) => (
-                  <p key={index}>{item.quantity}x {item.inventory?.product_name}</p>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </Card>
@@ -769,7 +749,6 @@ const RouteManagement = () => {
                               <TableHead>Customer</TableHead>
                               <TableHead>Address</TableHead>
                               <TableHead>Driver</TableHead>
-                              <TableHead>Items</TableHead>
                               <TableHead>Status</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -784,19 +763,6 @@ const RouteManagement = () => {
                                     ? `${delivery.profiles.first_name} ${delivery.profiles.last_name}`
                                     : 'Unassigned'
                                   }
-                                </TableCell>
-                                <TableCell>
-                                  <div className="text-sm">
-                                    {delivery.delivery_items?.length > 0 ? (
-                                      delivery.delivery_items.map((item, index) => (
-                                        <div key={index}>
-                                          {item.quantity}x {item.inventory?.product_name}
-                                        </div>
-                                      ))
-                                    ) : (
-                                      'No items'
-                                    )}
-                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   <Badge className={getStatusBadgeColor(delivery.status)}>
@@ -880,14 +846,13 @@ const RouteManagement = () => {
                         <TableHead>Address</TableHead>
                         <TableHead>Scheduled Date</TableHead>
                         <TableHead>Assigned Driver</TableHead>
-                        <TableHead>Items</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredDeliveries.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                             No delivery routes found.
                           </TableCell>
                         </TableRow>
@@ -905,19 +870,6 @@ const RouteManagement = () => {
                                 ? `${delivery.profiles.first_name} ${delivery.profiles.last_name}`
                                 : 'Unassigned'
                               }
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-sm">
-                                {delivery.delivery_items?.length > 0 ? (
-                                  delivery.delivery_items.map((item, index) => (
-                                    <div key={index}>
-                                      {item.quantity}x {item.inventory?.product_name}
-                                    </div>
-                                  ))
-                                ) : (
-                                  'No items'
-                                )}
-                              </div>
                             </TableCell>
                             <TableCell>
                               <Badge className={getStatusBadgeColor(delivery.status)}>

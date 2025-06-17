@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,8 +19,7 @@ const ProfilePage = () => {
     first_name: '',
     last_name: '',
     phone: '',
-    department: '',
-    employee_id: ''
+    department: ''
   });
 
   // Fetch detailed profile data
@@ -62,8 +60,7 @@ const ProfilePage = () => {
         first_name: currentProfile.first_name || '',
         last_name: currentProfile.last_name || '',
         phone: currentProfile.phone || '',
-        department: currentProfile.department || '',
-        employee_id: currentProfile.employee_id || ''
+        department: currentProfile.department || ''
       });
     }
   }, [detailedProfile, profile]);
@@ -188,8 +185,7 @@ const ProfilePage = () => {
                     first_name: currentProfile.first_name || '',
                     last_name: currentProfile.last_name || '',
                     phone: currentProfile.phone || '',
-                    department: currentProfile.department || '',
-                    employee_id: currentProfile.employee_id || ''
+                    department: currentProfile.department || ''
                   });
                 }
               }}
@@ -256,15 +252,6 @@ const ProfilePage = () => {
                     placeholder="Enter your department"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="employee_id">Employee ID</Label>
-                  <Input
-                    id="employee_id"
-                    value={formData.employee_id}
-                    onChange={(e) => handleInputChange('employee_id', e.target.value)}
-                    placeholder="Enter your employee ID"
-                  />
-                </div>
               </div>
             </form>
           ) : (
@@ -300,13 +287,6 @@ const ProfilePage = () => {
                   <div>
                     <p className="text-sm text-gray-500">Department</p>
                     <p className="font-medium">{currentProfile?.department || 'Not specified'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Calendar className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm text-gray-500">Employee ID</p>
-                    <p className="font-medium">{currentProfile?.employee_id || 'Not specified'}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">

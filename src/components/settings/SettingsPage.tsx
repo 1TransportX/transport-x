@@ -18,7 +18,7 @@ interface UserWithRole {
   first_name: string | null;
   last_name: string | null;
   is_active: boolean;
-  role: 'admin' | 'employee' | 'driver';
+  role: 'admin' | 'driver';
 }
 
 const SettingsPage = () => {
@@ -48,7 +48,7 @@ const SettingsPage = () => {
       
       return data.map(profile => ({
         ...profile,
-        role: profile.user_roles?.[0]?.role || 'employee'
+        role: (profile.user_roles?.[0]?.role || 'driver') as 'admin' | 'driver'
       })) as UserWithRole[];
     }
   });
@@ -79,7 +79,7 @@ const SettingsPage = () => {
   });
 
   const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string, role: 'admin' | 'employee' | 'driver' }) => {
+    mutationFn: async ({ userId, role }: { userId: string, role: 'admin' | 'driver' }) => {
       const { error } = await supabase
         .from('user_roles')
         .update({ role })
@@ -226,16 +226,7 @@ const SettingsPage = () => {
                     <li>Fleet and vehicle management</li>
                     <li>Warehouse and inventory management</li>
                     <li>Employee management</li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Employee Permissions</h3>
-                  <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                    <li>Warehouse and inventory access</li>
-                    <li>Stock movement recording</li>
-                    <li>View own profile and attendance</li>
-                    <li>Submit leave requests</li>
+                    <li>Route optimization and planning</li>
                   </ul>
                 </div>
                 
@@ -247,6 +238,7 @@ const SettingsPage = () => {
                     <li>Fuel log recording</li>
                     <li>View own profile and attendance</li>
                     <li>Submit leave requests</li>
+                    <li>Route completion tracking</li>
                   </ul>
                 </div>
               </div>
