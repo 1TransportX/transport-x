@@ -4,17 +4,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MapPin, Users, Package, Zap } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MapPin, Users, Package, Zap, Plus, Truck } from 'lucide-react';
 import { useDailyRouteAssignments } from '@/hooks/useDailyRouteAssignments';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
-interface CreateDailyAssignmentDialogProps {
+interface CreateRouteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: string;
@@ -22,7 +27,7 @@ interface CreateDailyAssignmentDialogProps {
   drivers: any[];
 }
 
-const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = ({
+const CreateRouteDialog: React.FC<CreateRouteDialogProps> = ({
   open,
   onOpenChange,
   selectedDate,
@@ -31,20 +36,103 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
 }) => {
   const isMobile = useIsMobile();
   const { profile } = useAuth();
+  const { toast } = useToast();
   const { createAssignment, isCreating, getAssignedDeliveryIds } = useDailyRouteAssignments();
+  
+  // Assignment states
   const [selectedDriver, setSelectedDriver] = useState<string>('');
   const [selectedDeliveries, setSelectedDeliveries] = useState<string[]>([]);
+  
+  // New delivery states
+  const [newDelivery, setNewDelivery] = useState({
+    customer_name: '',
+    customer_address: '',
+    customer_phone: '',
+    delivery_number: '',
+    notes: ''
+  });
+  const [isCreatingDelivery, setIsCreatingDelivery] = useState(false);
 
   // Reset form when dialog opens/closes or date changes
   React.useEffect(() => {
     if (!open) {
       setSelectedDriver('');
       setSelectedDeliveries([]);
+      setNewDelivery({
+        customer_name: '',
+        customer_address: '',
+        customer_phone: '',
+        delivery_number: '',
+        notes: ''
+      });
     }
   }, [open, selectedDate]);
 
-  const handleSubmit = () => {
+  const handleCreateDelivery = async () => {
+    if (!newDelivery.customer_name || !newDelivery.customer_address) {
+      toast({
+        title: "Error",
+        description: "Customer name and address are required.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsCreatingDelivery(true);
+    try {
+      const deliveryNumber = newDelivery.delivery_number || `DEL-${Date.now()}`;
+      
+      const { data, error } = await supabase
+        .from('deliveries')
+        .insert({
+          delivery_number: deliveryNumber,
+          customer_name: newDelivery.customer_name,
+          customer_address: newDelivery.customer_address,
+          customer_phone: newDelivery.customer_phone || null,
+          notes: newDelivery.notes || null,
+          scheduled_date: selectedDate,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Delivery Created",
+        description: `Delivery route for ${newDelivery.customer_name} has been created successfully.`,
+      });
+
+      // Reset form
+      setNewDelivery({
+        customer_name: '',
+        customer_address: '',
+        customer_phone: '',
+        delivery_number: '',
+        notes: ''
+      });
+
+      // Refresh the page data - this could be improved with better state management
+      window.location.reload();
+    } catch (error) {
+      console.error('Error creating delivery:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create delivery route.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCreatingDelivery(false);
+    }
+  };
+
+  const handleAssignDeliveries = () => {
     if (!selectedDriver || selectedDeliveries.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select a driver and at least one delivery.",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -88,7 +176,6 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
     }
   };
 
-  // Improved smart assignment with geographic clustering and workload balancing
   const smartAssignByLocation = () => {
     if (availableDeliveries.length === 0 || drivers.length === 0) {
       return;
@@ -102,10 +189,7 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
       return;
     }
 
-    // Calculate optimal number of deliveries per driver
     const deliveriesPerDriver = Math.ceil(unassignedDeliveries.length / drivers.length);
-    
-    // For the selected driver, assign a balanced portion
     const driverIndex = drivers.findIndex(d => d.id === selectedDriver);
     const startIndex = driverIndex >= 0 ? driverIndex * deliveriesPerDriver : 0;
     const endIndex = Math.min(startIndex + deliveriesPerDriver, unassignedDeliveries.length);
@@ -121,10 +205,10 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
           <SheetContent side="bottom" className="h-[95vh] flex flex-col">
             <SheetHeader className="flex-shrink-0 pb-4 border-b">
               <SheetTitle className="text-lg font-semibold">
-                Create Assignment for {new Date(selectedDate).toLocaleDateString()}
+                Route Management for {new Date(selectedDate).toLocaleDateString()}
               </SheetTitle>
               <SheetDescription className="text-sm text-gray-600">
-                Select a driver and deliveries to create a new route assignment.
+                Create new delivery routes or assign existing deliveries to drivers.
               </SheetDescription>
             </SheetHeader>
             <div className="flex-1 overflow-hidden">
@@ -137,13 +221,13 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>
-              Create Assignment for {new Date(selectedDate).toLocaleDateString()}
+              Route Management for {new Date(selectedDate).toLocaleDateString()}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-600">
-              Select a driver and deliveries to create a new route assignment.
+              Create new delivery routes or assign existing deliveries to drivers.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">
@@ -156,160 +240,253 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
 
   return (
     <DialogWrapper>
-      <ScrollArea className="h-full">
-        <div className="space-y-6 p-1">
-          {/* Driver Selection */}
-          <div className="space-y-3">
-            <Label htmlFor="driver" className="text-base font-semibold">Select Driver</Label>
-            <Select value={selectedDriver} onValueChange={setSelectedDriver}>
-              <SelectTrigger className={`${isMobile ? 'h-12 text-base' : 'h-11'}`}>
-                <SelectValue placeholder="Choose a driver" />
-              </SelectTrigger>
-              <SelectContent>
-                {drivers.map((driver) => (
-                  <SelectItem key={driver.id} value={driver.id}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Users className="h-4 w-4 text-blue-600" />
+      <Tabs defaultValue="create-delivery" className="h-full flex flex-col">
+        <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsTrigger value="create-delivery" className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Create New Route
+          </TabsTrigger>
+          <TabsTrigger value="assign-driver" className="flex items-center gap-2">
+            <Truck className="h-4 w-4" />
+            Assign to Driver
+          </TabsTrigger>
+        </TabsList>
+
+        <div className="flex-1 overflow-hidden">
+          <TabsContent value="create-delivery" className="h-full">
+            <ScrollArea className="h-full">
+              <div className="space-y-6 p-1">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Plus className="h-5 w-5" />
+                      New Delivery Route
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="delivery_number">Delivery Number (Optional)</Label>
+                        <Input
+                          id="delivery_number"
+                          placeholder="Auto-generated if empty"
+                          value={newDelivery.delivery_number}
+                          onChange={(e) => setNewDelivery(prev => ({ ...prev, delivery_number: e.target.value }))}
+                        />
                       </div>
-                      <span className="font-medium">{driver.first_name} {driver.last_name}</span>
+                      <div className="space-y-2">
+                        <Label htmlFor="customer_name">Customer Name *</Label>
+                        <Input
+                          id="customer_name"
+                          placeholder="Enter customer name"
+                          value={newDelivery.customer_name}
+                          onChange={(e) => setNewDelivery(prev => ({ ...prev, customer_name: e.target.value }))}
+                        />
+                      </div>
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
-          {/* Delivery Selection */}
-          <div className="space-y-4">
-            <div className="flex flex-col space-y-3">
-              <Label className="text-base font-semibold">
-                Select Deliveries ({selectedDeliveries.length} selected)
-              </Label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size={isMobile ? "default" : "sm"}
-                  onClick={smartAssignByLocation}
-                  disabled={!selectedDriver || availableDeliveries.length === 0}
-                  className="flex items-center gap-2"
-                >
-                  <Zap className="h-4 w-4" />
-                  Smart Assign
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size={isMobile ? "default" : "sm"}
-                  onClick={handleSelectAll}
-                  disabled={availableDeliveries.length === 0}
-                  className="flex items-center gap-2"
-                >
-                  <Package className="h-4 w-4" />
-                  {selectedDeliveries.length === availableDeliveries.length ? 'Deselect All' : 'Select All'}
-                </Button>
-              </div>
-            </div>
-
-            {availableDeliveries.length === 0 ? (
-              <Card className="border-dashed border-2">
-                <CardContent className="py-8 text-center">
-                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                  <h3 className="font-medium text-gray-900 mb-1">No Available Deliveries</h3>
-                  <p className="text-sm text-gray-600">
-                    No unassigned deliveries for {new Date(selectedDate).toLocaleDateString()}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {availableDeliveries.map((delivery) => (
-                  <Card
-                    key={delivery.id}
-                    className={`cursor-pointer transition-all hover:shadow-md ${
-                      selectedDeliveries.includes(delivery.id)
-                        ? 'ring-2 ring-blue-500 bg-blue-50'
-                        : 'hover:bg-gray-50'
-                    }`}
-                    onClick={() => handleDeliveryToggle(delivery.id)}
-                  >
-                    <CardContent className={`${isMobile ? 'p-4' : 'p-3'} flex items-start space-x-3`}>
-                      <Checkbox
-                        checked={selectedDeliveries.includes(delivery.id)}
-                        className="mt-1"
+                    <div className="space-y-2">
+                      <Label htmlFor="customer_address">Customer Address *</Label>
+                      <Input
+                        id="customer_address"
+                        placeholder="Enter full delivery address"
+                        value={newDelivery.customer_address}
+                        onChange={(e) => setNewDelivery(prev => ({ ...prev, customer_address: e.target.value }))}
                       />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge variant="outline" className="text-xs font-medium">
-                            {delivery.delivery_number}
-                          </Badge>
-                          <span className="font-semibold text-sm">{delivery.customer_name}</span>
-                        </div>
-                        <div className="flex items-start gap-2 text-sm text-gray-600">
-                          <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                          <span className="break-words">{delivery.customer_address}</span>
-                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="customer_phone">Customer Phone</Label>
+                      <Input
+                        id="customer_phone"
+                        placeholder="Enter customer phone number"
+                        value={newDelivery.customer_phone}
+                        onChange={(e) => setNewDelivery(prev => ({ ...prev, customer_phone: e.target.value }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="notes">Additional Notes</Label>
+                      <Textarea
+                        id="notes"
+                        placeholder="Any special delivery instructions or notes"
+                        value={newDelivery.notes}
+                        onChange={(e) => setNewDelivery(prev => ({ ...prev, notes: e.target.value }))}
+                        rows={3}
+                      />
+                    </div>
+
+                    <Button
+                      onClick={handleCreateDelivery}
+                      disabled={isCreatingDelivery || !newDelivery.customer_name || !newDelivery.customer_address}
+                      className="w-full"
+                    >
+                      {isCreatingDelivery ? 'Creating Route...' : 'Create Delivery Route'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="assign-driver" className="h-full">
+            <ScrollArea className="h-full">
+              <div className="space-y-6 p-1">
+                {/* Driver Selection */}
+                <div className="space-y-3">
+                  <Label htmlFor="driver" className="text-base font-semibold">Select Driver</Label>
+                  <Select value={selectedDriver} onValueChange={setSelectedDriver}>
+                    <SelectTrigger className={`${isMobile ? 'h-12 text-base' : 'h-11'}`}>
+                      <SelectValue placeholder="Choose a driver" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {drivers.map((driver) => (
+                        <SelectItem key={driver.id} value={driver.id}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <Users className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <span className="font-medium">{driver.first_name} {driver.last_name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Delivery Selection */}
+                <div className="space-y-4">
+                  <div className="flex flex-col space-y-3">
+                    <Label className="text-base font-semibold">
+                      Select Deliveries ({selectedDeliveries.length} selected)
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size={isMobile ? "default" : "sm"}
+                        onClick={smartAssignByLocation}
+                        disabled={!selectedDriver || availableDeliveries.length === 0}
+                        className="flex items-center gap-2"
+                      >
+                        <Zap className="h-4 w-4" />
+                        Smart Assign
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size={isMobile ? "default" : "sm"}
+                        onClick={handleSelectAll}
+                        disabled={availableDeliveries.length === 0}
+                        className="flex items-center gap-2"
+                      >
+                        <Package className="h-4 w-4" />
+                        {selectedDeliveries.length === availableDeliveries.length ? 'Deselect All' : 'Select All'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {availableDeliveries.length === 0 ? (
+                    <Card className="border-dashed border-2">
+                      <CardContent className="py-8 text-center">
+                        <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                        <h3 className="font-medium text-gray-900 mb-1">No Available Deliveries</h3>
+                        <p className="text-sm text-gray-600">
+                          No unassigned deliveries for {new Date(selectedDate).toLocaleDateString()}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="space-y-3">
+                      {availableDeliveries.map((delivery) => (
+                        <Card
+                          key={delivery.id}
+                          className={`cursor-pointer transition-all hover:shadow-md ${
+                            selectedDeliveries.includes(delivery.id)
+                              ? 'ring-2 ring-blue-500 bg-blue-50'
+                              : 'hover:bg-gray-50'
+                          }`}
+                          onClick={() => handleDeliveryToggle(delivery.id)}
+                        >
+                          <CardContent className={`${isMobile ? 'p-4' : 'p-3'} flex items-start space-x-3`}>
+                            <Checkbox
+                              checked={selectedDeliveries.includes(delivery.id)}
+                              className="mt-1"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline" className="text-xs font-medium">
+                                  {delivery.delivery_number}
+                                </Badge>
+                                <span className="font-semibold text-sm">{delivery.customer_name}</span>
+                              </div>
+                              <div className="flex items-start gap-2 text-sm text-gray-600">
+                                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                <span className="break-words">{delivery.customer_address}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Assignment Summary */}
+                {selectedDeliveries.length > 0 && selectedDriver && (
+                  <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm text-blue-900 flex items-center gap-2">
+                        <Package className="h-4 w-4" />
+                        Assignment Summary
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-blue-700 font-medium">Date:</span>
+                        <p className="font-semibold text-blue-900 mt-1">
+                          {new Date(selectedDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-blue-700 font-medium">Driver:</span>
+                        <p className="font-semibold text-blue-900 mt-1">
+                          {drivers.find(d => d.id === selectedDriver)?.first_name} {drivers.find(d => d.id === selectedDriver)?.last_name}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-blue-700 font-medium">Deliveries:</span>
+                        <p className="font-semibold text-blue-900 mt-1">{selectedDeliveries.length} items</p>
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                )}
+
+                {/* Actions */}
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t sticky bottom-0 bg-white">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                    className={`order-2 sm:order-1 ${isMobile ? 'h-12' : ''}`}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleAssignDeliveries}
+                    disabled={!selectedDriver || selectedDeliveries.length === 0 || isCreating}
+                    className={`order-1 sm:order-2 ${isMobile ? 'h-12' : ''}`}
+                  >
+                    {isCreating ? 'Assigning...' : `Assign to Driver (${selectedDeliveries.length})`}
+                  </Button>
+                </div>
               </div>
-            )}
-          </div>
-
-          {/* Assignment Summary */}
-          {selectedDeliveries.length > 0 && selectedDriver && (
-            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm text-blue-900 flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  Assignment Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="text-blue-700 font-medium">Date:</span>
-                  <p className="font-semibold text-blue-900 mt-1">
-                    {new Date(selectedDate).toLocaleDateString()}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-blue-700 font-medium">Driver:</span>
-                  <p className="font-semibold text-blue-900 mt-1">
-                    {drivers.find(d => d.id === selectedDriver)?.first_name} {drivers.find(d => d.id === selectedDriver)?.last_name}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-blue-700 font-medium">Deliveries:</span>
-                  <p className="font-semibold text-blue-900 mt-1">{selectedDeliveries.length} items</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t sticky bottom-0 bg-white">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className={`order-2 sm:order-1 ${isMobile ? 'h-12' : ''}`}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={!selectedDriver || selectedDeliveries.length === 0 || isCreating}
-              className={`order-1 sm:order-2 ${isMobile ? 'h-12' : ''}`}
-            >
-              {isCreating ? 'Creating Assignment...' : `Create Assignment (${selectedDeliveries.length})`}
-            </Button>
-          </div>
+            </ScrollArea>
+          </TabsContent>
         </div>
-      </ScrollArea>
+      </Tabs>
     </DialogWrapper>
   );
 };
 
-export default CreateDailyAssignmentDialog;
+export default CreateRouteDialog;

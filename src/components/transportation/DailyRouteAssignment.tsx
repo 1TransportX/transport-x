@@ -1,12 +1,11 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Clock, Truck, Users, Package, Route } from 'lucide-react';
+import { Calendar, MapPin, Clock, Truck, Users, Package, Route, Plus } from 'lucide-react';
 import { useDailyRouteAssignments } from '@/hooks/useDailyRouteAssignments';
 import { useAuth } from '@/hooks/useAuth';
-import CreateDailyAssignmentDialog from './CreateDailyAssignmentDialog';
+import CreateRouteDialog from './CreateDailyAssignmentDialog';
 import DateGroupSection from './DateGroupSection';
 import RouteFilterBar from './RouteFilterBar';
 
@@ -41,7 +40,7 @@ const DailyRouteAssignment = () => {
     );
   }
 
-  const handleCreateAssignment = (date: string) => {
+  const handleCreateRoute = (date: string) => {
     setSelectedDate(date);
     setShowCreateDialog(true);
   };
@@ -78,11 +77,11 @@ const DailyRouteAssignment = () => {
           <p className="text-gray-600 mt-1">View and manage all route assignments by date</p>
         </div>
         <Button
-          onClick={() => handleCreateAssignment(new Date().toISOString().split('T')[0])}
+          onClick={() => handleCreateRoute(new Date().toISOString().split('T')[0])}
           className="flex items-center gap-2"
         >
-          <Route className="h-4 w-4" />
-          Create Assignment
+          <Plus className="h-4 w-4" />
+          Create Route
         </Button>
       </div>
 
@@ -183,8 +182,8 @@ const DailyRouteAssignment = () => {
               <p className="text-gray-600 mb-4">
                 No route assignments found for the selected date range.
               </p>
-              <Button onClick={() => handleCreateAssignment(new Date().toISOString().split('T')[0])}>
-                Create First Assignment
+              <Button onClick={() => handleCreateRoute(new Date().toISOString().split('T')[0])}>
+                Create First Route
               </Button>
             </CardContent>
           </Card>
@@ -194,7 +193,7 @@ const DailyRouteAssignment = () => {
               key={dateGroup.date}
               dateGroup={dateGroup}
               drivers={drivers}
-              onCreateAssignment={handleCreateAssignment}
+              onCreateAssignment={handleCreateRoute}
               onOptimizeDate={optimizeRoutesForDate}
               onDeleteAssignment={deleteAssignment}
               isOptimizing={isOptimizing}
@@ -203,7 +202,7 @@ const DailyRouteAssignment = () => {
         )}
       </div>
 
-      <CreateDailyAssignmentDialog
+      <CreateRouteDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         selectedDate={selectedDate}
