@@ -68,20 +68,20 @@ export const useDailyRouteAssignments = () => {
 
       if (rolesError) throw rolesError;
 
-      const userIds = userRoles.map(role => role.user_id);
-
-      if (userIds.length === 0) {
+      if (!userRoles || userRoles.length === 0) {
         return [];
       }
 
+      const userIds = userRoles.map(role => role.user_id);
+
       // Then get profiles for those users
-      const { data, error } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email')
         .in('id', userIds);
 
-      if (error) throw error;
-      return data as DriverForAssignment[];
+      if (profilesError) throw profilesError;
+      return profiles as DriverForAssignment[];
     }
   });
 
