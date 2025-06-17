@@ -113,6 +113,63 @@ export type Database = {
           },
         ]
       }
+      daily_route_assignments: {
+        Row: {
+          assignment_date: string
+          created_at: string | null
+          created_by: string | null
+          delivery_ids: string[]
+          driver_id: string | null
+          estimated_duration: number | null
+          id: string
+          optimized_order: number[] | null
+          status: string | null
+          total_distance: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          assignment_date: string
+          created_at?: string | null
+          created_by?: string | null
+          delivery_ids?: string[]
+          driver_id?: string | null
+          estimated_duration?: number | null
+          id?: string
+          optimized_order?: number[] | null
+          status?: string | null
+          total_distance?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          assignment_date?: string
+          created_at?: string | null
+          created_by?: string | null
+          delivery_ids?: string[]
+          driver_id?: string | null
+          estimated_duration?: number | null
+          id?: string
+          optimized_order?: number[] | null
+          status?: string | null
+          total_distance?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_route_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_route_assignments_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deliveries: {
         Row: {
           completed_at: string | null
