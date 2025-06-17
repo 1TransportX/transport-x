@@ -257,51 +257,6 @@ export type Database = {
           },
         ]
       }
-      delivery_items: {
-        Row: {
-          created_at: string | null
-          delivery_id: string | null
-          id: string
-          inventory_id: string | null
-          quantity: number
-          total_price: number | null
-          unit_price: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          delivery_id?: string | null
-          id?: string
-          inventory_id?: string | null
-          quantity: number
-          total_price?: number | null
-          unit_price?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          delivery_id?: string | null
-          id?: string
-          inventory_id?: string | null
-          quantity?: number
-          total_price?: number | null
-          unit_price?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "delivery_items_delivery_id_fkey"
-            columns: ["delivery_id"]
-            isOneToOne: false
-            referencedRelation: "deliveries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "delivery_items_inventory_id_fkey"
-            columns: ["inventory_id"]
-            isOneToOne: false
-            referencedRelation: "inventory"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       fuel_logs: {
         Row: {
           cost: number | null
@@ -352,54 +307,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      inventory: {
-        Row: {
-          barcode: string | null
-          category: string | null
-          created_at: string | null
-          current_stock: number | null
-          description: string | null
-          id: string
-          maximum_stock: number | null
-          minimum_stock: number | null
-          product_name: string
-          sku: string
-          unit_price: number | null
-          updated_at: string | null
-          warehouse_location: string | null
-        }
-        Insert: {
-          barcode?: string | null
-          category?: string | null
-          created_at?: string | null
-          current_stock?: number | null
-          description?: string | null
-          id?: string
-          maximum_stock?: number | null
-          minimum_stock?: number | null
-          product_name: string
-          sku: string
-          unit_price?: number | null
-          updated_at?: string | null
-          warehouse_location?: string | null
-        }
-        Update: {
-          barcode?: string | null
-          category?: string | null
-          created_at?: string | null
-          current_stock?: number | null
-          description?: string | null
-          id?: string
-          maximum_stock?: number | null
-          minimum_stock?: number | null
-          product_name?: string
-          sku?: string
-          unit_price?: number | null
-          updated_at?: string | null
-          warehouse_location?: string | null
-        }
-        Relationships: []
       }
       leave_requests: {
         Row: {
@@ -504,7 +411,6 @@ export type Database = {
           created_at: string | null
           department: string | null
           email: string
-          employee_id: string | null
           first_name: string | null
           hire_date: string | null
           id: string
@@ -517,7 +423,6 @@ export type Database = {
           created_at?: string | null
           department?: string | null
           email: string
-          employee_id?: string | null
           first_name?: string | null
           hire_date?: string | null
           id: string
@@ -530,7 +435,6 @@ export type Database = {
           created_at?: string | null
           department?: string | null
           email?: string
-          employee_id?: string | null
           first_name?: string | null
           hire_date?: string | null
           id?: string
@@ -679,69 +583,6 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      stock_movements: {
-        Row: {
-          batch_number: string | null
-          cost_per_unit: number | null
-          created_at: string | null
-          expiry_date: string | null
-          id: string
-          inventory_id: string | null
-          movement_type: Database["public"]["Enums"]["stock_movement_type"]
-          notes: string | null
-          performed_by: string | null
-          quantity: number
-          reference_number: string | null
-          supplier_customer: string | null
-          total_cost: number | null
-        }
-        Insert: {
-          batch_number?: string | null
-          cost_per_unit?: number | null
-          created_at?: string | null
-          expiry_date?: string | null
-          id?: string
-          inventory_id?: string | null
-          movement_type: Database["public"]["Enums"]["stock_movement_type"]
-          notes?: string | null
-          performed_by?: string | null
-          quantity: number
-          reference_number?: string | null
-          supplier_customer?: string | null
-          total_cost?: number | null
-        }
-        Update: {
-          batch_number?: string | null
-          cost_per_unit?: number | null
-          created_at?: string | null
-          expiry_date?: string | null
-          id?: string
-          inventory_id?: string | null
-          movement_type?: Database["public"]["Enums"]["stock_movement_type"]
-          notes?: string | null
-          performed_by?: string | null
-          quantity?: number
-          reference_number?: string | null
-          supplier_customer?: string | null
-          total_cost?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "stock_movements_inventory_id_fkey"
-            columns: ["inventory_id"]
-            isOneToOne: false
-            referencedRelation: "inventory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stock_movements_performed_by_fkey"
-            columns: ["performed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -946,10 +787,6 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
-      is_employee_or_admin: {
-        Args: { user_uuid: string }
-        Returns: boolean
-      }
     }
     Enums: {
       delivery_status: "pending" | "in_progress" | "completed" | "cancelled"
@@ -961,7 +798,7 @@ export type Database = {
         | "returned"
         | "adjustment"
       task_status: "pending" | "in_progress" | "completed" | "cancelled"
-      user_role: "admin" | "employee" | "driver"
+      user_role: "admin" | "driver"
       vehicle_status: "active" | "maintenance" | "retired"
     }
     CompositeTypes: {
@@ -1088,7 +925,7 @@ export const Constants = {
         "adjustment",
       ],
       task_status: ["pending", "in_progress", "completed", "cancelled"],
-      user_role: ["admin", "employee", "driver"],
+      user_role: ["admin", "driver"],
       vehicle_status: ["active", "maintenance", "retired"],
     },
   },

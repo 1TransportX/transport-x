@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,27 +9,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 
-interface AddEmployeeDialogProps {
+interface AddDriverDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChange }) => {
+const AddDriverDialog: React.FC<AddDriverDialogProps> = ({ open, onOpenChange }) => {
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [department, setDepartment] = useState('');
-  const [employeeId, setEmployeeId] = useState('');
-  const [role, setRole] = useState<'admin' | 'employee' | 'driver'>('employee');
+  const [role, setRole] = useState<'admin' | 'driver'>('driver');
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const addEmployeeMutation = useMutation({
-    mutationFn: async (employeeData: any) => {
-      console.log('=== STARTING EMPLOYEE CREATION ===');
-      console.log('Employee data:', employeeData);
+  const addDriverMutation = useMutation({
+    mutationFn: async (driverData: any) => {
+      console.log('=== STARTING DRIVER CREATION ===');
+      console.log('Driver data:', driverData);
       
       try {
         // Step 1: Create the user account
@@ -36,13 +36,13 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
         const redirectUrl = `${window.location.origin}/`;
         
         const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: employeeData.email,
+          email: driverData.email,
           password: 'TempPassword123!',
           options: {
             emailRedirectTo: redirectUrl,
             data: {
-              first_name: employeeData.firstName,
-              last_name: employeeData.lastName
+              first_name: driverData.firstName,
+              last_name: driverData.lastName
             }
           }
         });
@@ -59,46 +59,36 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
 
         console.log('✅ User created successfully:', authData.user.id);
 
-        // Step 2: Create profile - Check current user first
+        // Step 2: Create profile
         console.log('Step 2: Creating profile...');
-        console.log('Current session user:', (await supabase.auth.getUser()).data.user?.id);
         
         const profileData = {
           id: authData.user.id,
-          email: employeeData.email,
-          first_name: employeeData.firstName,
-          last_name: employeeData.lastName,
-          phone: employeeData.phone,
-          department: employeeData.department,
-          employee_id: employeeData.employeeId
+          email: driverData.email,
+          first_name: driverData.firstName,
+          last_name: driverData.lastName,
+          phone: driverData.phone,
+          department: driverData.department
         };
         
         console.log('Profile data to insert:', profileData);
         
         // Check if profile already exists
-        console.log('Checking if profile already exists...');
-        const { data: existingProfile, error: checkError } = await supabase
+        const { data: existingProfile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', authData.user.id)
           .maybeSingle();
           
-        if (checkError) {
-          console.error('❌ Error checking existing profile:', checkError);
-        } else {
-          console.log('Existing profile check result:', existingProfile);
-        }
-        
         if (existingProfile) {
           console.log('Profile already exists, updating instead...');
           const { data: updateResult, error: updateError } = await supabase
             .from('profiles')
             .update({
-              first_name: employeeData.firstName,
-              last_name: employeeData.lastName,
-              phone: employeeData.phone,
-              department: employeeData.department,
-              employee_id: employeeData.employeeId
+              first_name: driverData.firstName,
+              last_name: driverData.lastName,
+              phone: driverData.phone,
+              department: driverData.department
             })
             .eq('id', authData.user.id)
             .select()
@@ -106,12 +96,6 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
 
           if (updateError) {
             console.error('❌ Profile update error:', updateError);
-            console.error('Update error details:', {
-              code: updateError.code,
-              message: updateError.message,
-              details: updateError.details,
-              hint: updateError.hint
-            });
             throw new Error(`Profile update failed: ${updateError.message}`);
           }
           
@@ -126,16 +110,9 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
 
           if (insertError) {
             console.error('❌ Profile creation error:', insertError);
-            console.error('Insert error details:', {
-              code: insertError.code,
-              message: insertError.message,
-              details: insertError.details,
-              hint: insertError.hint
-            });
             
-            // Check if it's a permissions issue
             if (insertError.code === '42501' || insertError.message?.includes('permission')) {
-              throw new Error('Permission denied: Admin privileges required to create employee profiles');
+              throw new Error('Permission denied: Admin privileges required to create driver profiles');
             }
             
             throw new Error(`Profile creation failed: ${insertError.message}`);
@@ -146,27 +123,19 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
 
         // Step 3: Create role
         console.log('Step 3: Creating role...');
-        console.log('Role data to insert:', {
-          user_id: authData.user.id,
-          role: employeeData.role
-        });
         
         // Check if role already exists
-        const { data: existingRole, error: roleCheckError } = await supabase
+        const { data: existingRole } = await supabase
           .from('user_roles')
           .select('*')
           .eq('user_id', authData.user.id)
           .maybeSingle();
-          
-        if (roleCheckError) {
-          console.error('❌ Error checking existing role:', roleCheckError);
-        }
         
         if (existingRole) {
           console.log('Role already exists, updating...');
           const { data: roleUpdateResult, error: roleUpdateError } = await supabase
             .from('user_roles')
-            .update({ role: employeeData.role })
+            .update({ role: driverData.role })
             .eq('user_id', authData.user.id)
             .select()
             .single();
@@ -182,55 +151,43 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
             .from('user_roles')
             .insert({
               user_id: authData.user.id,
-              role: employeeData.role
+              role: driverData.role
             })
             .select()
             .single();
 
           if (roleError) {
             console.error('❌ Role creation error:', roleError);
-            console.error('Role error details:', {
-              code: roleError.code,
-              message: roleError.message,
-              details: roleError.details,
-              hint: roleError.hint
-            });
             throw new Error(`Role creation failed: ${roleError.message}`);
           }
 
           console.log('✅ Role created successfully:', roleData);
         }
 
-        console.log('=== EMPLOYEE CREATION COMPLETED SUCCESSFULLY ===');
+        console.log('=== DRIVER CREATION COMPLETED SUCCESSFULLY ===');
         
         return authData.user;
 
       } catch (error) {
-        console.error('❌ Detailed error in employee creation:', error);
-        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        console.error('❌ Detailed error in driver creation:', error);
         throw error;
       }
     },
     onSuccess: () => {
       console.log('✅ Mutation completed successfully');
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
       toast({
         title: "Success",
-        description: "Employee added successfully. A temporary password has been set.",
+        description: "Driver added successfully. A temporary password has been set.",
       });
       onOpenChange(false);
       resetForm();
     },
     onError: (error: any) => {
       console.error('❌ Mutation failed with error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        name: error.name,
-        stack: error.stack
-      });
       toast({
         title: "Error",
-        description: error.message || "Failed to add employee.",
+        description: error.message || "Failed to add driver.",
         variant: "destructive",
       });
     }
@@ -242,8 +199,7 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
     setLastName('');
     setPhone('');
     setDepartment('');
-    setEmployeeId('');
-    setRole('employee');
+    setRole('driver');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -255,17 +211,15 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
       lastName,
       phone,
       department,
-      employeeId,
       role
     });
     
-    addEmployeeMutation.mutate({
+    addDriverMutation.mutate({
       email,
       firstName,
       lastName,
       phone,
       department,
-      employeeId,
       role
     });
   };
@@ -274,7 +228,7 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add New Employee</DialogTitle>
+          <DialogTitle>Add New Driver</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -318,33 +272,22 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="department">Department</Label>
-              <Input
-                id="department"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="employeeId">Employee ID</Label>
-              <Input
-                id="employeeId"
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-              />
-            </div>
+          <div>
+            <Label htmlFor="department">Department</Label>
+            <Input
+              id="department"
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+            />
           </div>
 
           <div>
             <Label htmlFor="role">Role</Label>
-            <Select value={role} onValueChange={(value: 'admin' | 'employee' | 'driver') => setRole(value)}>
+            <Select value={role} onValueChange={(value: 'admin' | 'driver') => setRole(value)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="employee">Employee</SelectItem>
                 <SelectItem value="driver">Driver</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
@@ -355,8 +298,8 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={addEmployeeMutation.isPending}>
-              {addEmployeeMutation.isPending ? 'Adding...' : 'Add Employee'}
+            <Button type="submit" disabled={addDriverMutation.isPending}>
+              {addDriverMutation.isPending ? 'Adding...' : 'Add Driver'}
             </Button>
           </div>
         </form>
@@ -365,4 +308,4 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onOpenChang
   );
 };
 
-export default AddEmployeeDialog;
+export default AddDriverDialog;

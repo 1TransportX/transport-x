@@ -10,24 +10,23 @@ interface UserProfile {
   last_name: string | null;
   phone: string | null;
   department: string | null;
-  employee_id: string | null;
   hire_date: string | null;
   is_active: boolean | null;
   created_at: string | null;
   updated_at: string | null;
-  role: 'admin' | 'employee' | 'driver';
+  role: 'admin' | 'driver';
 }
 
 interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   session: Session | null;
-  signUp: (email: string, password: string, firstName?: string, lastName?: string, role?: 'employee' | 'driver') => Promise<{ error: any }>;
+  signUp: (email: string, password: string, firstName?: string, lastName?: string, role?: 'driver') => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
-  updateUserRole: (role: 'admin' | 'employee' | 'driver') => Promise<void>;
+  updateUserRole: (role: 'admin' | 'driver') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,16 +47,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       last_name: null,
       phone: null,
       department: null,
-      employee_id: null,
       hire_date: null,
       is_active: true,
       created_at: now,
       updated_at: now,
-      role: 'employee'
+      role: 'driver' // Updated default role
     };
   };
 
-  const updateUserRole = async (role: 'admin' | 'employee' | 'driver') => {
+  const updateUserRole = async (role: 'admin' | 'driver') => {
     if (!user) return;
     
     try {
@@ -131,12 +129,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let userProfile: UserProfile;
 
       // Determine the role
-      let userRole: 'admin' | 'employee' | 'driver' = 'employee';
+      let userRole: 'admin' | 'driver' = 'driver';
       if (roleData?.role) {
         userRole = roleData.role;
         console.log('=== Role found in database:', userRole);
       } else {
-        console.log('=== No role found, using default employee role');
+        console.log('=== No role found, using default driver role');
       }
 
       // If no profile exists, create a basic one
@@ -224,7 +222,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(session?.user ?? null);
           
           if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-            // Always fetch fresh profile data on sign in or token refresh
             console.log('=== Fetching fresh profile due to auth event');
             profileTimeout = setTimeout(() => {
               fetchUserProfile(session.user.id, session.user.email || '');
@@ -237,7 +234,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Set maximum loading timeout
     const maxLoadingTimeout = setTimeout(() => {
       if (mounted) {
         console.log('Maximum loading timeout reached, stopping loading');
@@ -253,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const signUp = async (email: string, password: string, firstName?: string, lastName?: string, role: 'employee' | 'driver' = 'employee') => {
+  const signUp = async (email: string, password: string, firstName?: string, lastName?: string, role: 'driver' = 'driver') => {
     setIsLoading(true);
     
     const redirectUrl = `${window.location.origin}/`;
@@ -313,8 +309,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       setIsLoading(false);
     }
-    // Note: Don't set isLoading to false here - let the auth state change handle it
-    // This ensures we wait for the profile to be fetched before showing the dashboard
 
     return { error };
   };
