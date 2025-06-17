@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Navigation, Camera, Plus } from 'lucide-react';
@@ -12,6 +11,7 @@ import { ResponsiveHeader } from '@/components/ui/responsive-header';
 import DashboardOverview from './driver/DashboardOverview';
 import DeliveryRoutes from './driver/DeliveryRoutes';
 import VehicleInfo from './driver/VehicleInfo';
+import { useQuery } from '@tanstack/react-query';
 
 interface Delivery {
   id: string;
@@ -37,69 +37,60 @@ const DriverDashboard = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const [todaysDeliveries, setTodaysDeliveries] = useState<Delivery[]>([]);
-  const [allDeliveries, setAllDeliveries] = useState<Delivery[]>([]);
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
 
-  useEffect(() => {
-    if (profile?.id) {
-      fetchDriverData();
-    }
-  }, [profile?.id]);
+  // Fetch daily route assignments for this driver
+  const { data: assignments = [], isLoading: assignmentsLoading } = useQuery({
+    queryKey: ['driver-assignments', profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      const { data, error } = await supabase
+        .from('daily_route_assignments')
+        .select('*')
+        .eq('driver_id', profile.id)
+        .order('assignment_date', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.id
+  });
 
-  const fetchDriverData = async () => {
-    try {
-      setLoading(true);
-      
-      const today = new Date();
-      const todayString = today.toISOString().split('T')[0];
-      
-      const { data: deliveriesData, error: deliveriesError } = await supabase
+  // Fetch all deliveries for the assigned delivery_ids
+  const deliveryIds = assignments.flatMap(a => a.delivery_ids || []);
+  const { data: deliveries = [], isLoading: deliveriesLoading, refetch: refetchDeliveries } = useQuery({
+    queryKey: ['driver-deliveries', deliveryIds],
+    queryFn: async () => {
+      if (deliveryIds.length === 0) return [];
+      const { data, error } = await supabase
         .from('deliveries')
         .select('*')
-        .eq('driver_id', profile?.id)
-        .gte('scheduled_date', todayString)
-        .order('scheduled_date', { ascending: true })
-        .order('created_at', { ascending: true });
+        .in('id', deliveryIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: deliveryIds.length > 0
+  });
 
-      if (deliveriesError) throw deliveriesError;
-      
-      const todaysRoutes = deliveriesData?.filter(d => d.scheduled_date === todayString) || [];
-      
-      setTodaysDeliveries(todaysRoutes);
-      setAllDeliveries(deliveriesData || []);
+  // Combine and order deliveries by assignment's optimized_order
+  const today = new Date().toISOString().split('T')[0];
+  const todayAssignment = assignments.find(a => a.assignment_date === today);
+  let todaysDeliveries: Delivery[] = [];
+  if (todayAssignment && deliveries.length > 0) {
+    todaysDeliveries = (todayAssignment.optimized_order || [])
+      .map((idx: number) => deliveries.find(d => d.id === todayAssignment.delivery_ids[idx]))
+      .filter(Boolean) as Delivery[];
+  }
+  // All assigned deliveries (flattened)
+  const allDeliveries: Delivery[] = deliveries;
 
-      const { data: assignmentData, error: assignmentError } = await supabase
-        .from('vehicle_assignments')
-        .select(`
-          vehicle_id,
-          vehicles(*)
-        `)
-        .eq('driver_id', profile?.id)
-        .eq('is_active', true)
-        .single();
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
 
-      if (assignmentError && assignmentError.code !== 'PGRST116') {
-        console.error('Assignment error:', assignmentError);
-      } else if (assignmentData?.vehicles) {
-        setVehicle(assignmentData.vehicles as Vehicle);
-      }
-
-    } catch (error) {
-      console.error('Error fetching driver data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load driver data",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    // No need to fetch deliveries here; handled by react-query
+  }, [profile?.id]);
 
   const handleStatusUpdate = async (deliveryId: string, newStatus: 'pending' | 'in_progress' | 'completed' | 'cancelled') => {
     if (newStatus === 'completed') {
@@ -120,7 +111,7 @@ const DriverDashboard = () => {
 
       if (error) throw error;
 
-      await fetchDriverData();
+      await refetchDeliveries();
       toast({
         title: "Success",
         description: `Delivery ${newStatus === 'in_progress' ? 'started' : 'updated'}`,
@@ -138,7 +129,7 @@ const DriverDashboard = () => {
   const handleCompletionSuccess = async () => {
     setCompletionDialogOpen(false);
     setSelectedDelivery(null);
-    await fetchDriverData();
+    await refetchDeliveries();
   };
 
   const handleNavigation = (address: string) => {
@@ -154,7 +145,7 @@ const DriverDashboard = () => {
   };
 
   const handleDeliveryAdded = async () => {
-    await fetchDriverData();
+    await refetchDeliveries();
     toast({
       title: "Success",
       description: "Delivery route added successfully",
