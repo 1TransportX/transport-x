@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,15 +41,15 @@ const AdminDashboard = () => {
       
       const processedEmployees = data.map(profile => ({
         ...profile,
-        role: profile.user_roles?.[0]?.role || 'employee'
+        role: profile.user_roles?.[0]?.role || 'driver'
       }));
       
       console.log('=== Processed employees with roles:', processedEmployees);
       
       return processedEmployees;
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
-    staleTime: 10000 // Consider data stale after 10 seconds
+    refetchInterval: 30000,
+    staleTime: 10000
   });
 
   // Fetch vehicles with refresh interval
@@ -66,30 +67,15 @@ const AdminDashboard = () => {
     staleTime: 10000
   });
 
-  // Fetch inventory with refresh interval
-  const { data: inventory = [], isLoading: inventoryLoading } = useQuery({
-    queryKey: ['dashboard-inventory'],
+  // Fetch deliveries with refresh interval
+  const { data: deliveries = [], isLoading: deliveriesLoading } = useQuery({
+    queryKey: ['dashboard-deliveries'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('inventory')
-        .select('*');
-      
-      if (error) throw error;
-      return data;
-    },
-    refetchInterval: 30000,
-    staleTime: 10000
-  });
-
-  // Fetch stock movements with refresh interval
-  const { data: stockMovements = [], isLoading: stockMovementsLoading } = useQuery({
-    queryKey: ['dashboard-stock-movements'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('stock_movements')
+        .from('deliveries')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(6);
+        .limit(10);
       
       if (error) throw error;
       return data;
@@ -98,32 +84,34 @@ const AdminDashboard = () => {
     staleTime: 10000
   });
 
-  const isLoading = employeesLoading || vehiclesLoading || inventoryLoading || stockMovementsLoading;
+  const isLoading = employeesLoading || vehiclesLoading || deliveriesLoading;
 
   // Calculate real KPI data
   const totalEmployees = employees.length;
   const activeVehicles = vehicles.filter(v => v.status === 'active').length;
-  const totalInventoryItems = inventory.length;
-  const totalInventoryValue = inventory.reduce((sum, item) => sum + (item.current_stock * (item.unit_price || 0)), 0);
+  const totalDeliveries = deliveries.length;
+  const completedDeliveries = deliveries.filter(d => d.status === 'completed').length;
 
   // Generate real alerts based on data
-  const lowStockItems = inventory.filter(item => item.current_stock <= item.minimum_stock);
   const vehiclesInMaintenance = vehicles.filter(v => v.status === 'maintenance');
-  const outOfStockItems = inventory.filter(item => item.current_stock === 0);
+  const pendingDeliveries = deliveries.filter(d => d.status === 'pending');
+  const overdueDeliveries = deliveries.filter(d => 
+    d.status === 'pending' && d.scheduled_date && new Date(d.scheduled_date) < new Date()
+  );
 
   const alerts = [
-    ...lowStockItems.slice(0, 2).map(item => ({
-      type: 'warning' as const,
-      message: `Low stock alert: ${item.product_name} (${item.current_stock} units left)`
-    })),
-    ...vehiclesInMaintenance.slice(0, 1).map(vehicle => ({
+    ...vehiclesInMaintenance.slice(0, 2).map(vehicle => ({
       type: 'info' as const,
       message: `Vehicle ${vehicle.vehicle_number} is currently in maintenance`
     })),
-    ...outOfStockItems.slice(0, 1).map(item => ({
-      type: 'error' as const,
-      message: `Out of stock: ${item.product_name}`
-    }))
+    ...overdueDeliveries.slice(0, 2).map(delivery => ({
+      type: 'warning' as const,
+      message: `Overdue delivery: ${delivery.customer_name} (${delivery.delivery_number})`
+    })),
+    ...(pendingDeliveries.length > 5 ? [{
+      type: 'warning' as const,
+      message: `${pendingDeliveries.length} pending deliveries require attention`
+    }] : [])
   ].slice(0, 3);
 
   // If no alerts, show positive messages
@@ -136,7 +124,7 @@ const AdminDashboard = () => {
 
   const kpiData = [
     { 
-      title: 'Total Employees', 
+      title: 'Total Drivers', 
       value: totalEmployees.toString(), 
       icon: Users, 
       change: `${totalEmployees > 0 ? '+' : ''}${totalEmployees}`, 
@@ -150,49 +138,47 @@ const AdminDashboard = () => {
       trend: activeVehicles > 0 ? 'up' as const : 'down' as const 
     },
     { 
-      title: 'Inventory Items', 
-      value: totalInventoryItems.toString(), 
+      title: 'Total Deliveries', 
+      value: totalDeliveries.toString(), 
       icon: Package, 
-      change: `${lowStockItems.length} low stock`, 
-      trend: lowStockItems.length > 0 ? 'down' as const : 'up' as const 
+      change: `${completedDeliveries} completed`, 
+      trend: completedDeliveries > 0 ? 'up' as const : 'down' as const 
     },
     { 
-      title: 'Inventory Value', 
-      value: `$${Math.round(totalInventoryValue).toLocaleString()}`, 
+      title: 'Completion Rate', 
+      value: `${totalDeliveries > 0 ? Math.round((completedDeliveries / totalDeliveries) * 100) : 0}%`, 
       icon: DollarSign, 
-      change: `${totalInventoryItems} items`, 
+      change: `${completedDeliveries}/${totalDeliveries}`, 
       trend: 'up' as const 
     }
   ];
 
-  // Generate sales data from stock movements (last 6 months)
-  const salesData = Array.from({ length: 6 }, (_, i) => {
+  // Generate delivery data from last 6 months
+  const deliveryData = Array.from({ length: 6 }, (_, i) => {
     const month = new Date();
     month.setMonth(month.getMonth() - (5 - i));
     const monthName = month.toLocaleDateString('en-US', { month: 'short' });
     
-    const monthMovements = stockMovements.filter(movement => {
-      const movementDate = new Date(movement.created_at);
-      return movementDate.getMonth() === month.getMonth() && 
-             movementDate.getFullYear() === month.getFullYear();
+    const monthDeliveries = deliveries.filter(delivery => {
+      const deliveryDate = new Date(delivery.created_at);
+      return deliveryDate.getMonth() === month.getMonth() && 
+             deliveryDate.getFullYear() === month.getFullYear();
     });
     
-    const sales = monthMovements
-      .filter(m => m.movement_type === 'outbound')
-      .reduce((sum, m) => sum + (m.total_cost || 0), 0);
-    
-    const deliveries = monthMovements.filter(m => m.movement_type === 'outbound').length;
+    const completed = monthDeliveries.filter(d => d.status === 'completed').length;
+    const pending = monthDeliveries.filter(d => d.status === 'pending').length;
     
     return {
       month: monthName,
-      sales: Math.round(sales),
-      deliveries
+      completed,
+      pending,
+      total: monthDeliveries.length
     };
   });
 
-  // Calculate role distribution with proper data processing
+  // Calculate role distribution
   const roleCounts = employees.reduce((acc, emp) => {
-    const role = emp.role || 'employee';
+    const role = emp.role || 'driver';
     acc[role] = (acc[role] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
@@ -204,7 +190,6 @@ const AdminDashboard = () => {
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
     const roleLabels = {
       admin: 'Admin',
-      employee: 'Employee', 
       driver: 'Driver'
     };
     
@@ -214,8 +199,8 @@ const AdminDashboard = () => {
     
     return {
       name: roleLabels[roleKey as keyof typeof roleLabels] || roleKey,
-      value: count, // Use actual count instead of percentage for the pie chart
-      percentage: percentage, // Keep percentage for display
+      value: count,
+      percentage: percentage,
       color: colors[index % colors.length]
     };
   });
@@ -225,7 +210,6 @@ const AdminDashboard = () => {
   // Schedule maintenance mutation
   const scheduleMaintenanceMutation = useMutation({
     mutationFn: async () => {
-      // Get a random active vehicle for demonstration
       const activeVehicles = vehicles.filter(v => v.status === 'active');
       if (activeVehicles.length === 0) {
         throw new Error('No active vehicles available for maintenance scheduling');
@@ -233,7 +217,7 @@ const AdminDashboard = () => {
       
       const randomVehicle = activeVehicles[Math.floor(Math.random() * activeVehicles.length)];
       const maintenanceDate = new Date();
-      maintenanceDate.setDate(maintenanceDate.getDate() + 7); // Schedule for next week
+      maintenanceDate.setDate(maintenanceDate.getDate() + 7);
       
       const { data, error } = await supabase
         .from('maintenance_logs')
@@ -269,7 +253,6 @@ const AdminDashboard = () => {
     mutationFn: async () => {
       console.log('=== Starting report generation...');
       
-      // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         console.error('User error:', userError);
@@ -278,21 +261,20 @@ const AdminDashboard = () => {
 
       console.log('=== Current user:', user.id);
 
-      // Simulate report generation delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       const reportData = {
         totalEmployees,
         activeVehicles,
-        totalInventoryItems,
-        totalInventoryValue,
-        lowStockCount: lowStockItems.length,
+        totalDeliveries,
+        completedDeliveries,
+        completionRate: totalDeliveries > 0 ? Math.round((completedDeliveries / totalDeliveries) * 100) : 0,
+        pendingDeliveries: pendingDeliveries.length,
         generatedAt: new Date().toISOString()
       };
 
       console.log('=== Report data prepared:', reportData);
 
-      // Save the report to database
       const { data: savedReport, error } = await supabase
         .from('reports')
         .insert({
@@ -360,8 +342,7 @@ const AdminDashboard = () => {
   const handleRefreshAll = () => {
     queryClient.invalidateQueries({ queryKey: ['dashboard-employees'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard-vehicles'] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard-inventory'] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard-stock-movements'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-deliveries'] });
     
     toast({
       title: "Dashboard Refreshed",
@@ -387,7 +368,7 @@ const AdminDashboard = () => {
         </Button>
       </div>
 
-      {/* KPI Cards - Updated to 2x2 grid on mobile */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
         {kpiData.map((kpi, index) => (
           <Card key={index} className="hover:shadow-lg transition-shadow">
@@ -414,18 +395,18 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Stock Movement Trends</CardTitle>
-            <CardDescription>Monthly stock movement overview</CardDescription>
+            <CardTitle>Delivery Trends</CardTitle>
+            <CardDescription>Monthly delivery overview</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={salesData}>
+              <LineChart data={deliveryData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip />
-                <Line type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={2} />
-                <Line type="monotone" dataKey="deliveries" stroke="#10b981" strokeWidth={2} />
+                <Line type="monotone" dataKey="completed" stroke="#3b82f6" strokeWidth={2} />
+                <Line type="monotone" dataKey="pending" stroke="#f59e0b" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -433,7 +414,7 @@ const AdminDashboard = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Employee Role Distribution</CardTitle>
+            <CardTitle>Team Role Distribution</CardTitle>
             <CardDescription>Employee allocation by role ({totalEmployees} total employees)</CardDescription>
           </CardHeader>
           <CardContent>
@@ -479,7 +460,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-center h-64 text-gray-500">
                 <div className="text-center">
                   <p className="text-lg font-medium">No employee data available</p>
-                  <p className="text-sm">Add some employees to see the role distribution</p>
+                  <p className="text-sm">Add some drivers to see the role distribution</p>
                 </div>
               </div>
             )}
@@ -487,7 +468,7 @@ const AdminDashboard = () => {
         </Card>
       </div>
 
-      {/* Alerts & Recent Activity */}
+      {/* Alerts & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -521,8 +502,8 @@ const AdminDashboard = () => {
               onClick={handleAddEmployee}
               className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
             >
-              <p className="font-medium text-blue-900">Add New Employee</p>
-              <p className="text-sm text-blue-600">Create a new user account</p>
+              <p className="font-medium text-blue-900">Add New Driver</p>
+              <p className="text-sm text-blue-600">Create a new driver account</p>
             </button>
             <button 
               onClick={handleAssignRoute}
