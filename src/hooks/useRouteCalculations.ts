@@ -82,9 +82,9 @@ export const useRouteCalculations = () => {
         longitude: d.longitude
       }));
 
-      const defaultStart = startLocation || {
-        latitude: 28.6139,
-        longitude: 77.2090,
+      const defaultStart = {
+        latitude: startLocation?.latitude || 28.6139,
+        longitude: startLocation?.longitude || 77.2090,
         address: "Company Location"
       };
 
