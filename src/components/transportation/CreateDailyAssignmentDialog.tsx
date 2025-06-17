@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -46,6 +47,13 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
     if (!selectedDriver || selectedDeliveries.length === 0) {
       return;
     }
+
+    console.log('Creating assignment with:', {
+      assignment_date: selectedDate,
+      driver_id: selectedDriver,
+      delivery_ids: selectedDeliveries,
+      profile_id: profile?.id
+    });
 
     createAssignment({
       assignment_date: selectedDate,
@@ -115,6 +123,9 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
               <SheetTitle className="text-lg font-semibold">
                 Create Assignment for {new Date(selectedDate).toLocaleDateString()}
               </SheetTitle>
+              <SheetDescription className="text-sm text-gray-600">
+                Select a driver and deliveries to create a new route assignment.
+              </SheetDescription>
             </SheetHeader>
             <div className="flex-1 overflow-hidden">
               {children}
@@ -131,6 +142,9 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
             <DialogTitle>
               Create Assignment for {new Date(selectedDate).toLocaleDateString()}
             </DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">
+              Select a driver and deliveries to create a new route assignment.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">
             {children}
