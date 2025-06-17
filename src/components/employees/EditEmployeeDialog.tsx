@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,19 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-
-interface Employee {
-  id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  phone: string | null;
-  department: string | null;
-  employee_id: string | null;
-  hire_date: string | null;
-  is_active: boolean;
-  role: 'admin' | 'employee' | 'driver';
-}
+import { Employee } from '@/types/employee';
 
 interface EditEmployeeDialogProps {
   employee: Employee;
@@ -36,7 +23,7 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
   const [phone, setPhone] = useState('');
   const [department, setDepartment] = useState('');
   const [employeeId, setEmployeeId] = useState('');
-  const [role, setRole] = useState<'admin' | 'employee' | 'driver'>('employee');
+  const [role, setRole] = useState<'admin' | 'driver'>('driver');
   const [isActive, setIsActive] = useState(true);
   
   const { toast } = useToast();
@@ -243,7 +230,7 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
 
           <div>
             <Label htmlFor="role">Role</Label>
-            <Select value={role} onValueChange={(value: 'admin' | 'employee' | 'driver') => {
+            <Select value={role} onValueChange={(value: 'admin' | 'driver') => {
               console.log('=== Role selection changed to:', value);
               setRole(value);
             }}>
@@ -251,7 +238,6 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ employee, open,
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="employee">Employee</SelectItem>
                 <SelectItem value="driver">Driver</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>

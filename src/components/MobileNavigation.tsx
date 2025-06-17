@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -48,7 +47,6 @@ const MobileNavigation = () => {
         { path: '/employees', label: 'Drivers', icon: Users, roles: ['admin'] },
         { path: '/routes', label: 'Routes', icon: Route, roles: ['admin'] },
         { path: '/fleet', label: 'Fleet', icon: Truck, roles: ['admin'] },
-        { path: '/reports', label: 'Reports', icon: FileText, roles: ['admin'] },
         { path: '/settings', label: 'Settings', icon: Settings, roles: ['admin'] }
       );
     } else if (profile.role === 'driver') {

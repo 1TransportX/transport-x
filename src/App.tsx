@@ -15,7 +15,6 @@ import EmployeeList from "./components/employees/EmployeeList";
 import RoutesPage from "./components/routes/RoutesPage";
 import FleetPage from "./components/fleet/FleetPage";
 import SettingsPage from "./components/settings/SettingsPage";
-import ReportsPage from "./components/reports/ReportsPage";
 import ProfilePage from "./components/profile/ProfilePage";
 
 const queryClient = new QueryClient();
@@ -52,11 +51,6 @@ const App = () => {
                   <Route path="fleet" element={
                     <ProtectedRoute allowedRoles={['admin', 'driver']}>
                       <FleetPage />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="reports" element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <ReportsPage />
                     </ProtectedRoute>
                   } />
                   <Route path="settings" element={

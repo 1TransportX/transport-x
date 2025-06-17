@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,20 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ResponsiveHeader } from '@/components/ui/responsive-header';
 import AddEmployeeDialog from './AddEmployeeDialog';
 import EditEmployeeDialog from './EditEmployeeDialog';
-
-interface Employee {
-  id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  phone: string | null;
-  department: string | null;
-  hire_date: string | null;
-  is_active: boolean;
-  role: 'admin' | 'driver';
-  created_at?: string;
-  updated_at?: string;
-}
+import { Employee } from '@/types/employee';
 
 const EmployeeList = () => {
   const [searchTerm, setSearchTerm] = useState('');
