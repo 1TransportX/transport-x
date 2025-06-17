@@ -59,7 +59,7 @@ const App = () => {
                     </ProtectedRoute>
                   } />
                   <Route path="profile" element={
-                    <ProtectedRoute allowedRoles={['employee', 'driver', 'admin']}>
+                    <ProtectedRoute allowedRoles={['admin', 'driver']}>
                       <ProfilePage />
                     </ProtectedRoute>
                   } />
