@@ -16,6 +16,7 @@ interface SecureInputProps {
   type?: 'text' | 'email' | 'tel' | 'password';
   className?: string;
   id?: string;
+  allowSpaces?: boolean;
 }
 
 const SecureInput: React.FC<SecureInputProps> = ({
@@ -28,14 +29,15 @@ const SecureInput: React.FC<SecureInputProps> = ({
   maxLength = 255,
   type = 'text',
   className,
-  id
+  id,
+  allowSpaces = true
 }) => {
   const [error, setError] = useState<string>('');
   const [touched, setTouched] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value;
-    const sanitizedValue = sanitizeInput(rawValue);
+    const sanitizedValue = sanitizeInput(rawValue, allowSpaces);
     
     // Validate length
     const validation = validateInputLength(sanitizedValue, minLength, maxLength, label);

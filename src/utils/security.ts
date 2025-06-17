@@ -1,19 +1,24 @@
+
 /**
  * Security utilities for input validation and sanitization
  */
 
 import { secureLogger } from './secureLogger';
 
-// Input sanitization
-export const sanitizeInput = (input: string): string => {
+// Input sanitization with option to preserve spaces
+export const sanitizeInput = (input: string, preserveSpaces: boolean = true): string => {
   const original = input;
-  const sanitized = input
+  let sanitized = input
     .replace(/[<>\"'&]/g, '') // Remove potential XSS characters
     .replace(/javascript:/gi, '') // Remove javascript: protocol
     .replace(/data:/gi, '') // Remove data: protocol
-    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
-    .trim()
-    .slice(0, 500); // Limit length
+    .replace(/vbscript:/gi, ''); // Remove vbscript: protocol
+
+  if (!preserveSpaces) {
+    sanitized = sanitized.replace(/\s+/g, ' '); // Normalize whitespace but keep single spaces
+  }
+
+  sanitized = sanitized.trim().slice(0, 500); // Limit length
 
   if (original !== sanitized) {
     secureLogger.warn('Input sanitized', { 
