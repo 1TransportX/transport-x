@@ -29,6 +29,8 @@ const DeliveryCard: React.FC<DeliveryCardProps> = ({
 }) => {
   const isMobile = useIsMobile();
 
+  console.log('DeliveryCard - delivery data:', delivery);
+
   return (
     <div 
       className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 rounded-lg border ${
@@ -46,7 +48,9 @@ const DeliveryCard: React.FC<DeliveryCardProps> = ({
         </div>
         <div className="flex-1 sm:flex-none">
           <p className="font-medium text-gray-900 text-sm sm:text-base">{delivery.customer_name}</p>
-          <p className="text-xs sm:text-sm text-gray-600 break-words">{delivery.customer_address}</p>
+          <p className="text-xs sm:text-sm text-gray-600 break-words max-w-xs sm:max-w-md">
+            {delivery.customer_address || 'No address provided'}
+          </p>
           <p className="text-xs text-gray-500">
             #{delivery.delivery_number} • {delivery.scheduled_date}
           </p>
@@ -84,8 +88,9 @@ const DeliveryCard: React.FC<DeliveryCardProps> = ({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => onNavigation(delivery.customer_address)}
+            onClick={() => onNavigation(delivery.customer_address || 'Unknown Address')}
             className="flex-none p-1 sm:p-2"
+            disabled={!delivery.customer_address}
           >
             <Navigation className="h-3 w-3 sm:h-4 sm:w-4" />
           </Button>

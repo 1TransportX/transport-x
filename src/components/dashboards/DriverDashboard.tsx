@@ -1,14 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Navigation, Camera, Plus, Truck, Route } from 'lucide-react';
+import { Navigation, Camera, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import AddDeliveryDialog from './AddDeliveryDialog';
 import DeliveryCompletionDialog from '../deliveries/DeliveryCompletionDialog';
-import RouteManagement from '../transportation/RouteManagement';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ResponsiveHeader } from '@/components/ui/responsive-header';
 import DashboardOverview from './driver/DashboardOverview';
@@ -46,7 +44,6 @@ const DriverDashboard = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
-  const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
     if (profile?.id) {
@@ -207,47 +204,22 @@ const DriverDashboard = () => {
         </Button>
       </ResponsiveHeader>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'h-12' : 'h-10'}`}>
-          <TabsTrigger 
-            value="dashboard" 
-            className={`flex items-center gap-2 ${isMobile ? 'text-sm px-3' : 'text-sm'}`}
-          >
-            <Truck className="h-4 w-4" />
-            <span className={isMobile ? 'hidden sm:inline' : ''}>Dashboard</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="routes" 
-            className={`flex items-center gap-2 ${isMobile ? 'text-sm px-3' : 'text-sm'}`}
-          >
-            <Route className="h-4 w-4" />
-            <span className={isMobile ? 'hidden sm:inline' : ''}>Routes</span>
-          </TabsTrigger>
-        </TabsList>
+      <DashboardOverview
+        totalDeliveries={todaysDeliveries.length}
+        completedCount={completedCount}
+        inProgressCount={inProgressCount}
+        vehicle={vehicle}
+      />
 
-        <TabsContent value="dashboard" className="space-y-4">
-          <DashboardOverview
-            totalDeliveries={todaysDeliveries.length}
-            completedCount={completedCount}
-            inProgressCount={inProgressCount}
-            vehicle={vehicle}
-          />
+      <DeliveryRoutes
+        todaysDeliveries={todaysDeliveries}
+        allDeliveries={allDeliveries}
+        onStatusUpdate={handleStatusUpdate}
+        onNavigation={handleNavigation}
+        onAddRoute={() => setIsAddDialogOpen(true)}
+      />
 
-          <DeliveryRoutes
-            todaysDeliveries={todaysDeliveries}
-            allDeliveries={allDeliveries}
-            onStatusUpdate={handleStatusUpdate}
-            onNavigation={handleNavigation}
-            onAddRoute={() => setIsAddDialogOpen(true)}
-          />
-
-          {vehicle && <VehicleInfo vehicle={vehicle} />}
-        </TabsContent>
-
-        <TabsContent value="routes" className="space-y-4">
-          <RouteManagement />
-        </TabsContent>
-      </Tabs>
+      {vehicle && <VehicleInfo vehicle={vehicle} />}
 
       <AddDeliveryDialog
         isOpen={isAddDialogOpen}

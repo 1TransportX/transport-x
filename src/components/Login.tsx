@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart3, Mail, Lock, AlertCircle, User, Route } from 'lucide-react';
+import { Truck, Mail, Lock, AlertCircle, User, Route } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const Login = () => {
@@ -79,12 +79,12 @@ const Login = () => {
         <div className="text-center">
           <div className="flex justify-center">
             <div className="bg-blue-600 text-white p-3 rounded-xl">
-              <BarChart3 className="h-8 w-8" />
+              <Truck className="h-8 w-8" />
             </div>
           </div>
           <h2 className="mt-4 text-3xl font-bold text-gray-900">ETW Manager</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Enterprise Sales & Operations Management
+            Enterprise Transportation & Delivery Management
           </p>
         </div>
 

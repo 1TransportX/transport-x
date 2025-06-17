@@ -65,11 +65,22 @@ const DateGroupSection: React.FC<DateGroupSectionProps> = ({
   };
 
   const openInGoogleMaps = async () => {
-    if (allDeliveries.length === 0) return;
+    if (allDeliveries.length === 0) {
+      console.log('No deliveries available for maps');
+      return;
+    }
 
-    const mapsUrl = await generateOptimizedMapsUrl(allDeliveries);
-    if (mapsUrl) {
-      window.open(mapsUrl, '_blank');
+    console.log('Opening maps for deliveries:', allDeliveries);
+    try {
+      const mapsUrl = await generateOptimizedMapsUrl(allDeliveries);
+      console.log('Generated maps URL:', mapsUrl);
+      if (mapsUrl) {
+        window.open(mapsUrl, '_blank');
+      } else {
+        console.error('Failed to generate maps URL');
+      }
+    } catch (error) {
+      console.error('Error opening maps:', error);
     }
   };
 
