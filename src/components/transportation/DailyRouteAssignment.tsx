@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +10,7 @@ import CreateRouteDialog from './CreateDailyAssignmentDialog';
 import DateGroupSection from './DateGroupSection';
 import RouteFilterBar from './RouteFilterBar';
 
-const DailyRouteAssignment = () => {
+const DailyRouteAssignment = React.memo(() => {
   const { profile } = useAuth();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -32,20 +33,19 @@ const DailyRouteAssignment = () => {
 
   console.log('DailyRouteAssignment: Rendering with date groups:', dateGroups?.length);
 
-  if (!profile || profile.role !== 'admin') {
-    return (
-      <div className="p-6 text-center">
-        <p className="text-gray-600">Access denied. Admin privileges required.</p>
-      </div>
-    );
-  }
-
-  const handleCreateRoute = (date: string) => {
+  // Memoize the create route handler to prevent recreation on every render
+  const handleCreateRoute = useCallback((date: string) => {
     setSelectedDate(date);
     setShowCreateDialog(true);
-  };
+  }, []);
 
-  const getTotalStats = () => {
+  // Memoize available deliveries for the selected date
+  const availableDeliveries = useMemo(() => {
+    return selectedDate ? getAvailableDeliveriesForDate(selectedDate) : [];
+  }, [selectedDate, getAvailableDeliveriesForDate]);
+
+  // Memoize total stats calculation to prevent expensive recalculations
+  const totalStats = useMemo(() => {
     const totalDrivers = dateGroups.reduce((sum, group) => sum + group.totalDrivers, 0);
     const totalDeliveries = dateGroups.reduce((sum, group) => sum + group.totalDeliveries, 0);
     const totalDistance = dateGroups.reduce((sum, group) => sum + group.totalDistance, 0);
@@ -54,9 +54,20 @@ const DailyRouteAssignment = () => {
     const totalAssignments = dateGroups.reduce((sum, group) => sum + group.assignments.length, 0);
     
     return { totalDrivers, totalDeliveries, totalDistance, totalDuration, totalUnassigned, totalAssignments };
-  };
+  }, [dateGroups]);
 
-  const stats = getTotalStats();
+  // Memoize dialog close handler
+  const handleDialogClose = useCallback((open: boolean) => {
+    setShowCreateDialog(open);
+  }, []);
+
+  if (!profile || profile.role !== 'admin') {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-gray-600">Access denied. Admin privileges required.</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -94,11 +105,11 @@ const DailyRouteAssignment = () => {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         totalGroups={dateGroups.length}
-        totalAssignments={stats.totalAssignments}
+        totalAssignments={totalStats.totalAssignments}
       />
 
       {/* Summary Stats */}
-      {stats.totalAssignments > 0 && (
+      {totalStats.totalAssignments > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-4">
@@ -117,7 +128,7 @@ const DailyRouteAssignment = () => {
                 <Users className="h-5 w-5 text-blue-600" />
                 <div>
                   <p className="text-sm text-gray-600">Drivers</p>
-                  <p className="text-xl font-bold">{stats.totalDrivers}</p>
+                  <p className="text-xl font-bold">{totalStats.totalDrivers}</p>
                 </div>
               </div>
             </CardContent>
@@ -128,7 +139,7 @@ const DailyRouteAssignment = () => {
                 <Package className="h-5 w-5 text-green-600" />
                 <div>
                   <p className="text-sm text-gray-600">Deliveries</p>
-                  <p className="text-xl font-bold">{stats.totalDeliveries}</p>
+                  <p className="text-xl font-bold">{totalStats.totalDeliveries}</p>
                 </div>
               </div>
             </CardContent>
@@ -139,7 +150,7 @@ const DailyRouteAssignment = () => {
                 <MapPin className="h-5 w-5 text-orange-600" />
                 <div>
                   <p className="text-sm text-gray-600">Distance</p>
-                  <p className="text-xl font-bold">{stats.totalDistance.toFixed(1)} km</p>
+                  <p className="text-xl font-bold">{totalStats.totalDistance.toFixed(1)} km</p>
                 </div>
               </div>
             </CardContent>
@@ -150,7 +161,7 @@ const DailyRouteAssignment = () => {
                 <Clock className="h-5 w-5 text-purple-600" />
                 <div>
                   <p className="text-sm text-gray-600">Duration</p>
-                  <p className="text-xl font-bold">{Math.round(stats.totalDuration / 60)}h</p>
+                  <p className="text-xl font-bold">{Math.round(totalStats.totalDuration / 60)}h</p>
                 </div>
               </div>
             </CardContent>
@@ -159,13 +170,13 @@ const DailyRouteAssignment = () => {
       )}
 
       {/* Unassigned Deliveries Alert */}
-      {stats.totalUnassigned > 0 && (
+      {totalStats.totalUnassigned > 0 && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-orange-800">
               <Package className="h-5 w-5" />
               <span className="font-medium">
-                {stats.totalUnassigned} unassigned deliveries available for assignment
+                {totalStats.totalUnassigned} unassigned deliveries available for assignment
               </span>
             </div>
           </CardContent>
@@ -204,13 +215,15 @@ const DailyRouteAssignment = () => {
 
       <CreateRouteDialog
         open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
+        onOpenChange={handleDialogClose}
         selectedDate={selectedDate}
-        availableDeliveries={getAvailableDeliveriesForDate(selectedDate)}
+        availableDeliveries={availableDeliveries}
         drivers={drivers}
       />
     </div>
   );
-};
+});
+
+DailyRouteAssignment.displayName = 'DailyRouteAssignment';
 
 export default DailyRouteAssignment;

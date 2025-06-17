@@ -134,8 +134,8 @@ export const useDailyRouteAssignments = () => {
     }
   });
 
-  // Get assigned delivery IDs across all dates
-  const getAssignedDeliveryIds = useCallback(() => {
+  // Memoize assigned delivery IDs to prevent circular dependencies
+  const assignedDeliveryIds = useMemo(() => {
     const assignedIds = new Set<string>();
     assignments.forEach(assignment => {
       assignment.delivery_ids.forEach(id => assignedIds.add(id));
@@ -143,9 +143,20 @@ export const useDailyRouteAssignments = () => {
     return assignedIds;
   }, [assignments]);
 
-  // Group assignments by date with statistics
+  // Stable function to get assigned delivery IDs
+  const getAssignedDeliveryIds = useCallback(() => {
+    return assignedDeliveryIds;
+  }, [assignedDeliveryIds]);
+
+  // Get available deliveries for a specific date - now with stable dependencies
+  const getAvailableDeliveriesForDate = useCallback((date: string) => {
+    return allDeliveries.filter(
+      delivery => delivery.scheduled_date === date && !assignedDeliveryIds.has(delivery.id)
+    );
+  }, [allDeliveries, assignedDeliveryIds]);
+
+  // Group assignments by date with statistics - optimized dependencies
   const dateGroups = useMemo((): DateGroup[] => {
-    const assignedIds = getAssignedDeliveryIds();
     const groupMap = new Map<string, DateGroup>();
 
     // Initialize groups for all dates in range
@@ -155,7 +166,7 @@ export const useDailyRouteAssignments = () => {
     while (currentDate <= endDate) {
       const dateStr = format(currentDate, 'yyyy-MM-dd');
       const unassignedForDate = allDeliveries.filter(
-        d => d.scheduled_date === dateStr && !assignedIds.has(d.id)
+        d => d.scheduled_date === dateStr && !assignedDeliveryIds.has(d.id)
       ).length;
 
       groupMap.set(dateStr, {
@@ -197,21 +208,12 @@ export const useDailyRouteAssignments = () => {
     return filteredGroups.filter(group => 
       group.assignments.length > 0 || group.unassignedDeliveries > 0
     );
-  }, [assignments, allDeliveries, drivers, searchQuery, effectiveDateRange, getAssignedDeliveryIds]);
-
-  // Get available deliveries for a specific date
-  const getAvailableDeliveriesForDate = useCallback((date: string) => {
-    const assignedIds = getAssignedDeliveryIds();
-    return allDeliveries.filter(
-      delivery => delivery.scheduled_date === date && !assignedIds.has(delivery.id)
-    );
-  }, [allDeliveries, getAssignedDeliveryIds]);
+  }, [assignments, allDeliveries, drivers, searchQuery, effectiveDateRange, assignedDeliveryIds]);
 
   // Create assignment mutation
   const createAssignmentMutation = useMutation({
     mutationFn: async (assignment: Omit<DailyRouteAssignment, 'id' | 'created_at' | 'updated_at'>) => {
-      const assignedIds = getAssignedDeliveryIds();
-      const duplicateIds = assignment.delivery_ids.filter(id => assignedIds.has(id));
+      const duplicateIds = assignment.delivery_ids.filter(id => assignedDeliveryIds.has(id));
       
       if (duplicateIds.length > 0) {
         throw new Error(`Some deliveries are already assigned: ${duplicateIds.join(', ')}`);
