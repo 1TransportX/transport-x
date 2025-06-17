@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,6 +52,29 @@ const AdminDashboard = () => {
     staleTime: 10000
   });
 
+  // Fetch approved leave requests for today
+  const { data: approvedLeaves = [], isLoading: leavesLoading } = useQuery({
+    queryKey: ['dashboard-approved-leaves'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('leave_requests')
+        .select('user_id, start_date, end_date')
+        .eq('status', 'approved')
+        .lte('start_date', today)
+        .gte('end_date', today);
+      
+      if (error) {
+        console.error('Error fetching approved leaves:', error);
+        throw error;
+      }
+      
+      return data;
+    },
+    refetchInterval: 30000,
+    staleTime: 10000
+  });
+
   // Fetch vehicles with refresh interval
   const { data: vehicles = [], isLoading: vehiclesLoading } = useQuery({
     queryKey: ['dashboard-vehicles'],
@@ -83,7 +107,7 @@ const AdminDashboard = () => {
     staleTime: 10000
   });
 
-  const isLoading = employeesLoading || vehiclesLoading || deliveriesLoading;
+  const isLoading = employeesLoading || vehiclesLoading || deliveriesLoading || leavesLoading;
 
   // Calculate real KPI data
   const totalEmployees = employees.length;
@@ -175,36 +199,34 @@ const AdminDashboard = () => {
     };
   });
 
-  // Calculate role distribution
-  const roleCounts = employees.reduce((acc, emp) => {
-    const role = emp.role || 'driver';
-    acc[role] = (acc[role] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  // Calculate driver availability based on approved leaves
+  const drivers = employees.filter(emp => emp.role === 'driver');
+  const driversOnLeaveIds = new Set(approvedLeaves.map(leave => leave.user_id));
+  
+  const availableDrivers = drivers.filter(driver => !driversOnLeaveIds.has(driver.id));
+  const driversOnLeave = drivers.filter(driver => driversOnLeaveIds.has(driver.id));
 
-  console.log('=== Role counts:', roleCounts);
-  console.log('=== Total employees for percentage calc:', totalEmployees);
+  console.log('=== Driver availability calculation:');
+  console.log('Total drivers:', drivers.length);
+  console.log('Drivers on leave today:', driversOnLeave.length);
+  console.log('Available drivers:', availableDrivers.length);
 
-  const roleData = Object.entries(roleCounts).map(([roleKey, count], index) => {
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-    const roleLabels = {
-      admin: 'Admin',
-      driver: 'Driver'
-    };
-    
-    const percentage = totalEmployees > 0 ? Math.round((count / totalEmployees) * 100) : 0;
-    
-    console.log(`=== Role ${roleKey}: ${count} employees = ${percentage}%`);
-    
-    return {
-      name: roleLabels[roleKey as keyof typeof roleLabels] || roleKey,
-      value: count,
-      percentage: percentage,
-      color: colors[index % colors.length]
-    };
-  });
+  const driverAvailabilityData = [
+    {
+      name: 'Available Drivers',
+      value: availableDrivers.length,
+      percentage: drivers.length > 0 ? Math.round((availableDrivers.length / drivers.length) * 100) : 0,
+      color: '#10b981'
+    },
+    {
+      name: 'Drivers on Leave',
+      value: driversOnLeave.length,
+      percentage: drivers.length > 0 ? Math.round((driversOnLeave.length / drivers.length) * 100) : 0,
+      color: '#f59e0b'
+    }
+  ].filter(item => item.value > 0); // Only show categories with drivers
 
-  console.log('=== Final role data for chart:', roleData);
+  console.log('=== Final driver availability data for chart:', driverAvailabilityData);
 
   // Schedule maintenance mutation
   const scheduleMaintenanceMutation = useMutation({
@@ -269,6 +291,8 @@ const AdminDashboard = () => {
         completedDeliveries,
         completionRate: totalDeliveries > 0 ? Math.round((completedDeliveries / totalDeliveries) * 100) : 0,
         pendingDeliveries: pendingDeliveries.length,
+        availableDrivers: availableDrivers.length,
+        driversOnLeave: driversOnLeave.length,
         generatedAt: new Date().toISOString()
       };
 
@@ -342,6 +366,7 @@ const AdminDashboard = () => {
     queryClient.invalidateQueries({ queryKey: ['dashboard-employees'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard-vehicles'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard-deliveries'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-approved-leaves'] });
     
     toast({
       title: "Dashboard Refreshed",
@@ -413,16 +438,18 @@ const AdminDashboard = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Team Role Distribution</CardTitle>
-            <CardDescription>Employee allocation by role ({totalEmployees} total employees)</CardDescription>
+            <CardTitle>Driver Availability</CardTitle>
+            <CardDescription>
+              Current driver status ({drivers.length} total drivers) - Updated daily based on approved leaves
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {totalEmployees > 0 && roleData.length > 0 ? (
+            {drivers.length > 0 && driverAvailabilityData.length > 0 ? (
               <>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={roleData}
+                      data={driverAvailabilityData}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
@@ -430,36 +457,43 @@ const AdminDashboard = () => {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {roleData.map((entry, index) => (
+                      {driverAvailabilityData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip 
-                      formatter={(value, name) => [`${value} employees`, name]}
+                      formatter={(value, name) => [`${value} drivers`, name]}
                     />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="grid grid-cols-2 gap-2 mt-4">
-                  {roleData.map((role, index) => (
+                <div className="grid grid-cols-1 gap-2 mt-4">
+                  {driverAvailabilityData.map((availability, index) => (
                     <div key={index} className="flex items-center justify-between space-x-2">
                       <div className="flex items-center space-x-2">
                         <div 
                           className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: role.color }}
+                          style={{ backgroundColor: availability.color }}
                         />
-                        <span className="text-sm text-gray-600">{role.name}</span>
+                        <span className="text-sm text-gray-600">{availability.name}</span>
                       </div>
-                      <span className="text-sm font-medium">{role.value} ({role.percentage}%)</span>
+                      <span className="text-sm font-medium">{availability.value} ({availability.percentage}%)</span>
                     </div>
                   ))}
                 </div>
+                {approvedLeaves.length > 0 && (
+                  <div className="mt-4 p-3 bg-orange-50 rounded-lg">
+                    <p className="text-sm text-orange-700">
+                      <strong>Note:</strong> {approvedLeaves.length} driver(s) are currently on approved leave today.
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
               <div className="flex items-center justify-center h-64 text-gray-500">
                 <div className="text-center">
-                  <p className="text-lg font-medium">No employee data available</p>
-                  <p className="text-sm">Add some drivers to see the role distribution</p>
+                  <p className="text-lg font-medium">No driver data available</p>
+                  <p className="text-sm">Add some drivers to see their availability status</p>
                 </div>
               </div>
             )}
