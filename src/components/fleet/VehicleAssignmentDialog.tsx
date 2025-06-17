@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,24 +46,47 @@ const VehicleAssignmentDialog: React.FC<VehicleAssignmentDialogProps> = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch all drivers
+  // Fetch all drivers - corrected query
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      console.log('Fetching drivers...');
+      
+      // First get all user IDs with driver role
+      const { data: driverRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'driver');
+
+      if (rolesError) {
+        console.error('Error fetching driver roles:', rolesError);
+        throw rolesError;
+      }
+
+      console.log('Driver roles found:', driverRoles);
+
+      if (!driverRoles || driverRoles.length === 0) {
+        console.log('No drivers found in user_roles');
+        return [];
+      }
+
+      const driverIds = driverRoles.map(role => role.user_id);
+      console.log('Driver IDs:', driverIds);
+
+      // Then get profile information for those users
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          email,
-          user_roles!inner(role)
-        `)
-        .eq('user_roles.role', 'driver')
+        .select('id, first_name, last_name, email')
+        .in('id', driverIds)
         .eq('is_active', true);
 
-      if (error) throw error;
-      return data as Driver[];
+      if (profilesError) {
+        console.error('Error fetching driver profiles:', profilesError);
+        throw profilesError;
+      }
+
+      console.log('Driver profiles found:', profiles);
+      return profiles as Driver[];
     },
     enabled: open
   });
@@ -221,11 +243,17 @@ const VehicleAssignmentDialog: React.FC<VehicleAssignmentDialogProps> = ({
                 <SelectValue placeholder="Select a driver" />
               </SelectTrigger>
               <SelectContent>
-                {drivers.map((driver) => (
-                  <SelectItem key={driver.id} value={driver.id}>
-                    {driver.first_name} {driver.last_name} ({driver.email})
+                {drivers.length === 0 ? (
+                  <SelectItem value="no-drivers" disabled>
+                    No drivers available
                   </SelectItem>
-                ))}
+                ) : (
+                  drivers.map((driver) => (
+                    <SelectItem key={driver.id} value={driver.id}>
+                      {driver.first_name} {driver.last_name} ({driver.email})
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -236,7 +264,7 @@ const VehicleAssignmentDialog: React.FC<VehicleAssignmentDialogProps> = ({
             </Button>
             <Button 
               onClick={handleAssign}
-              disabled={assignVehicleMutation.isPending || !selectedDriverId}
+              disabled={assignVehicleMutation.isPending || !selectedDriverId || drivers.length === 0}
             >
               {assignVehicleMutation.isPending ? 'Assigning...' : 'Assign Vehicle'}
             </Button>
