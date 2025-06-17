@@ -3,7 +3,6 @@ import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import AdminDashboard from './dashboards/AdminDashboard';
-import EmployeeDashboard from './dashboards/EmployeeDashboard';
 import DriverDashboard from './dashboards/DriverDashboard';
 
 const Dashboard = () => {
@@ -39,8 +38,6 @@ const Dashboard = () => {
         switch (profile.role) {
           case 'admin':
             return <AdminDashboard />;
-          case 'employee':
-            return <EmployeeDashboard />;
           case 'driver':
             return <DriverDashboard />;
           default:

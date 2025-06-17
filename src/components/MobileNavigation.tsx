@@ -40,21 +40,16 @@ const MobileNavigation = () => {
     if (!profile) return [];
 
     const items = [
-      { path: '/dashboard', label: 'Dashboard', icon: BarChart3, roles: ['admin', 'employee', 'driver'] }
+      { path: '/dashboard', label: 'Dashboard', icon: BarChart3, roles: ['admin', 'driver'] }
     ];
 
     if (profile.role === 'admin') {
       items.push(
-        { path: '/employees', label: 'Employees', icon: Users, roles: ['admin'] },
+        { path: '/employees', label: 'Drivers', icon: Users, roles: ['admin'] },
         { path: '/transportation', label: 'Transportation', icon: Route, roles: ['admin'] },
         { path: '/warehouse', label: 'Warehouse', icon: Package, roles: ['admin'] },
         { path: '/reports', label: 'Reports', icon: FileText, roles: ['admin'] },
         { path: '/settings', label: 'Settings', icon: Settings, roles: ['admin'] }
-      );
-    } else if (profile.role === 'employee') {
-      items.push(
-        { path: '/warehouse', label: 'Warehouse', icon: Package, roles: ['employee'] },
-        { path: '/profile', label: 'Profile', icon: User, roles: ['employee'] }
       );
     } else if (profile.role === 'driver') {
       items.push(

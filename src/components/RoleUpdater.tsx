@@ -9,7 +9,7 @@ const RoleUpdater = () => {
   const { updateUserRole, profile } = useAuth();
   const queryClient = useQueryClient();
 
-  const handleRoleUpdate = async (role: 'admin' | 'employee' | 'driver') => {
+  const handleRoleUpdate = async (role: 'admin' | 'driver') => {
     console.log('=== RoleUpdater: Updating role to:', role);
     await updateUserRole(role);
     
@@ -37,13 +37,6 @@ const RoleUpdater = () => {
           variant="outline"
         >
           Set Role to Driver
-        </Button>
-        <Button 
-          onClick={() => handleRoleUpdate('employee')} 
-          className="w-full"
-          variant="outline"
-        >
-          Set Role to Employee
         </Button>
         {canSetAdminRole && (
           <Button 

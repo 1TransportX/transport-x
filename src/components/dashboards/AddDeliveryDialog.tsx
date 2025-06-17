@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -27,12 +28,6 @@ interface Vehicle {
   model: string;
 }
 
-interface InventoryItem {
-  id: string;
-  product_name: string;
-  current_stock: number;
-}
-
 // Rate limiter for form submissions
 const formRateLimiter = new RateLimiter(5, 300000); // 5 submissions per 5 minutes
 
@@ -46,7 +41,6 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
   const { logSecurityEvent } = useSecurity();
   const [loading, setLoading] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   
   const [formData, setFormData] = useState({
     customer_name: '',
@@ -54,14 +48,12 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
     customer_phone: '',
     scheduled_date: new Date().toISOString().split('T')[0],
     vehicle_id: '',
-    notes: '',
-    items: [{ inventory_id: '', quantity: 1 }]
+    notes: ''
   });
 
   useEffect(() => {
     if (isOpen) {
       fetchVehicles();
-      fetchInventory();
       logSecurityEvent('delivery_dialog_opened', 'info');
     }
   }, [isOpen, logSecurityEvent]);
@@ -79,56 +71,6 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
     } catch (error) {
       console.error('Error fetching vehicles:', error);
       logSecurityEvent('vehicle_fetch_error', 'error', { error: sanitizeError(error) });
-    }
-  };
-
-  const fetchInventory = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('inventory')
-        .select('id, product_name, current_stock')
-        .gt('current_stock', 0)
-        .order('product_name');
-
-      if (error) {
-        throw error;
-      }
-      
-      if (!data || data.length === 0) {
-        // If no items with stock > 0, show all items but indicate they're out of stock
-        const { data: allData, error: allError } = await supabase
-          .from('inventory')
-          .select('id, product_name, current_stock')
-          .order('product_name');
-          
-        if (allError) throw allError;
-        
-        if (allData && allData.length > 0) {
-          setInventory(allData);
-          toast({
-            title: "Warning",
-            description: "Some products may be out of stock. Check stock levels before adding to delivery.",
-            variant: "destructive"
-          });
-        } else {
-          setInventory([]);
-          toast({
-            title: "No Products",
-            description: "No products found in inventory. Please add products in the warehouse management section first.",
-            variant: "destructive"
-          });
-        }
-      } else {
-        setInventory(data);
-      }
-    } catch (error) {
-      console.error('Error fetching inventory:', error);
-      logSecurityEvent('inventory_fetch_error', 'error', { error: sanitizeError(error) });
-      toast({
-        title: "Error", 
-        description: sanitizeError(error),
-        variant: "destructive"
-      });
     }
   };
 
@@ -157,31 +99,6 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
     setLoading(true);
 
     try {
-      // Validate that at least one item is selected
-      const validItems = formData.items.filter(item => item.inventory_id && item.quantity > 0);
-      
-      if (validItems.length === 0) {
-        toast({
-          title: "Error",
-          description: "Please add at least one item to the delivery",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Check if selected items have sufficient stock
-      for (const item of validItems) {
-        const inventoryItem = inventory.find(inv => inv.id === item.inventory_id);
-        if (inventoryItem && inventoryItem.current_stock < item.quantity) {
-          toast({
-            title: "Error",
-            description: `Insufficient stock for ${inventoryItem.product_name}. Available: ${inventoryItem.current_stock}, Requested: ${item.quantity}`,
-            variant: "destructive"
-          });
-          return;
-        }
-      }
-
       // Create delivery
       const { data: delivery, error: deliveryError } = await supabase
         .from('deliveries')
@@ -201,46 +118,13 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
 
       if (deliveryError) throw deliveryError;
 
-      // Create delivery items and update inventory stock
-      if (validItems.length > 0) {
-        const { error: itemsError } = await supabase
-          .from('delivery_items')
-          .insert(
-            validItems.map(item => ({
-              delivery_id: delivery.id,
-              inventory_id: item.inventory_id,
-              quantity: item.quantity
-            }))
-          );
-
-        if (itemsError) throw itemsError;
-
-        // Update inventory stock for each item
-        for (const item of validItems) {
-          const inventoryItem = inventory.find(inv => inv.id === item.inventory_id);
-          if (inventoryItem) {
-            const newStock = inventoryItem.current_stock - item.quantity;
-            
-            const { error: stockError } = await supabase
-              .from('inventory')
-              .update({ current_stock: newStock })
-              .eq('id', item.inventory_id);
-
-            if (stockError) {
-              throw stockError;
-            }
-          }
-        }
-      }
-
       logSecurityEvent('delivery_created', 'info', { 
-        deliveryId: delivery.id,
-        itemCount: validItems.length 
+        deliveryId: delivery.id
       });
 
       toast({
         title: "Success",
-        description: "Delivery route added successfully and warehouse quantities updated",
+        description: "Delivery route added successfully",
       });
 
       onSuccess();
@@ -266,32 +150,8 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
       customer_phone: '',
       scheduled_date: new Date().toISOString().split('T')[0],
       vehicle_id: '',
-      notes: '',
-      items: [{ inventory_id: '', quantity: 1 }]
+      notes: ''
     });
-  };
-
-  const addItem = () => {
-    setFormData(prev => ({
-      ...prev,
-      items: [...prev.items, { inventory_id: '', quantity: 1 }]
-    }));
-  };
-
-  const removeItem = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== index)
-    }));
-  };
-
-  const updateItem = (index: number, field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      items: prev.items.map((item, i) => 
-        i === index ? { ...item, [field]: value } : item
-      )
-    }));
   };
 
   return (
@@ -359,74 +219,6 @@ const AddDeliveryDialog: React.FC<AddDeliveryDialogProps> = ({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          </div>
-
-          <div>
-            <Label>Delivery Items</Label>
-            <div className="space-y-2">
-              {formData.items.map((item, index) => (
-                <div key={index} className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Label>Product</Label>
-                    <Select
-                      value={item.inventory_id}
-                      onValueChange={(value) => updateItem(index, 'inventory_id', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {inventory.length === 0 ? (
-                          <div className="p-2 text-sm text-gray-500">
-                            No products found in inventory. Please add products in warehouse first.
-                          </div>
-                        ) : (
-                          inventory.map((product) => (
-                            <SelectItem 
-                              key={product.id} 
-                              value={product.id}
-                              disabled={product.current_stock === 0}
-                            >
-                              {product.product_name} (Stock: {product.current_stock})
-                              {product.current_stock === 0 && " - Out of Stock"}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="w-24">
-                    <Label>Quantity</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                      placeholder="Qty"
-                    />
-                  </div>
-                  {formData.items.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeItem(index)}
-                    >
-                      Remove
-                    </Button>
-                  )}
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addItem}
-                className="mt-2"
-              >
-                Add Item
-              </Button>
             </div>
           </div>
 
