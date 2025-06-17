@@ -42,9 +42,8 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
   const { createAssignment, isCreating, getAssignedDeliveryIds } = useDailyRouteAssignments();
   
   // Assignment states - use refs to prevent re-renders
-  const selectedDriverRef = useRef<string>('');
-  const selectedDeliveriesRef = useRef<string[]>([]);
-  const [forceUpdateKey, setForceUpdateKey] = useState(0);
+  const [selectedDriver, setSelectedDriver] = useState<string>('');
+  const [selectedDeliveries, setSelectedDeliveries] = useState<string[]>([]);
   
   // New delivery states - use refs to prevent re-renders on every keystroke
   const deliveryFormRef = useRef({
@@ -129,28 +128,25 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
     }
   }, [selectedDate, toast, queryClient]);
 
-  // Stable assignment handlers using refs - NO state changes that trigger re-renders
+  // Stable assignment handlers
   const handleDriverChange = useCallback((driverId: string) => {
-    selectedDriverRef.current = driverId;
-    // Force update only the necessary components
-    setForceUpdateKey(prev => prev + 1);
+    setSelectedDriver(driverId);
   }, []);
 
   const handleDeliveryToggle = useCallback((deliveryId: string) => {
-    const currentSelected = selectedDeliveriesRef.current;
-    selectedDeliveriesRef.current = currentSelected.includes(deliveryId)
-      ? currentSelected.filter(id => id !== deliveryId)
-      : [...currentSelected, deliveryId];
-    // Force update only the necessary components
-    setForceUpdateKey(prev => prev + 1);
+    setSelectedDeliveries(current => 
+      current.includes(deliveryId)
+        ? current.filter(id => id !== deliveryId)
+        : [...current, deliveryId]
+    );
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    const currentSelected = selectedDeliveriesRef.current;
-    selectedDeliveriesRef.current = currentSelected.length === availableDeliveries.length
-      ? []
-      : availableDeliveries.map(d => d.id);
-    setForceUpdateKey(prev => prev + 1);
+    setSelectedDeliveries(current => 
+      current.length === availableDeliveries.length
+        ? []
+        : availableDeliveries.map(d => d.id)
+    );
   }, [availableDeliveries]);
 
   const smartAssignByLocation = useCallback(() => {
@@ -162,25 +158,20 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
     const unassignedDeliveries = availableDeliveries.filter(d => !assignedIds.has(d.id));
     
     if (unassignedDeliveries.length === 0) {
-      selectedDeliveriesRef.current = [];
-      setForceUpdateKey(prev => prev + 1);
+      setSelectedDeliveries([]);
       return;
     }
 
     const deliveriesPerDriver = Math.ceil(unassignedDeliveries.length / drivers.length);
-    const driverIndex = drivers.findIndex(d => d.id === selectedDriverRef.current);
+    const driverIndex = drivers.findIndex(d => d.id === selectedDriver);
     const startIndex = driverIndex >= 0 ? driverIndex * deliveriesPerDriver : 0;
     const endIndex = Math.min(startIndex + deliveriesPerDriver, unassignedDeliveries.length);
     
     const assignedDeliveries = unassignedDeliveries.slice(startIndex, endIndex);
-    selectedDeliveriesRef.current = assignedDeliveries.map(d => d.id);
-    setForceUpdateKey(prev => prev + 1);
-  }, [availableDeliveries, drivers, getAssignedDeliveryIds]);
+    setSelectedDeliveries(assignedDeliveries.map(d => d.id));
+  }, [availableDeliveries, drivers, getAssignedDeliveryIds, selectedDriver]);
 
   const handleAssignDeliveries = useCallback(() => {
-    const selectedDriver = selectedDriverRef.current;
-    const selectedDeliveries = selectedDeliveriesRef.current;
-
     if (!selectedDriver || selectedDeliveries.length === 0) {
       toast({
         title: "Error",
@@ -202,30 +193,22 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
     });
 
     // Reset assignment form and close dialog
-    selectedDriverRef.current = '';
-    selectedDeliveriesRef.current = [];
-    setForceUpdateKey(prev => prev + 1);
+    setSelectedDriver('');
+    setSelectedDeliveries([]);
     onOpenChange(false);
-  }, [selectedDate, profile?.id, createAssignment, onOpenChange, toast]);
+  }, [selectedDate, profile?.id, createAssignment, onOpenChange, toast, selectedDriver, selectedDeliveries]);
 
-  // Memoize the selected driver info - only updates when forceUpdateKey changes
+  // Memoize the selected driver info
   const selectedDriverInfo = useMemo(() => {
-    return drivers.find(d => d.id === selectedDriverRef.current);
-  }, [drivers, forceUpdateKey]);
-
-  // Current selections for display - only updates when forceUpdateKey changes
-  const currentSelections = useMemo(() => ({
-    selectedDriver: selectedDriverRef.current,
-    selectedDeliveries: selectedDeliveriesRef.current,
-    selectedCount: selectedDeliveriesRef.current.length
-  }), [forceUpdateKey]);
+    return drivers.find(d => d.id === selectedDriver);
+  }, [drivers, selectedDriver]);
 
   // Reset form when dialog closes
   useEffect(() => {
     if (!open) {
       const timeoutId = setTimeout(() => {
-        selectedDriverRef.current = '';
-        selectedDeliveriesRef.current = [];
+        setSelectedDriver('');
+        setSelectedDeliveries([]);
         deliveryFormRef.current = {
           customer_name: '',
           customer_address: '',
@@ -234,52 +217,54 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
           notes: ''
         };
         setFormKey(prev => prev + 1);
-        setForceUpdateKey(prev => prev + 1);
       }, 100);
       
       return () => clearTimeout(timeoutId);
     }
   }, [open]);
 
-  const DialogWrapper = ({ children }: { children: React.ReactNode }) => {
-    if (isMobile) {
+  // Memoize the entire dialog wrapper to prevent re-renders
+  const DialogWrapper = useMemo(() => {
+    return ({ children }: { children: React.ReactNode }) => {
+      if (isMobile) {
+        return (
+          <Sheet open={open} onOpenChange={onOpenChange}>
+            <SheetContent side="bottom" className="h-[95vh] flex flex-col">
+              <SheetHeader className="flex-shrink-0 pb-4 border-b">
+                <SheetTitle className="text-lg font-semibold">
+                  Route Management for {new Date(selectedDate).toLocaleDateString()}
+                </SheetTitle>
+                <SheetDescription className="text-sm text-gray-600">
+                  Create new delivery routes or assign existing deliveries to drivers.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="flex-1 overflow-hidden">
+                {children}
+              </div>
+            </SheetContent>
+          </Sheet>
+        );
+      }
+
       return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-          <SheetContent side="bottom" className="h-[95vh] flex flex-col">
-            <SheetHeader className="flex-shrink-0 pb-4 border-b">
-              <SheetTitle className="text-lg font-semibold">
+        <Dialog open={open} onOpenChange={onOpenChange}>
+          <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle>
                 Route Management for {new Date(selectedDate).toLocaleDateString()}
-              </SheetTitle>
-              <SheetDescription className="text-sm text-gray-600">
+              </DialogTitle>
+              <DialogDescription className="text-sm text-gray-600">
                 Create new delivery routes or assign existing deliveries to drivers.
-              </SheetDescription>
-            </SheetHeader>
+              </DialogDescription>
+            </DialogHeader>
             <div className="flex-1 overflow-hidden">
               {children}
             </div>
-          </SheetContent>
-        </Sheet>
+          </DialogContent>
+        </Dialog>
       );
-    }
-
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>
-              Route Management for {new Date(selectedDate).toLocaleDateString()}
-            </DialogTitle>
-            <DialogDescription className="text-sm text-gray-600">
-              Create new delivery routes or assign existing deliveries to drivers.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden">
-            {children}
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  };
+    };
+  }, [isMobile, open, onOpenChange, selectedDate]);
 
   return (
     <DialogWrapper>
@@ -378,7 +363,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                 {/* Driver Selection */}
                 <div className="space-y-3">
                   <Label htmlFor="driver" className="text-base font-semibold">Select Driver</Label>
-                  <Select value={currentSelections.selectedDriver} onValueChange={handleDriverChange}>
+                  <Select value={selectedDriver} onValueChange={handleDriverChange}>
                     <SelectTrigger className={`${isMobile ? 'h-12 text-base' : 'h-11'}`}>
                       <SelectValue placeholder="Choose a driver" />
                     </SelectTrigger>
@@ -401,7 +386,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                 <div className="space-y-4">
                   <div className="flex flex-col space-y-3">
                     <Label className="text-base font-semibold">
-                      Select Deliveries ({currentSelections.selectedCount} selected)
+                      Select Deliveries ({selectedDeliveries.length} selected)
                     </Label>
                     <div className="flex flex-wrap gap-2">
                       <Button
@@ -409,7 +394,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                         variant="outline"
                         size={isMobile ? "default" : "sm"}
                         onClick={smartAssignByLocation}
-                        disabled={!currentSelections.selectedDriver || availableDeliveries.length === 0}
+                        disabled={!selectedDriver || availableDeliveries.length === 0}
                         className="flex items-center gap-2"
                       >
                         <Zap className="h-4 w-4" />
@@ -424,7 +409,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                         className="flex items-center gap-2"
                       >
                         <Package className="h-4 w-4" />
-                        {currentSelections.selectedCount === availableDeliveries.length ? 'Deselect All' : 'Select All'}
+                        {selectedDeliveries.length === availableDeliveries.length ? 'Deselect All' : 'Select All'}
                       </Button>
                     </div>
                   </div>
@@ -445,7 +430,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                         <Card
                           key={delivery.id}
                           className={`cursor-pointer transition-all hover:shadow-md ${
-                            currentSelections.selectedDeliveries.includes(delivery.id)
+                            selectedDeliveries.includes(delivery.id)
                               ? 'ring-2 ring-blue-500 bg-blue-50'
                               : 'hover:bg-gray-50'
                           }`}
@@ -453,7 +438,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                         >
                           <CardContent className={`${isMobile ? 'p-4' : 'p-3'} flex items-start space-x-3`}>
                             <Checkbox
-                              checked={currentSelections.selectedDeliveries.includes(delivery.id)}
+                              checked={selectedDeliveries.includes(delivery.id)}
                               className="mt-1"
                             />
                             <div className="flex-1 min-w-0">
@@ -476,7 +461,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                 </div>
 
                 {/* Assignment Summary */}
-                {currentSelections.selectedCount > 0 && currentSelections.selectedDriver && (
+                {selectedDeliveries.length > 0 && selectedDriver && (
                   <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm text-blue-900 flex items-center gap-2">
@@ -499,7 +484,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                       </div>
                       <div>
                         <span className="text-blue-700 font-medium">Deliveries:</span>
-                        <p className="font-semibold text-blue-900 mt-1">{currentSelections.selectedCount} items</p>
+                        <p className="font-semibold text-blue-900 mt-1">{selectedDeliveries.length} items</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -517,10 +502,10 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                   </Button>
                   <Button
                     onClick={handleAssignDeliveries}
-                    disabled={!currentSelections.selectedDriver || currentSelections.selectedCount === 0 || isCreating}
+                    disabled={!selectedDriver || selectedDeliveries.length === 0 || isCreating}
                     className={`order-1 sm:order-2 ${isMobile ? 'h-12' : ''}`}
                   >
-                    {isCreating ? 'Assigning...' : `Assign to Driver (${currentSelections.selectedCount})`}
+                    {isCreating ? 'Assigning...' : `Assign to Driver (${selectedDeliveries.length})`}
                   </Button>
                 </div>
               </div>
