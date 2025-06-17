@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, Truck, Clock, CheckCircle, Navigation, Camera, Plus } from 'lucide-react';
+import { MapPin, Truck, Clock, CheckCircle, Navigation, Camera, Plus, Route } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import AddDeliveryDialog from './AddDeliveryDialog';
 import DeliveryCompletionDialog from '../deliveries/DeliveryCompletionDialog';
+import RouteManagement from '../transportation/RouteManagement';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ResponsiveHeader } from '@/components/ui/responsive-header';
 
@@ -42,6 +43,7 @@ const DriverDashboard = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
     if (profile?.id) {
@@ -258,7 +260,7 @@ const DriverDashboard = () => {
     <div className={`${isMobile ? 'p-3 space-y-4' : 'p-6 space-y-6'}`}>
       <ResponsiveHeader
         title="Driver Dashboard"
-        subtitle="Your routes and vehicle status for today"
+        subtitle="Your routes and vehicle status"
       >
         <Button 
           className="bg-blue-600 hover:bg-blue-700"
@@ -286,138 +288,163 @@ const DriverDashboard = () => {
         </Button>
       </ResponsiveHeader>
 
-      {/* Status Overview - Updated to 2x2 grid on mobile */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-        <Card>
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600">Total Today</p>
-                <p className="text-lg md:text-2xl font-bold text-gray-900">{todaysDeliveries.length}</p>
-              </div>
-              <MapPin className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className={`grid w-full grid-cols-2 ${isMobile ? 'h-12' : 'h-10'}`}>
+          <TabsTrigger 
+            value="dashboard" 
+            className={`flex items-center gap-2 ${isMobile ? 'text-sm px-3' : 'text-sm'}`}
+          >
+            <Truck className="h-4 w-4" />
+            <span className={isMobile ? 'hidden sm:inline' : ''}>Dashboard</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="routes" 
+            className={`flex items-center gap-2 ${isMobile ? 'text-sm px-3' : 'text-sm'}`}
+          >
+            <Route className="h-4 w-4" />
+            <span className={isMobile ? 'hidden sm:inline' : ''}>Routes</span>
+          </TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-lg md:text-2xl font-bold text-green-600">{completedCount}</p>
-              </div>
-              <CheckCircle className="h-6 w-6 md:h-8 md:w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600">In Progress</p>
-                <p className="text-lg md:text-2xl font-bold text-orange-600">{inProgressCount}</p>
-              </div>
-              <Clock className="h-6 w-6 md:h-8 md:w-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600">Vehicle</p>
-                <p className="text-lg md:text-2xl font-bold text-blue-600">{vehicle ? 'Assigned' : 'None'}</p>
-              </div>
-              <Truck className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Routes Tabs */}
-      <Card>
-        <CardHeader className={isMobile ? 'p-4 pb-2' : 'p-6'}>
-          <CardTitle className="flex items-center">
-            <MapPin className="h-5 w-5 mr-2" />
-            Route Management
-          </CardTitle>
-        </CardHeader>
-        <CardContent className={isMobile ? 'p-4 pt-0' : 'p-6 pt-0'}>
-          <Tabs defaultValue="today" className="w-full">
-            <TabsList className={`${isMobile ? 'w-full' : 'grid w-full'} grid-cols-2`}>
-              <TabsTrigger value="today" className={isMobile ? 'text-xs' : ''}>Today's Routes</TabsTrigger>
-              <TabsTrigger value="scheduled" className={isMobile ? 'text-xs' : ''}>All Scheduled</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="today" className={`${isMobile ? 'mt-4' : 'mt-6'}`}>
-              {todaysDeliveries.length === 0 ? (
-                <div className="text-center py-6 sm:py-8">
-                  <p className={`text-gray-500 mb-4 ${isMobile ? 'text-sm' : ''}`}>No routes scheduled for today</p>
-                  <Button onClick={() => setIsAddDialogOpen(true)} size={isMobile ? "sm" : "default"}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add First Route
-                  </Button>
+        <TabsContent value="dashboard" className="space-y-4">
+          {/* Status Overview - Updated to 2x2 grid on mobile */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            <Card>
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs md:text-sm font-medium text-gray-600">Total Today</p>
+                    <p className="text-lg md:text-2xl font-bold text-gray-900">{todaysDeliveries.length}</p>
+                  </div>
+                  <MapPin className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
                 </div>
-              ) : (
-                <div className={`space-y-3 ${isMobile ? 'space-y-2' : 'space-y-4'}`}>
-                  {todaysDeliveries.map((delivery, index) => renderDeliveryCard(delivery, index))}
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="scheduled" className={`${isMobile ? 'mt-4' : 'mt-6'}`}>
-              {allDeliveries.length === 0 ? (
-                <div className="text-center py-6 sm:py-8">
-                  <p className={`text-gray-500 mb-4 ${isMobile ? 'text-sm' : ''}`}>No scheduled routes found</p>
-                  <Button onClick={() => setIsAddDialogOpen(true)} size={isMobile ? "sm" : "default"}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add First Route
-                  </Button>
-                </div>
-              ) : (
-                <div className={`space-y-3 ${isMobile ? 'space-y-2' : 'space-y-4'}`}>
-                  {allDeliveries.map((delivery, index) => renderDeliveryCard(delivery, index))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
 
-      {/* Vehicle Information - Updated to 2x2 grid on mobile */}
-      {vehicle && (
-        <Card>
-          <CardHeader className={isMobile ? 'p-4 pb-2' : 'p-6'}>
-            <CardTitle className="flex items-center">
-              <Truck className="h-5 w-5 mr-2" />
-              Vehicle Information - {vehicle.vehicle_number}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className={isMobile ? 'p-4 pt-0' : 'p-6 pt-0'}>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              <div className="text-center p-3 md:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs md:text-sm text-gray-600">Model</p>
-                <p className="font-medium text-sm md:text-base">{vehicle.make} {vehicle.model}</p>
-              </div>
-              <div className="text-center p-3 md:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs md:text-sm text-gray-600">Fuel Type</p>
-                <p className="font-medium text-sm md:text-base">{vehicle.fuel_type}</p>
-              </div>
-              <div className="text-center p-3 md:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs md:text-sm text-gray-600">Mileage</p>
-                <p className="font-medium text-sm md:text-base">{vehicle.current_mileage.toLocaleString()} km</p>
-              </div>
-              <div className="text-center p-3 md:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs md:text-sm text-gray-600">Status</p>
-                <p className="font-medium text-green-600 text-sm md:text-base">{vehicle.status}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            <Card>
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs md:text-sm font-medium text-gray-600">Completed</p>
+                    <p className="text-lg md:text-2xl font-bold text-green-600">{completedCount}</p>
+                  </div>
+                  <CheckCircle className="h-6 w-6 md:h-8 md:w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs md:text-sm font-medium text-gray-600">In Progress</p>
+                    <p className="text-lg md:text-2xl font-bold text-orange-600">{inProgressCount}</p>
+                  </div>
+                  <Clock className="h-6 w-6 md:h-8 md:w-8 text-orange-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs md:text-sm font-medium text-gray-600">Vehicle</p>
+                    <p className="text-lg md:text-2xl font-bold text-blue-600">{vehicle ? 'Assigned' : 'None'}</p>
+                  </div>
+                  <Truck className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Routes Tabs */}
+          <Card>
+            <CardHeader className={isMobile ? 'p-4 pb-2' : 'p-6'}>
+              <CardTitle className="flex items-center">
+                <MapPin className="h-5 w-5 mr-2" />
+                Route Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent className={isMobile ? 'p-4 pt-0' : 'p-6 pt-0'}>
+              <Tabs defaultValue="today" className="w-full">
+                <TabsList className={`${isMobile ? 'w-full' : 'grid w-full'} grid-cols-2`}>
+                  <TabsTrigger value="today" className={isMobile ? 'text-xs' : ''}>Today's Routes</TabsTrigger>
+                  <TabsTrigger value="scheduled" className={isMobile ? 'text-xs' : ''}>All Scheduled</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="today" className={`${isMobile ? 'mt-4' : 'mt-6'}`}>
+                  {todaysDeliveries.length === 0 ? (
+                    <div className="text-center py-6 sm:py-8">
+                      <p className={`text-gray-500 mb-4 ${isMobile ? 'text-sm' : ''}`}>No routes scheduled for today</p>
+                      <Button onClick={() => setIsAddDialogOpen(true)} size={isMobile ? "sm" : "default"}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add First Route
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className={`space-y-3 ${isMobile ? 'space-y-2' : 'space-y-4'}`}>
+                      {todaysDeliveries.map((delivery, index) => renderDeliveryCard(delivery, index))}
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="scheduled" className={`${isMobile ? 'mt-4' : 'mt-6'}`}>
+                  {allDeliveries.length === 0 ? (
+                    <div className="text-center py-6 sm:py-8">
+                      <p className={`text-gray-500 mb-4 ${isMobile ? 'text-sm' : ''}`}>No scheduled routes found</p>
+                      <Button onClick={() => setIsAddDialogOpen(true)} size={isMobile ? "sm" : "default"}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add First Route
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className={`space-y-3 ${isMobile ? 'space-y-2' : 'space-y-4'}`}>
+                      {allDeliveries.map((delivery, index) => renderDeliveryCard(delivery, index))}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* Vehicle Information - Updated to 2x2 grid on mobile */}
+          {vehicle && (
+            <Card>
+              <CardHeader className={isMobile ? 'p-4 pb-2' : 'p-6'}>
+                <CardTitle className="flex items-center">
+                  <Truck className="h-5 w-5 mr-2" />
+                  Vehicle Information - {vehicle.vehicle_number}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className={isMobile ? 'p-4 pt-0' : 'p-6 pt-0'}>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                  <div className="text-center p-3 md:p-4 bg-gray-50 rounded-lg">
+                    <p className="text-xs md:text-sm text-gray-600">Model</p>
+                    <p className="font-medium text-sm md:text-base">{vehicle.make} {vehicle.model}</p>
+                  </div>
+                  <div className="text-center p-3 md:p-4 bg-gray-50 rounded-lg">
+                    <p className="text-xs md:text-sm text-gray-600">Fuel Type</p>
+                    <p className="font-medium text-sm md:text-base">{vehicle.fuel_type}</p>
+                  </div>
+                  <div className="text-center p-3 md:p-4 bg-gray-50 rounded-lg">
+                    <p className="text-xs md:text-sm text-gray-600">Mileage</p>
+                    <p className="font-medium text-sm md:text-base">{vehicle.current_mileage.toLocaleString()} km</p>
+                  </div>
+                  <div className="text-center p-3 md:p-4 bg-gray-50 rounded-lg">
+                    <p className="text-xs md:text-sm text-gray-600">Status</p>
+                    <p className="font-medium text-green-600 text-sm md:text-base">{vehicle.status}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="routes" className="space-y-4">
+          <RouteManagement />
+        </TabsContent>
+      </Tabs>
 
       <AddDeliveryDialog
         isOpen={isAddDialogOpen}

@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, MapPin, Clock, Truck, Edit, Trash2, Route } from 'lucide-react';
+import { ChevronDown, ChevronUp, MapPin, Clock, Truck, Edit, Trash2, Route, Navigation } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface DeliveryAssignmentCardProps {
   assignment: {
@@ -27,6 +28,7 @@ const DeliveryAssignmentCard: React.FC<DeliveryAssignmentCardProps> = ({
   driverName,
   onDelete
 }) => {
+  const { profile } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Fetch delivery details
@@ -59,6 +61,31 @@ const DeliveryAssignmentCard: React.FC<DeliveryAssignmentCardProps> = ({
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  };
+
+  const openRouteInGoogleMaps = () => {
+    if (deliveries.length === 0) return;
+
+    const addresses = sortedDeliveries.map(delivery => delivery.customer_address);
+    
+    if (addresses.length === 1) {
+      // Single destination
+      const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addresses[0])}`;
+      window.open(mapsUrl, '_blank');
+    } else {
+      // Multiple destinations with waypoints
+      const origin = addresses[0];
+      const destination = addresses[addresses.length - 1];
+      const waypoints = addresses.slice(1, -1).join('|');
+      
+      let mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+      
+      if (waypoints) {
+        mapsUrl += `&waypoints=${encodeURIComponent(waypoints)}`;
+      }
+      
+      window.open(mapsUrl, '_blank');
+    }
   };
 
   // Sort deliveries by optimized order if available
@@ -100,26 +127,45 @@ const DeliveryAssignmentCard: React.FC<DeliveryAssignmentCardProps> = ({
                 </div>
                 
                 <div className="flex items-center gap-1">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Add edit functionality here
-                    }}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete();
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {assignment.status === 'planned' && deliveries.length > 0 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openRouteInGoogleMaps();
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700"
+                    >
+                      <Navigation className="h-4 w-4" />
+                    </Button>
+                  )}
+                  
+                  {profile?.role === 'admin' && (
+                    <>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Add edit functionality here
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete();
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                  
                   <div className="flex items-center justify-center w-10 h-8">
                     {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </div>

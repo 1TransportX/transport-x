@@ -61,10 +61,10 @@ const DailyRouteAssignment = React.memo(() => {
     setShowCreateDialog(open);
   }, []);
 
-  if (!profile || profile.role !== 'admin') {
+  if (!profile) {
     return (
       <div className="p-6 text-center">
-        <p className="text-gray-600">Access denied. Admin privileges required.</p>
+        <p className="text-gray-600">Please log in to access this feature.</p>
       </div>
     );
   }
@@ -87,13 +87,15 @@ const DailyRouteAssignment = React.memo(() => {
           </h2>
           <p className="text-gray-600 mt-1">View and manage all route assignments by date</p>
         </div>
-        <Button
-          onClick={() => handleCreateRoute(new Date().toISOString().split('T')[0])}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Create Route
-        </Button>
+        {profile.role === 'admin' && (
+          <Button
+            onClick={() => handleCreateRoute(new Date().toISOString().split('T')[0])}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Create Route
+          </Button>
+        )}
       </div>
 
       {/* Filter Bar */}
@@ -193,9 +195,11 @@ const DailyRouteAssignment = React.memo(() => {
               <p className="text-gray-600 mb-4">
                 No route assignments found for the selected date range.
               </p>
-              <Button onClick={() => handleCreateRoute(new Date().toISOString().split('T')[0])}>
-                Create First Route
-              </Button>
+              {profile.role === 'admin' && (
+                <Button onClick={() => handleCreateRoute(new Date().toISOString().split('T')[0])}>
+                  Create First Route
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -213,13 +217,15 @@ const DailyRouteAssignment = React.memo(() => {
         )}
       </div>
 
-      <CreateRouteDialog
-        open={showCreateDialog}
-        onOpenChange={handleDialogClose}
-        selectedDate={selectedDate}
-        availableDeliveries={availableDeliveries}
-        drivers={drivers}
-      />
+      {profile.role === 'admin' && (
+        <CreateRouteDialog
+          open={showCreateDialog}
+          onOpenChange={handleDialogClose}
+          selectedDate={selectedDate}
+          availableDeliveries={availableDeliveries}
+          drivers={drivers}
+        />
+      )}
     </div>
   );
 });

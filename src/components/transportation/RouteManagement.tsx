@@ -32,35 +32,39 @@ const RouteManagement = () => {
             <MapPin className="h-4 w-4" />
             <span className={isMobile ? 'hidden sm:inline' : ''}>Daily Routes</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="route-optimizer" 
-            className={`flex items-center gap-2 ${isMobile ? 'text-sm px-3' : 'text-sm'}`}
-          >
-            <Route className="h-4 w-4" />
-            <span className={isMobile ? 'hidden sm:inline' : ''}>Optimizer</span>
-          </TabsTrigger>
+          {profile.role === 'admin' && (
+            <TabsTrigger 
+              value="route-optimizer" 
+              className={`flex items-center gap-2 ${isMobile ? 'text-sm px-3' : 'text-sm'}`}
+            >
+              <Route className="h-4 w-4" />
+              <span className={isMobile ? 'hidden sm:inline' : ''}>Optimizer</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="daily-assignment" className="space-y-4">
           <DailyRouteAssignment />
         </TabsContent>
 
-        <TabsContent value="route-optimizer" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Route className="h-5 w-5" />
-                Route Optimizer
-              </CardTitle>
-              <CardDescription>
-                Optimize delivery routes for minimum travel distance and time.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RouteOptimizer />
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {profile.role === 'admin' && (
+          <TabsContent value="route-optimizer" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Route className="h-5 w-5" />
+                  Route Optimizer
+                </CardTitle>
+                <CardDescription>
+                  Optimize delivery routes for minimum travel distance and time.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RouteOptimizer />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
