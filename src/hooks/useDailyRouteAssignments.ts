@@ -60,16 +60,25 @@ export const useDailyRouteAssignments = () => {
   const { data: drivers = [], isLoading: driversLoading } = useQuery({
     queryKey: ['drivers-for-assignment'],
     queryFn: async () => {
+      // First get user IDs with driver or admin role
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .in('role', ['driver', 'admin']);
+
+      if (rolesError) throw rolesError;
+
+      const userIds = userRoles.map(role => role.user_id);
+
+      if (userIds.length === 0) {
+        return [];
+      }
+
+      // Then get profiles for those users
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email')
-        .in('id', [
-          // Get users with driver or admin role
-          supabase
-            .from('user_roles')
-            .select('user_id')
-            .in('role', ['driver', 'admin'])
-        ]);
+        .in('id', userIds);
 
       if (error) throw error;
       return data as DriverForAssignment[];
