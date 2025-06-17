@@ -213,7 +213,6 @@ const CreateDailyAssignmentDialog: React.FC<CreateDailyAssignmentDialogProps> = 
                       <Checkbox
                         checked={selectedDeliveries.includes(delivery.id)}
                         className="mt-1"
-                        readOnly
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
