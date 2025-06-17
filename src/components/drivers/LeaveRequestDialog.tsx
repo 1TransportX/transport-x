@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,11 +13,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 interface LeaveRequestDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   trigger?: React.ReactNode;
 }
 
-const LeaveRequestDialog: React.FC<LeaveRequestDialogProps> = ({ trigger }) => {
-  const [open, setOpen] = useState(false);
+const LeaveRequestDialog: React.FC<LeaveRequestDialogProps> = ({ open, onOpenChange, trigger }) => {
   const [formData, setFormData] = useState({
     leave_type: '',
     start_date: '',
@@ -51,7 +52,7 @@ const LeaveRequestDialog: React.FC<LeaveRequestDialogProps> = ({ trigger }) => {
         title: "Success",
         description: "Leave request submitted successfully",
       });
-      setOpen(false);
+      onOpenChange(false);
       setFormData({
         leave_type: '',
         start_date: '',
@@ -97,15 +98,12 @@ const LeaveRequestDialog: React.FC<LeaveRequestDialogProps> = ({ trigger }) => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button className="flex items-center space-x-2">
-            <Plus className="h-4 w-4" />
-            <span>Request Leave</span>
-          </Button>
-        )}
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {trigger && (
+        <DialogTrigger asChild>
+          {trigger}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
@@ -168,7 +166,7 @@ const LeaveRequestDialog: React.FC<LeaveRequestDialogProps> = ({ trigger }) => {
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button 
