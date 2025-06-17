@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -45,23 +44,30 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
   const [selectedDriver, setSelectedDriver] = useState<string>('');
   const [selectedDeliveries, setSelectedDeliveries] = useState<string[]>([]);
   
-  // New delivery states - isolated to prevent parent re-renders
-  const [newDelivery, setNewDelivery] = useState({
+  // New delivery states - use refs to prevent re-renders on every keystroke
+  const deliveryFormRef = useRef({
     customer_name: '',
     customer_address: '',
     customer_phone: '',
     delivery_number: '',
     notes: ''
   });
-  const [isCreatingDelivery, setIsCreatingDelivery] = useState(false);
 
-  // Memoize handlers to prevent recreation on every render
+  const [isCreatingDelivery, setIsCreatingDelivery] = useState(false);
+  const [formKey, setFormKey] = useState(0); // Force re-render only when needed
+
+  // Stable form change handler that doesn't cause re-renders
   const handleNewDeliveryChange = useCallback((field: string, value: string) => {
-    setNewDelivery(prev => ({ ...prev, [field]: value }));
+    deliveryFormRef.current = {
+      ...deliveryFormRef.current,
+      [field]: value
+    };
   }, []);
 
   const handleCreateDelivery = useCallback(async () => {
-    if (!newDelivery.customer_name || !newDelivery.customer_address) {
+    const formData = deliveryFormRef.current;
+    
+    if (!formData.customer_name || !formData.customer_address) {
       toast({
         title: "Error",
         description: "Customer name and address are required.",
@@ -72,16 +78,16 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
 
     setIsCreatingDelivery(true);
     try {
-      const deliveryNumber = newDelivery.delivery_number || `DEL-${Date.now()}`;
+      const deliveryNumber = formData.delivery_number || `DEL-${Date.now()}`;
       
       const { data, error } = await supabase
         .from('deliveries')
         .insert({
           delivery_number: deliveryNumber,
-          customer_name: newDelivery.customer_name,
-          customer_address: newDelivery.customer_address,
-          customer_phone: newDelivery.customer_phone || null,
-          notes: newDelivery.notes || null,
+          customer_name: formData.customer_name,
+          customer_address: formData.customer_address,
+          customer_phone: formData.customer_phone || null,
+          notes: formData.notes || null,
           scheduled_date: selectedDate,
           status: 'pending'
         })
@@ -92,19 +98,20 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
 
       toast({
         title: "Delivery Created",
-        description: `Delivery route for ${newDelivery.customer_name} has been created successfully.`,
+        description: `Delivery route for ${formData.customer_name} has been created successfully.`,
       });
 
-      // Reset only the new delivery form
-      setNewDelivery({
+      // Reset form by updating ref and forcing re-render
+      deliveryFormRef.current = {
         customer_name: '',
         customer_address: '',
         customer_phone: '',
         delivery_number: '',
         notes: ''
-      });
+      };
+      setFormKey(prev => prev + 1);
 
-      // Use proper query invalidation instead of window.location.reload()
+      // Use proper query invalidation
       await queryClient.invalidateQueries({ queryKey: ['deliveries-for-range'] });
       await queryClient.invalidateQueries({ queryKey: ['daily-route-assignments-range'] });
       
@@ -118,8 +125,9 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
     } finally {
       setIsCreatingDelivery(false);
     }
-  }, [newDelivery, selectedDate, toast, queryClient]);
+  }, [selectedDate, toast, queryClient]);
 
+  // Assignment handlers
   const handleAssignDeliveries = useCallback(() => {
     if (!selectedDriver || selectedDeliveries.length === 0) {
       toast({
@@ -185,27 +193,27 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
     setSelectedDeliveries(assignedDeliveries.map(d => d.id));
   }, [availableDeliveries, drivers, selectedDriver, getAssignedDeliveryIds]);
 
-  // Only reset form when dialog is explicitly closed (not on every open/date change)
+  // Reset form when dialog closes
   useEffect(() => {
     if (!open) {
-      // Small delay to ensure dialog is fully closed before resetting
       const timeoutId = setTimeout(() => {
         setSelectedDriver('');
         setSelectedDeliveries([]);
-        setNewDelivery({
+        deliveryFormRef.current = {
           customer_name: '',
           customer_address: '',
           customer_phone: '',
           delivery_number: '',
           notes: ''
-        });
+        };
+        setFormKey(prev => prev + 1);
       }, 100);
       
       return () => clearTimeout(timeoutId);
     }
   }, [open]);
 
-  // Memoize the selected driver info to prevent lookups on every render
+  // Memoize the selected driver info
   const selectedDriverInfo = useMemo(() => {
     return drivers.find(d => d.id === selectedDriver);
   }, [drivers, selectedDriver]);
@@ -275,14 +283,14 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                       New Delivery Route
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4" key={formKey}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="delivery_number">Delivery Number (Optional)</Label>
                         <Input
                           id="delivery_number"
                           placeholder="Auto-generated if empty"
-                          value={newDelivery.delivery_number}
+                          defaultValue={deliveryFormRef.current.delivery_number}
                           onChange={(e) => handleNewDeliveryChange('delivery_number', e.target.value)}
                         />
                       </div>
@@ -291,7 +299,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                         <Input
                           id="customer_name"
                           placeholder="Enter customer name"
-                          value={newDelivery.customer_name}
+                          defaultValue={deliveryFormRef.current.customer_name}
                           onChange={(e) => handleNewDeliveryChange('customer_name', e.target.value)}
                         />
                       </div>
@@ -302,7 +310,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                       <Input
                         id="customer_address"
                         placeholder="Enter full delivery address"
-                        value={newDelivery.customer_address}
+                        defaultValue={deliveryFormRef.current.customer_address}
                         onChange={(e) => handleNewDeliveryChange('customer_address', e.target.value)}
                       />
                     </div>
@@ -312,7 +320,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                       <Input
                         id="customer_phone"
                         placeholder="Enter customer phone number"
-                        value={newDelivery.customer_phone}
+                        defaultValue={deliveryFormRef.current.customer_phone}
                         onChange={(e) => handleNewDeliveryChange('customer_phone', e.target.value)}
                       />
                     </div>
@@ -322,7 +330,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                       <Textarea
                         id="notes"
                         placeholder="Any special delivery instructions or notes"
-                        value={newDelivery.notes}
+                        defaultValue={deliveryFormRef.current.notes}
                         onChange={(e) => handleNewDeliveryChange('notes', e.target.value)}
                         rows={3}
                       />
@@ -330,7 +338,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
 
                     <Button
                       onClick={handleCreateDelivery}
-                      disabled={isCreatingDelivery || !newDelivery.customer_name || !newDelivery.customer_address}
+                      disabled={isCreatingDelivery}
                       className="w-full"
                     >
                       {isCreatingDelivery ? 'Creating Route...' : 'Create Delivery Route'}
