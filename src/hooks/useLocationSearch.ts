@@ -23,8 +23,12 @@ export const useLocationSearch = (): LocationSearchHook => {
   const [error, setError] = useState<string | null>(null);
 
   const searchLocations = useCallback(async (input: string) => {
+    console.log('searchLocations called with input:', input);
+    
     if (!input || input.length < 3) {
+      console.log('Input too short, clearing suggestions');
       setSuggestions([]);
+      setError(null);
       return;
     }
 
@@ -32,7 +36,7 @@ export const useLocationSearch = (): LocationSearchHook => {
     setError(null);
 
     try {
-      console.log('Searching for locations with input:', input);
+      console.log('Calling Google Maps function with input:', input);
       
       const { data, error: functionError } = await supabase.functions.invoke('google-maps-proxy', {
         body: {
@@ -46,11 +50,16 @@ export const useLocationSearch = (): LocationSearchHook => {
         }
       });
 
-      console.log('Google Maps response:', data);
+      console.log('Function response:', { data, error: functionError });
 
       if (functionError) {
-        console.error('Function error:', functionError);
+        console.error('Supabase function error:', functionError);
         throw new Error('Failed to connect to location service');
+      }
+
+      if (data?.error) {
+        console.error('API error in response:', data.error);
+        throw new Error(data.error);
       }
 
       if (data?.status === 'OK' && data?.predictions) {
@@ -58,18 +67,20 @@ export const useLocationSearch = (): LocationSearchHook => {
           place_id: prediction.place_id,
           description: prediction.description,
         }));
-        console.log('Mapped suggestions:', mappedSuggestions);
+        console.log('Setting suggestions:', mappedSuggestions);
         setSuggestions(mappedSuggestions);
+        setError(null);
       } else if (data?.status === 'ZERO_RESULTS') {
-        console.log('No results found for:', input);
+        console.log('No results found');
         setSuggestions([]);
+        setError(null);
       } else {
-        console.error('Unexpected API response:', data);
+        console.error('Unexpected response:', data);
         setSuggestions([]);
         setError('No locations found. Please try a different search term.');
       }
     } catch (err) {
-      console.error('Location search error:', err);
+      console.error('Search error:', err);
       setError('Unable to search locations. Please check your connection and try again.');
       setSuggestions([]);
     } finally {
