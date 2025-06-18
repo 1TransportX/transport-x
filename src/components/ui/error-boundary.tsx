@@ -31,12 +31,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     console.error('Error details:', {
       message: error.message,
       stack: error.stack,
-      componentStack: errorInfo.componentStack,
-      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
-      viewport: typeof window !== 'undefined' ? {
-        width: window.innerWidth,
-        height: window.innerHeight
-      } : 'Unknown'
+      componentStack: errorInfo.componentStack
     });
     
     this.setState({ errorInfo });
