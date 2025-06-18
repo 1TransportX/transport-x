@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -180,7 +181,7 @@ const EmployeeList = () => {
   if (error) {
     console.error('Employee list error:', error);
     return (
-      <div className="p-6">
+      <div className="w-full p-6">
         <div className="text-red-600">
           Error loading employees: {error.message}
         </div>
@@ -190,115 +191,120 @@ const EmployeeList = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-64">
+      <div className="w-full flex items-center justify-center min-h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="p-3 sm:p-6 space-y-6">
-      <ResponsiveHeader
-        title="Employee Management"
-        subtitle="Manage employee records, roles, and information."
-      >
-        <Button onClick={() => setShowAddDialog(true)} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Add Employee
-        </Button>
-      </ResponsiveHeader>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Employees ({filteredEmployees.length})</CardTitle>
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search employees..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+    <div className="w-full">
+      <div className="w-full p-3 sm:p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Employee Management</h2>
+            <p className="text-sm text-gray-600 mt-1">Manage employee records, roles, and information.</p>
           </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Hire Date</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredEmployees.map((employee) => (
-                <TableRow key={employee.id}>
-                  <TableCell>
-                    {employee.first_name && employee.last_name 
-                      ? `${employee.first_name} ${employee.last_name}`
-                      : 'N/A'
-                    }
-                  </TableCell>
-                  <TableCell>{employee.email}</TableCell>
-                  <TableCell>{employee.department || 'N/A'}</TableCell>
-                  <TableCell>
-                    <Badge className={getRoleBadgeColor(employee.role)}>
-                      {employee.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={employee.is_active ? "default" : "secondary"}>
-                      {employee.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {employee.hire_date 
-                      ? new Date(employee.hire_date).toLocaleDateString()
-                      : 'N/A'
-                    }
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditingEmployee(employee)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteEmployeeMutation.mutate(employee.id)}
-                        disabled={deleteEmployeeMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+          <Button onClick={() => setShowAddDialog(true)} className="flex items-center gap-2 w-full sm:w-auto">
+            <Plus className="h-4 w-4" />
+            Add Employee
+          </Button>
+        </div>
 
-      <AddEmployeeDialog 
-        open={showAddDialog} 
-        onOpenChange={setShowAddDialog} 
-      />
-      
-      {editingEmployee && (
-        <EditEmployeeDialog 
-          employee={editingEmployee}
-          open={!!editingEmployee}
-          onOpenChange={() => setEditingEmployee(null)}
+        <Card className="w-full">
+          <CardHeader className="pb-4">
+            <CardTitle>Employees ({filteredEmployees.length})</CardTitle>
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search employees..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[120px]">Name</TableHead>
+                    <TableHead className="min-w-[200px]">Email</TableHead>
+                    <TableHead className="min-w-[100px]">Department</TableHead>
+                    <TableHead className="min-w-[80px]">Role</TableHead>
+                    <TableHead className="min-w-[80px]">Status</TableHead>
+                    <TableHead className="min-w-[100px]">Hire Date</TableHead>
+                    <TableHead className="min-w-[100px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredEmployees.map((employee) => (
+                    <TableRow key={employee.id}>
+                      <TableCell className="font-medium">
+                        {employee.first_name && employee.last_name 
+                          ? `${employee.first_name} ${employee.last_name}`
+                          : 'N/A'
+                        }
+                      </TableCell>
+                      <TableCell>{employee.email}</TableCell>
+                      <TableCell>{employee.department || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Badge className={getRoleBadgeColor(employee.role)}>
+                          {employee.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={employee.is_active ? "default" : "secondary"}>
+                          {employee.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {employee.hire_date 
+                          ? new Date(employee.hire_date).toLocaleDateString()
+                          : 'N/A'
+                        }
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingEmployee(employee)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteEmployeeMutation.mutate(employee.id)}
+                            disabled={deleteEmployeeMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <AddEmployeeDialog 
+          open={showAddDialog} 
+          onOpenChange={setShowAddDialog} 
         />
-      )}
+        
+        {editingEmployee && (
+          <EditEmployeeDialog 
+            employee={editingEmployee}
+            open={!!editingEmployee}
+            onOpenChange={() => setEditingEmployee(null)}
+          />
+        )}
+      </div>
     </div>
   );
 };
