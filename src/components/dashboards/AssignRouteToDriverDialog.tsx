@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -100,6 +101,67 @@ const AssignRouteToDriverDialog: React.FC<AssignRouteToDriverDialogProps> = ({
     }
   };
 
+  const getAvailableDriversForDeliveries = async (deliveryIds: string[]) => {
+    if (deliveryIds.length === 0) return drivers;
+
+    try {
+      // Get the scheduled dates for selected deliveries
+      const selectedDeliveryData = deliveries.filter(d => deliveryIds.includes(d.id));
+      const scheduledDates = [...new Set(selectedDeliveryData.map(d => d.scheduled_date))];
+
+      if (scheduledDates.length === 0) return drivers;
+
+      // Fetch approved leave requests that overlap with any of the scheduled dates
+      const { data: leaveRequests, error } = await supabase
+        .from('leave_requests')
+        .select('user_id, start_date, end_date')
+        .eq('status', 'approved')
+        .or(
+          scheduledDates.map(date => 
+            `and(lte.start_date.${date},gte.end_date.${date})`
+          ).join(',')
+        );
+
+      if (error) {
+        console.error('Error fetching leave requests:', error);
+        return drivers;
+      }
+
+      // Get user IDs that are on leave during any of the scheduled dates
+      const driversOnLeave = new Set<string>();
+      
+      leaveRequests?.forEach(leave => {
+        scheduledDates.forEach(date => {
+          if (date >= leave.start_date && date <= leave.end_date) {
+            driversOnLeave.add(leave.user_id);
+          }
+        });
+      });
+
+      // Filter out drivers who are on leave
+      return drivers.filter(driver => !driversOnLeave.has(driver.id));
+    } catch (error) {
+      console.error('Error checking driver availability:', error);
+      return drivers;
+    }
+  };
+
+  const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
+
+  useEffect(() => {
+    const updateAvailableDrivers = async () => {
+      const available = await getAvailableDriversForDeliveries(selectedDeliveries);
+      setAvailableDrivers(available);
+      
+      // Clear selected driver if they're no longer available
+      if (selectedDriver && !available.find(d => d.id === selectedDriver)) {
+        setSelectedDriver('');
+      }
+    };
+
+    updateAvailableDrivers();
+  }, [selectedDeliveries, drivers]);
+
   const handleAssignRoutes = async () => {
     if (!selectedDriver || selectedDeliveries.length === 0) {
       toast({
@@ -178,13 +240,18 @@ const AssignRouteToDriverDialog: React.FC<AssignRouteToDriverDialogProps> = ({
                 <SelectValue placeholder="Choose a driver" />
               </SelectTrigger>
               <SelectContent>
-                {drivers.map((driver) => (
+                {availableDrivers.map((driver) => (
                   <SelectItem key={driver.id} value={driver.id}>
                     {driver.first_name} {driver.last_name} ({driver.email})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {selectedDeliveries.length > 0 && availableDrivers.length < drivers.length && (
+              <p className="text-sm text-amber-600 mt-1">
+                Some drivers are unavailable due to approved leave requests for the selected delivery dates.
+              </p>
+            )}
           </div>
 
           <div>

@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -99,7 +100,7 @@ export const useDailyRouteAssignments = () => {
     enabled: !!profile
   });
 
-  // Fetch available drivers
+  // Fetch available drivers - now with leave filtering capability
   const { data: drivers = [], isLoading: driversLoading } = useQuery({
     queryKey: ['drivers-for-assignment'],
     queryFn: async () => {
@@ -125,6 +126,33 @@ export const useDailyRouteAssignments = () => {
       return profiles as DriverForAssignment[];
     }
   });
+
+  // Function to get available drivers for a specific date (filtering by leave)
+  const getAvailableDriversForDate = useCallback(async (date: string) => {
+    try {
+      // Fetch approved leave requests that overlap with the specified date
+      const { data: leaveRequests, error } = await supabase
+        .from('leave_requests')
+        .select('user_id')
+        .eq('status', 'approved')
+        .lte('start_date', date)
+        .gte('end_date', date);
+
+      if (error) {
+        console.error('Error fetching leave requests:', error);
+        return drivers;
+      }
+
+      // Get user IDs that are on leave
+      const driversOnLeave = new Set(leaveRequests?.map(leave => leave.user_id) || []);
+
+      // Filter out drivers who are on leave
+      return drivers.filter(driver => !driversOnLeave.has(driver.id));
+    } catch (error) {
+      console.error('Error filtering drivers by leave:', error);
+      return drivers;
+    }
+  }, [drivers]);
 
   // Fetch deliveries for the date range - filter by driver for non-admin users
   const { data: allDeliveries = [], isLoading: deliveriesLoading } = useQuery({
@@ -398,6 +426,7 @@ export const useDailyRouteAssignments = () => {
     dateGroups,
     drivers,
     getAvailableDeliveriesForDate,
+    getAvailableDriversForDate,
     getAssignedDeliveryIds,
     isLoading: assignmentsLoading || driversLoading || deliveriesLoading,
     isOptimizing,

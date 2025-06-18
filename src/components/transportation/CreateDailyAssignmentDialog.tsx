@@ -41,6 +41,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
   // Form states
   const [selectedDate, setSelectedDate] = useState<string>(initialDate);
   const [selectedDriver, setSelectedDriver] = useState<string>('');
+  const [availableDrivers, setAvailableDrivers] = useState(drivers);
   
   // New delivery states - use refs to prevent re-renders on every keystroke
   const deliveryFormRef = useRef({
@@ -58,6 +59,54 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
   useEffect(() => {
     setSelectedDate(initialDate);
   }, [initialDate]);
+
+  // Filter drivers based on selected date and leave requests
+  useEffect(() => {
+    const filterDriversByLeave = async () => {
+      if (!selectedDate) {
+        setAvailableDrivers(drivers);
+        return;
+      }
+
+      try {
+        // Fetch approved leave requests that overlap with the selected date
+        const { data: leaveRequests, error } = await supabase
+          .from('leave_requests')
+          .select('user_id')
+          .eq('status', 'approved')
+          .lte('start_date', selectedDate)
+          .gte('end_date', selectedDate);
+
+        if (error) {
+          console.error('Error fetching leave requests:', error);
+          setAvailableDrivers(drivers);
+          return;
+        }
+
+        // Get user IDs that are on leave
+        const driversOnLeave = new Set(leaveRequests?.map(leave => leave.user_id) || []);
+
+        // Filter out drivers who are on leave
+        const filtered = drivers.filter(driver => !driversOnLeave.has(driver.id));
+        setAvailableDrivers(filtered);
+
+        // Clear selected driver if they're no longer available
+        if (selectedDriver && driversOnLeave.has(selectedDriver)) {
+          setSelectedDriver('');
+          toast({
+            title: "Driver Unavailable",
+            description: "The selected driver is on approved leave for this date and has been deselected.",
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error('Error filtering drivers by leave:', error);
+        setAvailableDrivers(drivers);
+      }
+    };
+
+    filterDriversByLeave();
+  }, [selectedDate, drivers, selectedDriver, toast]);
 
   // Generate 6-digit delivery number
   const generateDeliveryNumber = useCallback(() => {
@@ -211,8 +260,8 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
 
   // Memoize the selected driver info
   const selectedDriverInfo = useMemo(() => {
-    return drivers.find(d => d.id === selectedDriver);
-  }, [drivers, selectedDriver]);
+    return availableDrivers.find(d => d.id === selectedDriver);
+  }, [availableDrivers, selectedDriver]);
 
   // Memoize the entire dialog wrapper to prevent re-renders
   const DialogWrapper = useMemo(() => {
@@ -288,7 +337,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                       <SelectValue placeholder="Select a driver" />
                     </SelectTrigger>
                     <SelectContent>
-                      {drivers.map((driver) => (
+                      {availableDrivers.map((driver) => (
                         <SelectItem key={driver.id} value={driver.id}>
                           <div className="flex items-center gap-3">
                             <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
@@ -300,6 +349,11 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
                       ))}
                     </SelectContent>
                   </Select>
+                  {availableDrivers.length < drivers.length && selectedDate && (
+                    <p className="text-sm text-amber-600">
+                      Some drivers are unavailable due to approved leave requests for this date.
+                    </p>
+                  )}
                 </div>
               </div>
 
