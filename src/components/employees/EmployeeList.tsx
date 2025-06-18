@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,15 +13,17 @@ import { ResponsiveHeader } from '@/components/ui/responsive-header';
 import AddEmployeeDialog from './AddEmployeeDialog';
 import EditEmployeeDialog from './EditEmployeeDialog';
 import { Employee } from '@/types/employee';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { LoadingFallback } from '@/components/ui/loading-fallback';
 
 const EmployeeList = () => {
+  console.log('EmployeeList component rendering');
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
 
   // Set up real-time subscription for user_roles changes
   useEffect(() => {
@@ -183,109 +186,179 @@ const EmployeeList = () => {
   }
 
   if (isLoading) {
-    return (
-      <div className="w-full flex items-center justify-center min-h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
-  // Mobile view with cards
-  if (isMobile) {
-    return (
+  return (
+    <ErrorBoundary>
       <div className="w-full">
-        <div className="w-full p-3 space-y-4">
-          <div className="flex flex-col gap-4">
+        <div className="w-full p-3 sm:p-6 space-y-4 sm:space-y-6">
+          <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Employee Management</h2>
+              <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">Employee Management</h2>
               <p className="text-sm text-gray-600 mt-1">Manage employee records, roles, and information.</p>
             </div>
-            <Button onClick={() => setShowAddDialog(true)} className="flex items-center gap-2 w-full">
+            <Button onClick={() => setShowAddDialog(true)} className="flex items-center gap-2 w-full sm:w-auto">
               <Plus className="h-4 w-4" />
               Add Employee
             </Button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search employees..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full"
-            />
-          </div>
+          <Card className="w-full">
+            <CardHeader className="pb-4">
+              <CardTitle>Employees ({filteredEmployees.length})</CardTitle>
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search employees..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full sm:max-w-sm"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {/* Mobile Card View - Hidden on larger screens */}
+              <div className="block sm:hidden">
+                <div className="space-y-3 p-3">
+                  {filteredEmployees.map((employee) => (
+                    <Card key={employee.id}>
+                      <CardContent className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="font-medium">
+                                {employee.first_name && employee.last_name 
+                                  ? `${employee.first_name} ${employee.last_name}`
+                                  : 'N/A'
+                                }
+                              </h3>
+                              <p className="text-sm text-gray-600">{employee.email}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingEmployee(employee)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => deleteEmployeeMutation.mutate(employee.id)}
+                                disabled={deleteEmployeeMutation.isPending}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <span className="font-medium">Department:</span>
+                              <div>{employee.department || 'N/A'}</div>
+                            </div>
+                            <div>
+                              <span className="font-medium">Role:</span>
+                              <div>
+                                <Badge className={getRoleBadgeColor(employee.role)}>
+                                  {employee.role}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div>
+                              <span className="font-medium">Status:</span>
+                              <div>
+                                <Badge variant={employee.is_active ? "default" : "secondary"}>
+                                  {employee.is_active ? 'Active' : 'Inactive'}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div>
+                              <span className="font-medium">Hire Date:</span>
+                              <div>
+                                {employee.hire_date 
+                                  ? new Date(employee.hire_date).toLocaleDateString()
+                                  : 'N/A'
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
 
-          <div className="space-y-3">
-            {filteredEmployees.map((employee) => (
-              <Card key={employee.id}>
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-medium">
+              {/* Desktop Table View - Hidden on mobile */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[120px]">Name</TableHead>
+                      <TableHead className="min-w-[200px]">Email</TableHead>
+                      <TableHead className="min-w-[100px]">Department</TableHead>
+                      <TableHead className="min-w-[80px]">Role</TableHead>
+                      <TableHead className="min-w-[80px]">Status</TableHead>
+                      <TableHead className="min-w-[100px]">Hire Date</TableHead>
+                      <TableHead className="min-w-[100px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredEmployees.map((employee) => (
+                      <TableRow key={employee.id}>
+                        <TableCell className="font-medium">
                           {employee.first_name && employee.last_name 
                             ? `${employee.first_name} ${employee.last_name}`
                             : 'N/A'
                           }
-                        </h3>
-                        <p className="text-sm text-gray-600">{employee.email}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingEmployee(employee)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteEmployeeMutation.mutate(employee.id)}
-                          disabled={deleteEmployeeMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <span className="font-medium">Department:</span>
-                        <div>{employee.department || 'N/A'}</div>
-                      </div>
-                      <div>
-                        <span className="font-medium">Role:</span>
-                        <div>
+                        </TableCell>
+                        <TableCell>{employee.email}</TableCell>
+                        <TableCell>{employee.department || 'N/A'}</TableCell>
+                        <TableCell>
                           <Badge className={getRoleBadgeColor(employee.role)}>
                             {employee.role}
                           </Badge>
-                        </div>
-                      </div>
-                      <div>
-                        <span className="font-medium">Status:</span>
-                        <div>
+                        </TableCell>
+                        <TableCell>
                           <Badge variant={employee.is_active ? "default" : "secondary"}>
                             {employee.is_active ? 'Active' : 'Inactive'}
                           </Badge>
-                        </div>
-                      </div>
-                      <div>
-                        <span className="font-medium">Hire Date:</span>
-                        <div>
+                        </TableCell>
+                        <TableCell>
                           {employee.hire_date 
                             ? new Date(employee.hire_date).toLocaleDateString()
                             : 'N/A'
                           }
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingEmployee(employee)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteEmployeeMutation.mutate(employee.id)}
+                              disabled={deleteEmployeeMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
 
           <AddEmployeeDialog 
             open={showAddDialog} 
@@ -301,119 +374,7 @@ const EmployeeList = () => {
           )}
         </div>
       </div>
-    );
-  }
-
-  // Desktop view with table
-  return (
-    <div className="w-full">
-      <div className="w-full p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Employee Management</h2>
-            <p className="text-sm text-gray-600 mt-1">Manage employee records, roles, and information.</p>
-          </div>
-          <Button onClick={() => setShowAddDialog(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Add Employee
-          </Button>
-        </div>
-
-        <Card className="w-full">
-          <CardHeader className="pb-4">
-            <CardTitle>Employees ({filteredEmployees.length})</CardTitle>
-            <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search employees..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[120px]">Name</TableHead>
-                    <TableHead className="min-w-[200px]">Email</TableHead>
-                    <TableHead className="min-w-[100px]">Department</TableHead>
-                    <TableHead className="min-w-[80px]">Role</TableHead>
-                    <TableHead className="min-w-[80px]">Status</TableHead>
-                    <TableHead className="min-w-[100px]">Hire Date</TableHead>
-                    <TableHead className="min-w-[100px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEmployees.map((employee) => (
-                    <TableRow key={employee.id}>
-                      <TableCell className="font-medium">
-                        {employee.first_name && employee.last_name 
-                          ? `${employee.first_name} ${employee.last_name}`
-                          : 'N/A'
-                        }
-                      </TableCell>
-                      <TableCell>{employee.email}</TableCell>
-                      <TableCell>{employee.department || 'N/A'}</TableCell>
-                      <TableCell>
-                        <Badge className={getRoleBadgeColor(employee.role)}>
-                          {employee.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={employee.is_active ? "default" : "secondary"}>
-                          {employee.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {employee.hire_date 
-                          ? new Date(employee.hire_date).toLocaleDateString()
-                          : 'N/A'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditingEmployee(employee)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteEmployeeMutation.mutate(employee.id)}
-                            disabled={deleteEmployeeMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <AddEmployeeDialog 
-          open={showAddDialog} 
-          onOpenChange={setShowAddDialog} 
-        />
-        
-        {editingEmployee && (
-          <EditEmployeeDialog 
-            employee={editingEmployee}
-            open={!!editingEmployee}
-            onOpenChange={() => setEditingEmployee(null)}
-          />
-        )}
-      </div>
-    </div>
+    </ErrorBoundary>
   );
 };
 
