@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Navigation, Camera, Plus } from 'lucide-react';
@@ -37,10 +38,10 @@ const DriverDashboard = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
 
   // Fetch daily route assignments for this driver
   const { data: assignments = [], isLoading: assignmentsLoading } = useQuery({
@@ -85,12 +86,6 @@ const DriverDashboard = () => {
   }
   // All assigned deliveries (flattened)
   const allDeliveries: Delivery[] = deliveries;
-
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
-
-  useEffect(() => {
-    // No need to fetch deliveries here; handled by react-query
-  }, [profile?.id]);
 
   const handleStatusUpdate = async (deliveryId: string, newStatus: 'pending' | 'in_progress' | 'completed' | 'cancelled') => {
     if (newStatus === 'completed') {
@@ -152,7 +147,8 @@ const DriverDashboard = () => {
     });
   };
 
-  if (loading) {
+  // Check if still loading
+  if (assignmentsLoading || deliveriesLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>

@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouteCalculations } from '@/hooks/useRouteCalculations';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface DateGroup {
   date: string;
@@ -40,6 +41,7 @@ const DateGroupSection: React.FC<DateGroupSectionProps> = ({
   const { profile } = useAuth();
   const { generateOptimizedMapsUrl } = useRouteCalculations();
   const [isExpanded, setIsExpanded] = useState(true);
+  const isMobile = useIsMobile();
 
   // Fetch all deliveries for this date to create optimized maps link
   const { data: allDeliveries = [] } = useQuery({
@@ -92,7 +94,7 @@ const DateGroupSection: React.FC<DateGroupSectionProps> = ({
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
         <CollapsibleTrigger asChild>
           <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
-            <div className="flex items-center justify-between">
+            <div className={`flex ${isMobile ? 'flex-col' : 'items-center justify-between'} gap-3`}>
               <div className="flex items-center gap-3">
                 <Calendar className="h-5 w-5 text-blue-600" />
                 <div>
@@ -118,40 +120,38 @@ const DateGroupSection: React.FC<DateGroupSectionProps> = ({
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  {dateGroup.assignments.length > 0 && (
-                    <>
+              <div className={`flex ${isMobile ? 'flex-col w-full gap-2' : 'items-center gap-2'}`}>
+                {dateGroup.assignments.length > 0 && (
+                  <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center gap-1'}`}>
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openInGoogleMaps();
+                      }}
+                      className={`bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 flex items-center gap-2 ${isMobile ? 'w-full' : ''}`}
+                    >
+                      <Navigation className="h-4 w-4" />
+                      Open in Maps
+                    </Button>
+                    
+                    {profile?.role === 'admin' && (
                       <Button
                         onClick={(e) => {
                           e.stopPropagation();
-                          openInGoogleMaps();
+                          onOptimizeDate(dateGroup.date);
                         }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 flex items-center gap-2"
+                        disabled={isOptimizing}
+                        className={`bg-orange-600 hover:bg-orange-700 text-white font-medium px-4 py-2 flex items-center gap-2 ${isMobile ? 'w-full' : ''}`}
                       >
-                        <Navigation className="h-4 w-4" />
-                        Open in Maps
+                        <Zap className={`h-4 w-4 ${isOptimizing ? 'animate-spin' : ''}`} />
+                        Optimize Route
                       </Button>
-                      
-                      {profile?.role === 'admin' && (
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOptimizeDate(dateGroup.date);
-                          }}
-                          disabled={isOptimizing}
-                          className="bg-orange-600 hover:bg-orange-700 text-white font-medium px-4 py-2 flex items-center gap-2"
-                        >
-                          <Zap className={`h-4 w-4 ${isOptimizing ? 'animate-spin' : ''}`} />
-                          Optimize Route
-                        </Button>
-                      )}
-                    </>
-                  )}
-                  
-                  <div className="flex items-center justify-center w-10 h-8">
-                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    )}
                   </div>
+                )}
+                
+                <div className={`flex items-center justify-center ${isMobile ? 'w-full mt-2' : 'w-10 h-8'}`}>
+                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </div>
               </div>
             </div>
