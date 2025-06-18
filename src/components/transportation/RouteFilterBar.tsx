@@ -48,15 +48,15 @@ const RouteFilterBar: React.FC<RouteFilterBarProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Quick Filters */}
-      <div className="flex flex-wrap gap-2">
+      {/* Quick Filters - Stack vertically on mobile */}
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2">
         {quickFilters.map((filter) => (
           <Button
             key={filter.id}
             variant={quickFilter === filter.id ? 'default' : 'outline'}
             size="sm"
             onClick={() => onQuickFilterChange(filter.id)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 w-full sm:w-auto"
           >
             {filter.label}
           </Button>
@@ -65,7 +65,7 @@ const RouteFilterBar: React.FC<RouteFilterBarProps> = ({
           variant="outline"
           size="sm"
           onClick={handleQuickToday}
-          className="text-blue-600 hover:text-blue-700"
+          className="text-blue-600 hover:text-blue-700 w-full sm:w-auto"
         >
           Jump to Today
         </Button>
@@ -104,7 +104,7 @@ const RouteFilterBar: React.FC<RouteFilterBarProps> = ({
                 <Button
                   variant="outline"
                   className={cn(
-                    "justify-start text-left font-normal",
+                    "justify-start text-left font-normal w-full sm:w-auto",
                     !dateRange && "text-muted-foreground"
                   )}
                 >
@@ -147,14 +147,16 @@ const RouteFilterBar: React.FC<RouteFilterBarProps> = ({
       </div>
 
       {/* Results Summary */}
-      <div className="flex items-center gap-4 text-sm text-gray-600">
-        <Badge variant="outline" className="flex items-center gap-1">
-          <Filter className="h-3 w-3" />
-          {totalGroups} dates
-        </Badge>
-        <Badge variant="outline">
-          {totalAssignments} assignments
-        </Badge>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="outline" className="flex items-center gap-1">
+            <Filter className="h-3 w-3" />
+            {totalGroups} dates
+          </Badge>
+          <Badge variant="outline">
+            {totalAssignments} assignments
+          </Badge>
+        </div>
         {searchQuery && (
           <Badge variant="secondary">
             Filtered by: "{searchQuery}"
