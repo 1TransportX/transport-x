@@ -2,9 +2,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { MapPin, Loader2 } from 'lucide-react';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
-import { cn } from '@/lib/utils';
+import { useSecurity } from '@/contexts/SecurityContext';
 
 interface SecureLocationSearchInputProps {
   value: string;
@@ -19,48 +21,37 @@ const SecureLocationSearchInput: React.FC<SecureLocationSearchInputProps> = ({
   value,
   onChange,
   placeholder = "Search for an address...",
-  label = "Address",
+  label,
   required = false,
-  className
+  className = ""
 }) => {
   const [inputValue, setInputValue] = useState(value);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
-  const suggestionRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const suggestionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   
   const { suggestions, isLoading, error, searchLocations, getPlaceDetails, clearSuggestions } = useLocationSearch();
+  const { logSecurityEvent } = useSecurity();
 
-  // Update input when prop value changes
+  // Update input value when prop changes
   useEffect(() => {
     setInputValue(value);
   }, [value]);
 
-  // Debounced search effect - simplified and fixed
+  // Debounced search
   useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      const trimmedInput = inputValue.trim();
-      console.log('Searching for:', trimmedInput);
-      
-      if (trimmedInput && trimmedInput.length >= 3) {
-        searchLocations(trimmedInput);
+    const timeoutId = setTimeout(() => {
+      if (inputValue && inputValue.length >= 3) {
+        searchLocations(inputValue);
         setShowSuggestions(true);
-      } else if (trimmedInput.length < 3) {
+      } else {
         clearSuggestions();
         setShowSuggestions(false);
       }
     }, 300);
 
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
+    return () => clearTimeout(timeoutId);
   }, [inputValue, searchLocations, clearSuggestions]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,24 +59,32 @@ const SecureLocationSearchInput: React.FC<SecureLocationSearchInputProps> = ({
     setInputValue(newValue);
     setSelectedIndex(-1);
     
-    // If user clears the input, also clear the parent value
-    if (!newValue) {
-      onChange('');
-      clearSuggestions();
-      setShowSuggestions(false);
+    if (newValue !== value) {
+      onChange(newValue);
     }
   };
 
   const handleSuggestionClick = async (suggestion: any) => {
-    console.log('Selected suggestion:', suggestion);
-    setShowSuggestions(false);
-    setInputValue(suggestion.description);
-    
-    // Get detailed address information
-    const detailedAddress = await getPlaceDetails(suggestion.place_id);
-    onChange(detailedAddress || suggestion.description);
-    
-    clearSuggestions();
+    try {
+      logSecurityEvent('location_selected', 'info', { placeId: suggestion.place_id });
+      
+      // Get detailed address
+      const detailedAddress = await getPlaceDetails(suggestion.place_id);
+      const finalAddress = detailedAddress || suggestion.description;
+      
+      setInputValue(finalAddress);
+      onChange(finalAddress);
+      setShowSuggestions(false);
+      clearSuggestions();
+      setSelectedIndex(-1);
+    } catch (error) {
+      console.error('Error selecting suggestion:', error);
+      // Fallback to description
+      setInputValue(suggestion.description);
+      onChange(suggestion.description);
+      setShowSuggestions(false);
+      clearSuggestions();
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -95,12 +94,14 @@ const SecureLocationSearchInput: React.FC<SecureLocationSearchInputProps> = ({
       case 'ArrowDown':
         e.preventDefault();
         setSelectedIndex(prev => 
-          prev < suggestions.length - 1 ? prev + 1 : prev
+          prev < suggestions.length - 1 ? prev + 1 : 0
         );
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
+        setSelectedIndex(prev => 
+          prev > 0 ? prev - 1 : suggestions.length - 1
+        );
         break;
       case 'Enter':
         e.preventDefault();
@@ -111,71 +112,97 @@ const SecureLocationSearchInput: React.FC<SecureLocationSearchInputProps> = ({
       case 'Escape':
         setShowSuggestions(false);
         setSelectedIndex(-1);
+        inputRef.current?.blur();
         break;
     }
   };
 
-  const handleBlur = () => {
-    // Delay hiding suggestions to allow clicks
+  const handleInputBlur = () => {
+    // Delay hiding suggestions to allow clicking
     setTimeout(() => {
       setShowSuggestions(false);
       setSelectedIndex(-1);
     }, 200);
   };
 
-  const handleFocus = () => {
-    if (suggestions.length > 0 && inputValue.trim().length >= 3) {
+  const handleInputFocus = () => {
+    if (suggestions.length > 0) {
       setShowSuggestions(true);
     }
   };
 
   return (
-    <div className={cn("relative", className)}>
-      <Label htmlFor="secure-location-search">{label}</Label>
+    <div className={`relative ${className}`}>
+      {label && (
+        <Label htmlFor="location-search" className="block text-sm font-medium mb-2">
+          {label}
+          {required && <span className="text-red-500 ml-1">*</span>}
+        </Label>
+      )}
+      
       <div className="relative">
-        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-        {isLoading && (
-          <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 animate-spin" />
-        )}
         <Input
           ref={inputRef}
-          id="secure-location-search"
+          id="location-search"
           type="text"
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          onBlur={handleBlur}
-          onFocus={handleFocus}
+          onBlur={handleInputBlur}
+          onFocus={handleInputFocus}
           placeholder={placeholder}
           required={required}
-          className="pl-10 pr-10"
+          className="pr-10"
           autoComplete="off"
         />
+        
+        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+          ) : (
+            <MapPin className="h-4 w-4 text-gray-400" />
+          )}
+        </div>
       </div>
-      
+
+      {/* Error message */}
       {error && (
-        <p className="text-xs text-red-500 mt-1">{error}</p>
+        <p className="mt-1 text-sm text-red-600">{error}</p>
       )}
 
+      {/* Suggestions dropdown */}
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
-          {suggestions.map((suggestion, index) => (
-            <div
-              key={suggestion.place_id}
-              ref={el => suggestionRefs.current[index] = el}
-              className={cn(
-                "px-4 py-2 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0",
-                selectedIndex === index && "bg-blue-50"
-              )}
-              onClick={() => handleSuggestionClick(suggestion)}
-            >
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                <span className="text-sm truncate">{suggestion.description}</span>
-              </div>
+        <Card className="absolute z-50 w-full mt-1 shadow-lg border">
+          <CardContent className="p-0">
+            <div className="max-h-60 overflow-y-auto">
+              {suggestions.map((suggestion, index) => (
+                <Button
+                  key={suggestion.place_id}
+                  ref={el => suggestionRefs.current[index] = el}
+                  variant="ghost"
+                  className={`w-full justify-start p-3 h-auto text-left rounded-none border-b last:border-b-0 ${
+                    index === selectedIndex ? 'bg-gray-100' : ''
+                  }`}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                >
+                  <MapPin className="h-4 w-4 mr-2 flex-shrink-0 text-gray-400" />
+                  <span className="break-words">{suggestion.description}</span>
+                </Button>
+              ))}
             </div>
-          ))}
-        </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* No results message */}
+      {showSuggestions && !isLoading && suggestions.length === 0 && inputValue.length >= 3 && (
+        <Card className="absolute z-50 w-full mt-1 shadow-lg border">
+          <CardContent className="p-3">
+            <p className="text-sm text-gray-500 text-center">
+              No locations found. Try a different search term.
+            </p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -39,7 +39,7 @@ export const useLocationSearch = (): LocationSearchHook => {
           action: 'autocomplete',
           params: {
             input: input.trim(),
-            types: ['establishment', 'geocode'], // More permissive types
+            types: ['address'],
             componentRestrictions: { country: 'in' },
             language: 'en'
           }
@@ -50,7 +50,7 @@ export const useLocationSearch = (): LocationSearchHook => {
 
       if (functionError) {
         console.error('Function error:', functionError);
-        throw functionError;
+        throw new Error('Failed to connect to location service');
       }
 
       if (data?.status === 'OK' && data?.predictions) {
@@ -66,11 +66,11 @@ export const useLocationSearch = (): LocationSearchHook => {
       } else {
         console.error('Unexpected API response:', data);
         setSuggestions([]);
-        setError('Failed to fetch location suggestions');
+        setError('No locations found. Please try a different search term.');
       }
     } catch (err) {
       console.error('Location search error:', err);
-      setError('Unable to search locations. Please try again.');
+      setError('Unable to search locations. Please check your connection and try again.');
       setSuggestions([]);
     } finally {
       setIsLoading(false);
@@ -84,7 +84,10 @@ export const useLocationSearch = (): LocationSearchHook => {
       const { data, error: functionError } = await supabase.functions.invoke('google-maps-proxy', {
         body: {
           action: 'place-details',
-          params: { placeId }
+          params: { 
+            placeId,
+            fields: 'formatted_address,geometry'
+          }
         }
       });
 
