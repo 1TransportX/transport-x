@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +12,7 @@ import { ResponsiveHeader } from '@/components/ui/responsive-header';
 import AddEmployeeDialog from './AddEmployeeDialog';
 import EditEmployeeDialog from './EditEmployeeDialog';
 import { Employee } from '@/types/employee';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const EmployeeList = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,6 +20,7 @@ const EmployeeList = () => {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   // Set up real-time subscription for user_roles changes
   useEffect(() => {
@@ -36,7 +37,6 @@ const EmployeeList = () => {
         },
         (payload) => {
           console.log('User role changed:', payload);
-          // Invalidate and refetch employees when any role changes
           queryClient.invalidateQueries({ queryKey: ['employees'] });
         }
       )
@@ -53,7 +53,6 @@ const EmployeeList = () => {
     queryFn: async (): Promise<Employee[]> => {
       console.log('Fetching employees with latest roles...');
       
-      // First get all profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -66,7 +65,6 @@ const EmployeeList = () => {
 
       console.log('Fetched profiles:', profilesData);
 
-      // Then get all user roles
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role');
@@ -78,7 +76,6 @@ const EmployeeList = () => {
 
       console.log('Fetched roles:', rolesData);
 
-      // Combine the data
       const employeesWithRoles: Employee[] = profilesData.map(profile => {
         const userRole = rolesData.find(role => role.user_id === profile.id);
         const role = userRole?.role || 'driver';
@@ -109,7 +106,6 @@ const EmployeeList = () => {
     mutationFn: async (employeeId: string) => {
       console.log('=== Starting employee deletion for ID:', employeeId);
       
-      // First, delete from user_roles table
       const { error: roleError } = await supabase
         .from('user_roles')
         .delete()
@@ -122,7 +118,6 @@ const EmployeeList = () => {
       
       console.log('=== Deleted user roles successfully');
       
-      // Then delete from profiles table
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -135,12 +130,10 @@ const EmployeeList = () => {
       
       console.log('=== Deleted profile successfully');
       
-      // Finally, delete the auth user (this will cascade to other related tables)
       const { error: authError } = await supabase.auth.admin.deleteUser(employeeId);
       
       if (authError) {
         console.error('Error deleting auth user:', authError);
-        // Don't throw here as the profile is already deleted
         console.log('=== Auth user deletion failed but continuing...');
       } else {
         console.log('=== Deleted auth user successfully');
@@ -197,15 +190,130 @@ const EmployeeList = () => {
     );
   }
 
+  // Mobile view with cards
+  if (isMobile) {
+    return (
+      <div className="w-full">
+        <div className="w-full p-3 space-y-4">
+          <div className="flex flex-col gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Employee Management</h2>
+              <p className="text-sm text-gray-600 mt-1">Manage employee records, roles, and information.</p>
+            </div>
+            <Button onClick={() => setShowAddDialog(true)} className="flex items-center gap-2 w-full">
+              <Plus className="h-4 w-4" />
+              Add Employee
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search employees..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          <div className="space-y-3">
+            {filteredEmployees.map((employee) => (
+              <Card key={employee.id}>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-medium">
+                          {employee.first_name && employee.last_name 
+                            ? `${employee.first_name} ${employee.last_name}`
+                            : 'N/A'
+                          }
+                        </h3>
+                        <p className="text-sm text-gray-600">{employee.email}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingEmployee(employee)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteEmployeeMutation.mutate(employee.id)}
+                          disabled={deleteEmployeeMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="font-medium">Department:</span>
+                        <div>{employee.department || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <span className="font-medium">Role:</span>
+                        <div>
+                          <Badge className={getRoleBadgeColor(employee.role)}>
+                            {employee.role}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="font-medium">Status:</span>
+                        <div>
+                          <Badge variant={employee.is_active ? "default" : "secondary"}>
+                            {employee.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="font-medium">Hire Date:</span>
+                        <div>
+                          {employee.hire_date 
+                            ? new Date(employee.hire_date).toLocaleDateString()
+                            : 'N/A'
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <AddEmployeeDialog 
+            open={showAddDialog} 
+            onOpenChange={setShowAddDialog} 
+          />
+          
+          {editingEmployee && (
+            <EditEmployeeDialog 
+              employee={editingEmployee}
+              open={!!editingEmployee}
+              onOpenChange={() => setEditingEmployee(null)}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop view with table
   return (
     <div className="w-full">
-      <div className="w-full p-3 sm:p-6 space-y-6">
+      <div className="w-full p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Employee Management</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Employee Management</h2>
             <p className="text-sm text-gray-600 mt-1">Manage employee records, roles, and information.</p>
           </div>
-          <Button onClick={() => setShowAddDialog(true)} className="flex items-center gap-2 w-full sm:w-auto">
+          <Button onClick={() => setShowAddDialog(true)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Add Employee
           </Button>
