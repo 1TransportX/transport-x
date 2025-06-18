@@ -7,6 +7,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 interface ErrorBoundaryState {
   hasError: boolean;
   error?: Error;
+  errorInfo?: React.ErrorInfo;
 }
 
 interface ErrorBoundaryProps {
@@ -21,11 +22,24 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    console.error('ErrorBoundary - getDerivedStateFromError:', error);
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error('ErrorBoundary caught an error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
+      viewport: typeof window !== 'undefined' ? {
+        width: window.innerWidth,
+        height: window.innerHeight
+      } : 'Unknown'
+    });
+    
+    this.setState({ errorInfo });
   }
 
   render() {
@@ -45,6 +59,15 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               <p className="text-sm text-muted-foreground">
                 We encountered an error while loading this page.
               </p>
+              {this.state.error && (
+                <details className="text-left text-xs bg-gray-100 p-2 rounded">
+                  <summary className="cursor-pointer font-medium mb-2">Error Details</summary>
+                  <div className="space-y-2">
+                    <div><strong>Message:</strong> {this.state.error.message}</div>
+                    <div><strong>Stack:</strong> <pre className="whitespace-pre-wrap">{this.state.error.stack}</pre></div>
+                  </div>
+                </details>
+              )}
               <Button 
                 onClick={() => window.location.reload()} 
                 className="w-full"
