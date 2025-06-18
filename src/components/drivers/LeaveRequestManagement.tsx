@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -137,15 +136,15 @@ const LeaveRequestManagement = () => {
         </CardHeader>
         <CardContent>
           <Tabs value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as any)}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="all">All ({leaveRequests.length})</TabsTrigger>
-              <TabsTrigger value="pending">
+            <TabsList className="grid grid-cols-2 sm:grid-cols-2 w-full gap-1 h-auto p-1">
+              <TabsTrigger value="all" className="text-sm">All ({leaveRequests.length})</TabsTrigger>
+              <TabsTrigger value="pending" className="text-sm">
                 Pending ({leaveRequests.filter(r => r.status === 'pending').length})
               </TabsTrigger>
-              <TabsTrigger value="approved">
+              <TabsTrigger value="approved" className="text-sm">
                 Approved ({leaveRequests.filter(r => r.status === 'approved').length})
               </TabsTrigger>
-              <TabsTrigger value="rejected">
+              <TabsTrigger value="rejected" className="text-sm">
                 Rejected ({leaveRequests.filter(r => r.status === 'rejected').length})
               </TabsTrigger>
             </TabsList>
@@ -166,57 +165,60 @@ const LeaveRequestManagement = () => {
                   {filteredRequests.map((request) => (
                     <Card key={request.id} className="border-l-4 border-l-blue-500">
                       <CardContent className="p-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <User className="h-4 w-4 text-gray-500" />
+                        <div className="space-y-4">
+                          <div className="flex flex-col space-y-3">
+                            <div className="flex items-center space-x-3">
+                              <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
                               <span className="font-medium text-gray-900">
                                 {request.profiles.first_name} {request.profiles.last_name}
                               </span>
-                              <span className="text-sm text-gray-500">({request.profiles.email})</span>
+                            </div>
+                            
+                            <div className="flex flex-col space-y-2">
+                              <span className="text-sm text-gray-500">{request.profiles.email}</span>
                               {getStatusBadge(request.status)}
-                            </div>
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                              <div>
-                                <span className="font-medium text-gray-700">Leave Type:</span>
-                                <p className="text-gray-600">{request.leave_type}</p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-700">Duration:</span>
-                                <p className="text-gray-600">
-                                  {calculateDays(request.start_date, request.end_date)} day(s)
-                                </p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-700">Start Date:</span>
-                                <p className="text-gray-600">{format(new Date(request.start_date), 'MMM dd, yyyy')}</p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-700">End Date:</span>
-                                <p className="text-gray-600">{format(new Date(request.end_date), 'MMM dd, yyyy')}</p>
-                              </div>
-                            </div>
-                            
-                            {request.reason && (
-                              <div className="mt-3">
-                                <span className="font-medium text-gray-700">Reason:</span>
-                                <p className="text-gray-600 mt-1">{request.reason}</p>
-                              </div>
-                            )}
-                            
-                            <div className="mt-3 text-xs text-gray-500">
-                              Submitted: {format(new Date(request.created_at), 'MMM dd, yyyy HH:mm')}
                             </div>
                           </div>
                           
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-700">Leave Type:</span>
+                              <p className="text-gray-600">{request.leave_type}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">Duration:</span>
+                              <p className="text-gray-600">
+                                {calculateDays(request.start_date, request.end_date)} day(s)
+                              </p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">Start Date:</span>
+                              <p className="text-gray-600">{format(new Date(request.start_date), 'MMM dd, yyyy')}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">End Date:</span>
+                              <p className="text-gray-600">{format(new Date(request.end_date), 'MMM dd, yyyy')}</p>
+                            </div>
+                          </div>
+                          
+                          {request.reason && (
+                            <div>
+                              <span className="font-medium text-gray-700">Reason:</span>
+                              <p className="text-gray-600 mt-1">{request.reason}</p>
+                            </div>
+                          )}
+                          
+                          <div className="text-xs text-gray-500">
+                            Submitted: {format(new Date(request.created_at), 'MMM dd, yyyy HH:mm')}
+                          </div>
+                          
                           {request.status === 'pending' && (
-                            <div className="flex space-x-2">
+                            <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
                               <Button
                                 size="sm"
                                 onClick={() => handleApprove(request.id)}
                                 disabled={updateStatusMutation.isPending}
-                                className="bg-green-600 hover:bg-green-700"
+                                className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
                               >
                                 <Check className="h-4 w-4 mr-1" />
                                 Approve
@@ -226,6 +228,7 @@ const LeaveRequestManagement = () => {
                                 variant="destructive"
                                 onClick={() => handleReject(request.id)}
                                 disabled={updateStatusMutation.isPending}
+                                className="w-full sm:w-auto"
                               >
                                 <X className="h-4 w-4 mr-1" />
                                 Reject
