@@ -22,96 +22,129 @@ const EmployeeList = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  console.log('EmployeeList component mounting...');
+
   // Set up real-time subscription for user_roles changes
   useEffect(() => {
-    const channel = supabase
-      .channel('user-roles-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_roles'
-        },
-        (payload) => {
-          console.log('User role changed:', payload);
-          queryClient.invalidateQueries({ queryKey: ['employees'] });
-        }
-      )
-      .subscribe();
+    console.log('Setting up real-time subscription...');
+    try {
+      const channel = supabase
+        .channel('user-roles-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'user_roles'
+          },
+          (payload) => {
+            console.log('User role changed:', payload);
+            queryClient.invalidateQueries({ queryKey: ['employees'] });
+          }
+        )
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+      return () => {
+        console.log('Cleaning up real-time subscription...');
+        supabase.removeChannel(channel);
+      };
+    } catch (error) {
+      console.error('Error setting up real-time subscription:', error);
+    }
   }, [queryClient]);
 
   const { data: employees = [], isLoading, error } = useQuery({
     queryKey: ['employees'],
     queryFn: async (): Promise<Employee[]> => {
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      console.log('Starting employee data fetch...');
+      try {
+        console.log('Fetching profiles data...');
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (profilesError) {
-        throw profilesError;
+        if (profilesError) {
+          console.error('Profiles fetch error:', profilesError);
+          throw profilesError;
+        }
+
+        console.log('Profiles data fetched successfully:', profilesData?.length, 'profiles');
+
+        console.log('Fetching roles data...');
+        const { data: rolesData, error: rolesError } = await supabase
+          .from('user_roles')
+          .select('user_id, role');
+
+        if (rolesError) {
+          console.error('Roles fetch error:', rolesError);
+          throw rolesError;
+        }
+
+        console.log('Roles data fetched successfully:', rolesData?.length, 'roles');
+
+        const employeesWithRoles: Employee[] = profilesData.map(profile => {
+          const userRole = rolesData.find(role => role.user_id === profile.id);
+          const role = userRole?.role || 'driver';
+          
+          return {
+            id: profile.id,
+            email: profile.email,
+            first_name: profile.first_name,
+            last_name: profile.last_name,
+            phone: profile.phone,
+            department: profile.department,
+            hire_date: profile.hire_date,
+            is_active: profile.is_active,
+            role: role as 'admin' | 'driver',
+            created_at: profile.created_at,
+            updated_at: profile.updated_at
+          };
+        });
+
+        console.log('Employee data processed successfully:', employeesWithRoles.length, 'employees');
+        return employeesWithRoles;
+      } catch (error) {
+        console.error('Employee query failed:', error);
+        throw error;
       }
-
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-
-      if (rolesError) {
-        throw rolesError;
-      }
-
-      const employeesWithRoles: Employee[] = profilesData.map(profile => {
-        const userRole = rolesData.find(role => role.user_id === profile.id);
-        const role = userRole?.role || 'driver';
-        
-        return {
-          id: profile.id,
-          email: profile.email,
-          first_name: profile.first_name,
-          last_name: profile.last_name,
-          phone: profile.phone,
-          department: profile.department,
-          hire_date: profile.hire_date,
-          is_active: profile.is_active,
-          role: role as 'admin' | 'driver',
-          created_at: profile.created_at,
-          updated_at: profile.updated_at
-        };
-      });
-
-      return employeesWithRoles;
     }
   });
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (employeeId: string) => {
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', employeeId);
-      
-      if (roleError) {
-        throw roleError;
-      }
-      
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', employeeId);
-      
-      if (profileError) {
-        throw profileError;
-      }
-      
-      const { error: authError } = await supabase.auth.admin.deleteUser(employeeId);
-      
-      if (authError) {
-        console.log('Auth user deletion failed but continuing...');
+      console.log('Starting employee deletion for ID:', employeeId);
+      try {
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', employeeId);
+        
+        if (roleError) {
+          console.error('Role deletion error:', roleError);
+          throw roleError;
+        }
+        
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', employeeId);
+        
+        if (profileError) {
+          console.error('Profile deletion error:', profileError);
+          throw profileError;
+        }
+        
+        const { error: authError } = await supabase.auth.admin.deleteUser(employeeId);
+        
+        if (authError) {
+          console.log('Auth user deletion failed but continuing...', authError);
+        }
+
+        console.log('Employee deletion completed successfully');
+      } catch (error) {
+        console.error('Employee deletion failed:', error);
+        throw error;
       }
     },
     onSuccess: () => {
@@ -146,19 +179,36 @@ const EmployeeList = () => {
     }
   };
 
+  console.log('EmployeeList render state:', { 
+    isLoading, 
+    hasError: !!error, 
+    employeeCount: employees.length,
+    filteredCount: filteredEmployees.length 
+  });
+
   if (error) {
+    console.error('EmployeeList error state:', error);
     return (
       <div className="w-full p-6">
         <div className="text-red-600">
           Error loading employees: {error.message}
+          <details className="mt-2">
+            <summary className="cursor-pointer">Error Details</summary>
+            <pre className="text-xs bg-gray-100 p-2 rounded mt-1">
+              {JSON.stringify(error, null, 2)}
+            </pre>
+          </details>
         </div>
       </div>
     );
   }
 
   if (isLoading) {
+    console.log('EmployeeList showing loading state');
     return <LoadingFallback />;
   }
+
+  console.log('EmployeeList rendering main content');
 
   return (
     <ErrorBoundary>
