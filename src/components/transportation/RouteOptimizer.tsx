@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -245,11 +246,11 @@ const RouteOptimizer = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
             <Button
               onClick={handleOptimizeRoute}
               disabled={selectedDeliveries.size === 0 || isOptimizing}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full sm:w-auto"
             >
               <Zap className="h-4 w-4" />
               {isOptimizing ? 'Optimizing...' : 'Optimize Route'}
@@ -260,7 +261,7 @@ const RouteOptimizer = () => {
                 <Button
                   variant="outline"
                   onClick={openInGoogleMaps}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 w-full sm:w-auto"
                 >
                   <Navigation className="h-4 w-4" />
                   Open in Maps
@@ -268,7 +269,7 @@ const RouteOptimizer = () => {
                 
                 <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="flex items-center gap-2">
+                    <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
                       <Save className="h-4 w-4" />
                       Save Route
                     </Button>
