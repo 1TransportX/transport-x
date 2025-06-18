@@ -21,7 +21,7 @@ interface Delivery {
   customer_name: string;
   customer_address: string;
   scheduled_date: string;
-  status: string;
+  notes: string | null;
   latitude?: number;
   longitude?: number;
 }
@@ -83,7 +83,7 @@ const RouteOptimizer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('deliveries')
-        .select('*')
+        .select('id, delivery_number, customer_name, customer_address, scheduled_date, notes, latitude, longitude')
         .in('status', ['pending', 'in_progress'])
         .order('scheduled_date', { ascending: true });
 
@@ -362,7 +362,7 @@ const RouteOptimizer = () => {
                 <TableHead>Customer</TableHead>
                 <TableHead>Address</TableHead>
                 <TableHead>Scheduled Date</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Notes</TableHead>
                 {optimizedRoute && <TableHead>Route Order</TableHead>}
               </TableRow>
             </TableHeader>
@@ -386,10 +386,8 @@ const RouteOptimizer = () => {
                     <TableCell>{delivery.customer_name}</TableCell>
                     <TableCell className="max-w-xs truncate">{delivery.customer_address}</TableCell>
                     <TableCell>{new Date(delivery.scheduled_date).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <Badge variant={delivery.status === 'pending' ? 'secondary' : 'default'}>
-                        {delivery.status.toUpperCase()}
-                      </Badge>
+                    <TableCell className="max-w-xs truncate">
+                      {delivery.notes || '-'}
                     </TableCell>
                     {optimizedRoute && (
                       <TableCell>

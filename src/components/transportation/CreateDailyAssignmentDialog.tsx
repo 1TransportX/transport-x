@@ -59,13 +59,39 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
     setSelectedDate(initialDate);
   }, [initialDate]);
 
+  // Generate 6-digit delivery number
+  const generateDeliveryNumber = useCallback(() => {
+    const randomNum = Math.floor(Math.random() * 900000) + 100000; // 6-digit number between 100000-999999
+    return `DEL-${randomNum}`;
+  }, []);
+
+  // Format phone number with space after 5 digits
+  const formatPhoneNumber = useCallback((value: string) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '');
+    
+    // Limit to 10 digits
+    const limitedDigits = digits.slice(0, 10);
+    
+    // Add space after 5 digits if more than 5 digits
+    if (limitedDigits.length > 5) {
+      return `${limitedDigits.slice(0, 5)} ${limitedDigits.slice(5)}`;
+    }
+    
+    return limitedDigits;
+  }, []);
+
   // Stable form change handler that doesn't cause re-renders
   const handleNewDeliveryChange = useCallback((field: string, value: string) => {
+    if (field === 'customer_phone') {
+      value = formatPhoneNumber(value);
+    }
+    
     deliveryFormRef.current = {
       ...deliveryFormRef.current,
       [field]: value
     };
-  }, []);
+  }, [formatPhoneNumber]);
 
   const handleCreateDelivery = useCallback(async () => {
     const formData = deliveryFormRef.current;
@@ -90,7 +116,10 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
 
     setIsCreatingDelivery(true);
     try {
-      const deliveryNumber = formData.delivery_number || `DEL-${Date.now()}`;
+      const deliveryNumber = formData.delivery_number || generateDeliveryNumber();
+      
+      // Clean phone number for database storage (remove spaces)
+      const cleanedPhone = formData.customer_phone.replace(/\s/g, '');
       
       const { data: delivery, error } = await supabase
         .from('deliveries')
@@ -98,7 +127,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
           delivery_number: deliveryNumber,
           customer_name: formData.customer_name,
           customer_address: formData.customer_address,
-          customer_phone: formData.customer_phone || null,
+          customer_phone: cleanedPhone || null,
           notes: formData.notes || null,
           scheduled_date: selectedDate,
           status: 'pending'
@@ -159,7 +188,7 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
     } finally {
       setIsCreatingDelivery(false);
     }
-  }, [selectedDate, selectedDriver, toast, queryClient, createAssignment, profile?.id, onOpenChange]);
+  }, [selectedDate, selectedDriver, toast, queryClient, createAssignment, profile?.id, onOpenChange, generateDeliveryNumber]);
 
   // Reset form when dialog closes
   useEffect(() => {
@@ -307,12 +336,13 @@ const CreateRouteDialog: React.FC<CreateRouteDialogProps> = React.memo(({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="customer_phone">Customer Phone</Label>
+                <Label htmlFor="customer_phone">Customer Phone (Max 10 digits)</Label>
                 <Input
                   id="customer_phone"
-                  placeholder="Enter customer phone number"
+                  placeholder="12345 67890"
                   defaultValue={deliveryFormRef.current.customer_phone}
                   onChange={(e) => handleNewDeliveryChange('customer_phone', e.target.value)}
+                  maxLength={11} // 10 digits + 1 space
                 />
               </div>
 
