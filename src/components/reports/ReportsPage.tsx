@@ -16,17 +16,25 @@ const ReportsPage = () => {
   const { data: reports = [] } = useQuery({
     queryKey: ['reports'],
     queryFn: async () => {
-      // Using type assertion temporarily until Supabase types are regenerated
-      const { data, error } = await (supabase as any)
+      const { data: reportsData, error } = await supabase
         .from('reports')
-        .select(`
-          *,
-          profiles(first_name, last_name, email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+
+      // Fetch profiles for report generators
+      const generatorIds = [...new Set((reportsData || []).map(r => r.generated_by).filter(Boolean))];
+      const { data: profilesData } = generatorIds.length > 0
+        ? await supabase.from('profiles').select('id, first_name, last_name, email').in('id', generatorIds)
+        : { data: [] };
+
+      const profilesMap = new Map((profilesData || []).map(p => [p.id, p]));
+
+      return (reportsData || []).map(report => ({
+        ...report,
+        profiles: profilesMap.get(report.generated_by) || null
+      }));
     }
   });
 

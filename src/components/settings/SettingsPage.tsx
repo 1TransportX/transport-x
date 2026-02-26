@@ -36,19 +36,20 @@ const SettingsPage = () => {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['all-users'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          user_roles(role)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (profilesError) throw profilesError;
+
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
       
-      return data.map(profile => ({
+      return (profilesData || []).map(profile => ({
         ...profile,
-        role: (profile.user_roles?.[0]?.role || 'driver') as 'admin' | 'driver'
+        role: ((rolesData || []).find(r => r.user_id === profile.id)?.role || 'driver') as 'admin' | 'driver'
       })) as UserWithRole[];
     }
   });

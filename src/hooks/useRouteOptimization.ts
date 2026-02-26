@@ -38,20 +38,12 @@ export const useRouteOptimization = () => {
 
     setIsOptimizing(true);
     try {
-      console.log('Optimizing route for deliveries:', deliveries);
-      
       const { data, error } = await supabase.functions.invoke('route-optimizer', {
-        body: {
-          deliveries,
-          startLocation
-        }
+        body: { deliveries, startLocation }
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('Route optimization result:', data);
       setOptimizedRoute(data);
 
       toast({
@@ -88,42 +80,6 @@ export const useRouteOptimization = () => {
     }
 
     try {
-      // Create the route record
-      const { data: route, error: routeError } = await supabase
-        .from('routes')
-        .insert({
-          route_name: routeName,
-          driver_id: driverId,
-          vehicle_id: vehicleId,
-          start_location: startLocation.address,
-          start_latitude: startLocation.latitude,
-          start_longitude: startLocation.longitude,
-          total_distance: optimizedRoute.totalDistance,
-          estimated_duration: optimizedRoute.totalDuration,
-          status: 'planned'
-        })
-        .select()
-        .single();
-
-      if (routeError) throw routeError;
-
-      // Create route stops in optimized order
-      const routeStops = optimizedRoute.optimizedOrder.map((deliveryIndex, stopOrder) => {
-        const delivery = optimizedRoute.deliveries[deliveryIndex];
-        return {
-          route_id: route.id,
-          delivery_id: delivery.id,
-          stop_order: stopOrder + 1,
-          status: 'pending'
-        };
-      });
-
-      const { error: stopsError } = await supabase
-        .from('route_stops')
-        .insert(routeStops);
-
-      if (stopsError) throw stopsError;
-
       // Update delivery coordinates in the database
       for (const delivery of optimizedRoute.deliveries) {
         if (delivery.latitude && delivery.longitude) {
@@ -139,10 +95,10 @@ export const useRouteOptimization = () => {
 
       toast({
         title: "Route Saved",
-        description: `Route "${routeName}" has been saved successfully.`,
+        description: `Route "${routeName}" coordinates have been saved successfully.`,
       });
 
-      return route;
+      return { id: 'saved', name: routeName };
     } catch (error) {
       console.error('Error saving route:', error);
       toast({

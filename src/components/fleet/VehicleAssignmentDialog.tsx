@@ -97,19 +97,25 @@ const VehicleAssignmentDialog: React.FC<VehicleAssignmentDialogProps> = ({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vehicle_assignments')
-        .select(`
-          *,
-          profiles:driver_id (
-            first_name,
-            last_name
-          )
-        `)
+        .select('*')
         .eq('vehicle_id', vehicle.id)
         .eq('is_active', true)
         .maybeSingle();
 
       if (error) throw error;
-      return data as CurrentAssignment | null;
+      if (!data) return null;
+
+      // Fetch driver profile separately
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', data.driver_id)
+        .single();
+
+      return {
+        ...data,
+        profiles: profileData || { first_name: '', last_name: '' }
+      } as CurrentAssignment;
     },
     enabled: open
   });

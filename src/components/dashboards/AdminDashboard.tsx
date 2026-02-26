@@ -24,24 +24,25 @@ const AdminDashboard = () => {
     queryKey: ['dashboard-employees'],
     queryFn: async () => {
       console.log('=== Fetching employees for dashboard...');
-      const { data, error } = await supabase
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          user_roles(role)
-        `)
+        .select('*')
         .eq('is_active', true);
       
-      if (error) {
-        console.error('Error fetching employees:', error);
-        throw error;
+      if (profilesError) {
+        console.error('Error fetching employees:', profilesError);
+        throw profilesError;
       }
+
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
       
-      console.log('=== Raw employee data:', data);
+      console.log('=== Raw employee data:', profilesData);
       
-      const processedEmployees = data.map(profile => ({
+      const processedEmployees = (profilesData || []).map(profile => ({
         ...profile,
-        role: profile.user_roles?.[0]?.role || 'driver'
+        role: (rolesData || []).find(r => r.user_id === profile.id)?.role || 'driver'
       }));
       
       console.log('=== Processed employees with roles:', processedEmployees);
