@@ -81,11 +81,11 @@ const DriverDashboard = () => {
   let todaysDeliveries: Delivery[] = [];
   if (todayAssignment && deliveries.length > 0) {
     todaysDeliveries = (todayAssignment.optimized_order || [])
-      .map((idx: number) => deliveries.find(d => d.id === todayAssignment.delivery_ids[idx]))
-      .filter(Boolean) as Delivery[];
+      .map((idx: number) => deliveries.find((d: any) => d.id === todayAssignment.delivery_ids[idx]))
+      .filter(Boolean) as any as Delivery[];
   }
   // All assigned deliveries (flattened)
-  const allDeliveries: Delivery[] = deliveries;
+  const allDeliveries = deliveries as any as Delivery[];
 
   const handleStatusUpdate = async (deliveryId: string, newStatus: 'pending' | 'in_progress' | 'completed' | 'cancelled') => {
     if (newStatus === 'completed') {

@@ -53,24 +53,23 @@ const AssignRouteToDriverDialog: React.FC<AssignRouteToDriverDialogProps> = ({
 
   const fetchDrivers = async () => {
     try {
+      const { data: driverRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'driver');
+      
+      const driverIds = (driverRoles || []).map(r => r.user_id);
+      if (driverIds.length === 0) { setDrivers([]); return; }
+
       const { data, error } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          email,
-          user_roles(role)
-        `)
+        .select('id, first_name, last_name, email')
+        .in('id', driverIds)
         .eq('is_active', true);
 
       if (error) throw error;
 
-      const driverProfiles = data.filter(profile => 
-        profile.user_roles?.role === 'driver'
-      );
-
-      setDrivers(driverProfiles);
+      setDrivers(data || []);
     } catch (error) {
       console.error('Error fetching drivers:', error);
       toast({

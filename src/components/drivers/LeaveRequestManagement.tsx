@@ -37,20 +37,26 @@ const LeaveRequestManagement = () => {
   const { data: leaveRequests = [], isLoading } = useQuery({
     queryKey: ['leave-requests'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: leaveData, error: leaveError } = await supabase
         .from('leave_requests')
-        .select(`
-          *,
-          profiles!user_id (
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data as LeaveRequest[];
+      if (leaveError) throw leaveError;
+
+      // Fetch profiles for leave request users
+      const userIds = [...new Set((leaveData || []).map(l => l.user_id))];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .in('id', userIds);
+
+      const profilesMap = new Map((profilesData || []).map(p => [p.id, p]));
+
+      return (leaveData || []).map(leave => ({
+        ...leave,
+        profiles: profilesMap.get(leave.user_id) || { first_name: '', last_name: '', email: '' }
+      })) as LeaveRequest[];
     }
   });
 
